@@ -36,7 +36,8 @@ static RTLIL::Cell *insert_xor_locking_gate(RTLIL::Module *module, RTLIL::Cell *
 	locked_cell->unsetPort(locked_port);
 	locked_cell->setPort(locked_port, locked_bitwire);
 
-	log("Inserting locking gate at cell %s\n", log_id(locked_cell->name));;
+	log("Inserting locking gate at cell %s\n", log_id(locked_cell->name));
+
 	if (key_value) {
 		return module->addXnor(NEW_ID, locked_bit, key_bit, out_bit);
 	} else {
