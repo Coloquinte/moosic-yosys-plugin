@@ -378,11 +378,13 @@ void PairwiseSecurityAnalyzer::simulate_cell(RTLIL::Cell *cell)
 
 bool PairwiseSecurityAnalyzer::is_pairwise_secure(SigBit a, SigBit b)
 {
+	bool same_impact = true;
 	for (int i = 0; i < nb_test_vectors(); ++i) {
 		auto no_toggle = simulate(i, {});
 		auto toggle_a = simulate(i, {a});
 		auto toggle_b = simulate(i, {b});
 		auto toggle_both = simulate(i, {a, b});
+
 		for (auto it : no_toggle) {
 			SigBit sig = it.first;
 			bool state_none = it.second == State::S1;
@@ -395,9 +397,13 @@ bool PairwiseSecurityAnalyzer::is_pairwise_secure(SigBit a, SigBit b)
 				// Not pairwise secure
 				return false;
 			}
+			if (state_a != state_b) {
+				// The two signals have different impact on the output
+				same_impact = false;
+			}
 		}
 	}
-	return true;
+	return !same_impact;
 }
 
 std::vector<std::pair<Cell *, Cell *>> PairwiseSecurityAnalyzer::compute_pairwise_secure_graph()
@@ -424,6 +430,20 @@ std::vector<std::pair<Cell *, Cell *>> PairwiseSecurityAnalyzer::compute_pairwis
 				log("\t\tPairwise secure %s <-> %s\n", log_id(cells[i]->name), log_id(cells[j]->name));
 			}
 		}
+	}
+	dict<Cell *, int> nb_secure;
+	for (auto p : ret) {
+		if (!nb_secure.count(p.first)) {
+			nb_secure[p.first] = 0;
+		}
+		if (!nb_secure.count(p.second)) {
+			nb_secure[p.second] = 0;
+		}
+		++nb_secure[p.first];
+		++nb_secure[p.second];
+	}
+	for (int i = 0; i < GetSize(cells); ++i) {
+		log("\tCell %s: %d pairwise secure\n", log_id(cells[i]->name), nb_secure[cells[i]]);
 	}
 	return ret;
 }
