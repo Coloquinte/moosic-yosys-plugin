@@ -46,6 +46,41 @@ static RTLIL::Cell *insert_xor_locking_gate(RTLIL::Module *module, RTLIL::Cell *
 }
 
 /**
+ * @brief Insert a mux locking gate at the output port of a cell
+ *
+ * @param module Module to edit
+ * @param locked_cell1 First cell whose output must be locked
+ * @param locked_port1 Output port of the first cell
+ * @param locked_cell2 Second cell whose output must be locked
+ * @param locked_port2 Output port of the second cell
+ * @param key_bitwire Wire of the locking bit
+ * @param key_value Valid value of the key
+ */
+static RTLIL::Cell *insert_mux_locking_gate(RTLIL::Module *module, RTLIL::Cell *locked_cell1, RTLIL::IdString locked_port1, RTLIL::Cell *locked_cell2,
+					    RTLIL::IdString locked_port2, RTLIL::Wire *key_bitwire, bool key_value)
+{
+	log_assert(locked_cell1->output(locked_port1));
+	log_assert(locked_cell1->output(locked_port2));
+	RTLIL::SigBit out_bit(locked_cell1->getPort(locked_port1));
+	RTLIL::SigBit mix_bit(locked_cell2->getPort(locked_port2));
+	RTLIL::SigBit key_bit(key_bitwire);
+
+	// Create a new wire to replace the former output
+	RTLIL::Wire *locked_bitwire = module->addWire(NEW_ID);
+	RTLIL::SigBit locked_bit(locked_bitwire);
+	locked_cell1->unsetPort(locked_port1);
+	locked_cell1->setPort(locked_port1, locked_bitwire);
+
+	log("Inserting mixing gate at cell %s with cell %s\n", log_id(locked_cell1->name), log_id(locked_cell2->name));
+
+	if (key_value) {
+		return module->addMux(NEW_ID, mix_bit, locked_bit, key_bit, out_bit);
+	} else {
+		return module->addMux(NEW_ID, locked_bit, mix_bit, key_bit, out_bit);
+	}
+}
+
+/**
  * @brief Add a new input port to the module to be used as a key
  */
 static RTLIL::Wire *add_key_input(RTLIL::Module *module)
@@ -430,6 +465,49 @@ std::vector<RTLIL::Wire *> lock_gates(RTLIL::Module *module, const std::vector<I
 	return lock_gates(module, cells, key_values);
 }
 
+/**
+ * @brief Mix the gates in the module given a key bit value
+ */
+std::vector<RTLIL::Wire *> mix_gates(RTLIL::Module *module, const std::vector<std::pair<Cell *, Cell *>> &cells, const std::vector<bool> &key_values)
+{
+	if (cells.size() != key_values.size()) {
+		log_error("Number of cells and values for logic locking should be the same");
+	}
+	std::vector<RTLIL::Wire *> key_inputs;
+	for (int i = 0; i < GetSize(cells); ++i) {
+		bool key_value = key_values[i];
+		RTLIL::Wire *key_input = add_key_input(module);
+		key_inputs.push_back(key_input);
+		Cell *c1 = cells[i].first;
+		Cell *c2 = cells[i].second;
+		RTLIL::IdString p1 = get_output_portname(c1);
+		RTLIL::IdString p2 = get_output_portname(c2);
+		insert_mux_locking_gate(module, c1, p1, c2, p2, key_input, key_value);
+	}
+	return key_inputs;
+}
+
+/**
+ * @brief Mix the gates in the module by name and key bit value
+ */
+std::vector<RTLIL::Wire *> mix_gates(RTLIL::Module *module, const std::vector<std::pair<IdString, IdString>> &names,
+				     const std::vector<bool> &key_values)
+{
+	std::vector<std::pair<Cell *, Cell *>> cells;
+	for (int i = 0; i < GetSize(names); ++i) {
+		RTLIL::Cell *c1 = module->cell(names[i].first);
+		RTLIL::Cell *c2 = module->cell(names[i].second);
+		if (c1 && c2) {
+			cells.emplace_back(c1, c2);
+		} else if (!c1) {
+			log_error("Cell %s not found in module", names[i].first.c_str());
+		} else {
+			log_error("Cell %s not found in module", names[i].second.c_str());
+		}
+	}
+	return mix_gates(module, cells, key_values);
+}
+
 std::vector<std::vector<Cell *>> optimize_logic_locking(std::vector<std::pair<Cell *, Cell *>> pairwise_security, double percentLocking)
 {
 	pool<Cell *> cells;
@@ -520,7 +598,9 @@ struct LogicLockingPass : public Pass {
 		double percentLocking = 5.0f;
 		int nbTestVectors = 10;
 		std::vector<IdString> gates_to_lock;
-		std::vector<bool> key_values;
+		std::vector<bool> lock_key_values;
+		std::vector<std::pair<IdString, IdString>> gates_to_mix;
+		std::vector<bool> mix_key_values;
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
 			std::string arg = args[argidx];
@@ -528,7 +608,16 @@ struct LogicLockingPass : public Pass {
 				if (argidx + 2 >= args.size())
 					break;
 				gates_to_lock.emplace_back(args[++argidx]);
-				key_values.emplace_back(parse_bool(args[++argidx]));
+				lock_key_values.emplace_back(parse_bool(args[++argidx]));
+				continue;
+			}
+			if (arg == "-mix-gate") {
+				if (argidx + 3 >= args.size())
+					break;
+				IdString n1 = args[++argidx];
+				IdString n2 = args[++argidx];
+				gates_to_mix.emplace_back(n1, n2);
+				mix_key_values.emplace_back(parse_bool(args[++argidx]));
 				continue;
 			}
 			if (arg == "-max-percent") {
@@ -553,10 +642,12 @@ struct LogicLockingPass : public Pass {
 		// handle extra options (e.g. selection)
 		extra_args(args, argidx, design);
 
-		if (!gates_to_lock.empty()) {
+		if (!gates_to_lock.empty() || !gates_to_mix.empty()) {
 			for (auto &it : design->modules_)
-				if (design->selected_module(it.first))
-					lock_gates(it.second, gates_to_lock, key_values);
+				if (design->selected_module(it.first)) {
+					lock_gates(it.second, gates_to_lock, lock_key_values);
+					mix_gates(it.second, gates_to_mix, mix_key_values);
+				}
 			return;
 		}
 		for (auto &it : design->modules_)
@@ -587,8 +678,8 @@ struct LogicLockingPass : public Pass {
 		log("    -lock-gate <name> <key_value>\n");
 		log("Lock the output of the gate, adding a xor/xnor and a module input.\n");
 		log("\n");
-		log("    -mix-gates <name1> <name2> <key_value>\n");
-		log("Mix the outputs of two gates, adding two muxes and a module input.\n");
+		log("    -mix-gate <name1> <name2> <key_value>\n");
+		log("Mix the output of one gate with another, adding a mux and a module input.\n");
 		log("\n");
 		log("\n");
 	}
