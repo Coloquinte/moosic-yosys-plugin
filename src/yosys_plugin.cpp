@@ -430,7 +430,7 @@ std::vector<RTLIL::Wire *> lock_gates(RTLIL::Module *module, const std::vector<I
 	return lock_gates(module, cells, key_values);
 }
 
-std::vector<std::vector<Cell *>> optimize_logic_locking(std::vector<std::pair<Cell *, Cell *>> pairwise_security, float percentLocking)
+std::vector<std::vector<Cell *>> optimize_logic_locking(std::vector<std::pair<Cell *, Cell *>> pairwise_security, double percentLocking)
 {
 	pool<Cell *> cells;
 	for (auto p : pairwise_security) {
@@ -467,8 +467,9 @@ std::vector<std::vector<Cell *>> optimize_logic_locking(std::vector<std::pair<Ce
 	return ret;
 }
 
-void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, float percentLocking)
+void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percent_locking)
 {
+	log("Running logic locking with %d test vectors, target %.1f%%.", nb_test_vectors, percent_locking);
 	PairwiseSecurityAnalyzer pw(module);
 	pw.gen_test_vectors(nb_test_vectors, 1);
 
@@ -476,7 +477,7 @@ void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, float percent
 	auto pairwise_security = pw.compute_pairwise_secure_graph();
 
 	// Optimize chosen cliques
-	auto cliques = optimize_logic_locking(pairwise_security, percentLocking);
+	auto cliques = optimize_logic_locking(pairwise_security, percent_locking);
 
 	// Implement
 	std::vector<Cell *> locked_gates;
@@ -516,20 +517,38 @@ struct LogicLockingPass : public Pass {
 	{
 		log_header(design, "Executing LOGIC_LOCKING pass.\n");
 
+		double percentLocking = 5.0f;
+		int nbTestVectors = 10;
 		std::vector<IdString> gates_to_lock;
 		std::vector<bool> key_values;
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
 			std::string arg = args[argidx];
-			if (arg == "-lock_gate") {
+			if (arg == "-lock-gate") {
 				if (argidx + 2 >= args.size())
 					break;
 				gates_to_lock.emplace_back(args[++argidx]);
 				key_values.emplace_back(parse_bool(args[++argidx]));
 				continue;
 			}
+			if (arg == "-max-percent") {
+				if (argidx + 1 >= args.size())
+					break;
+				percentLocking = std::atof(args[++argidx].c_str());
+				continue;
+			}
+			if (arg == "-nb-test-vectors") {
+				if (argidx + 1 >= args.size())
+					break;
+				nbTestVectors = std::atoi(args[++argidx].c_str());
+				continue;
+			}
 			break;
 		}
+
+		log_assert(percentLocking >= 0.0f);
+		log_assert(percentLocking <= 100.0f);
+		log_assert(nbTestVectors >= 4);
 
 		// handle extra options (e.g. selection)
 		extra_args(args, argidx, design);
@@ -542,20 +561,35 @@ struct LogicLockingPass : public Pass {
 		}
 		for (auto &it : design->modules_)
 			if (design->selected_module(it.first))
-				run_logic_locking(it.second, 10, 5.0f);
+				run_logic_locking(it.second, nbTestVectors, percentLocking);
 	}
 
 	void help() override
 	{
 		log("\n");
-		log("    logic_locking <command> [selection]\n");
+		log("    logic_locking [options]\n");
 		log("\n");
-		log("This command add inputs to the design, such that a secret value \n");
+		log("This command adds inputs to the design, so that a secret value \n");
 		log("is required to obtain the correct functionality.\n");
+		log("By default, it runs simulations and optimizes the subset of gates that \n");
+		log("are locked to make it difficult to recover the original design.\n");
 		log("\n");
-		log("    logic_locking -lock_gate <name> <value> [selection]\n");
+		log("    -max-percent <value>\n");
+		log("        specify the maximum number of gates that are added (default=5)\n");
 		log("\n");
-		log("Add a secret key bit on the output of the given gate. \n");
+		log("    -nb-test-vectors <value>\n");
+		log("        specify the number of test vectors used for analysis (default=10)\n");
+		log("\n");
+		log("\n");
+		log("The following options control locking manually, adding the corresponding \n");
+		log("gates directly without any optimization. They can be mixed and repeated.\n");
+		log("\n");
+		log("    -lock-gate <name> <key_value>\n");
+		log("Lock the output of the gate, adding a xor/xnor and a module input.\n");
+		log("\n");
+		log("    -mix-gates <name1> <name2> <key_value>\n");
+		log("Mix the outputs of two gates, adding two muxes and a module input.\n");
+		log("\n");
 		log("\n");
 	}
 
