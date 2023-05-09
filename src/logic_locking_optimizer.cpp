@@ -75,7 +75,7 @@ void LogicLockingOptimizer::check(const ExplicitSolution &sol) const
 			if (node >= nbNodes() || node < 0) {
 				throw std::runtime_error("Solution is invalid: some nodes are out of bound");
 			}
-			auto [it, inserted] = present.insert(node);
+			bool inserted = present.insert(node).second;
 			if (!inserted) {
 				throw std::runtime_error("Solution is invalid: same node is present in multiple groups");
 			}

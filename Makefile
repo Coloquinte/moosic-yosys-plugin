@@ -7,7 +7,7 @@ all: $(LIBNAME)
 
 
 $(LIBNAME): $(OBJECTS)
-	yosys-config --build $@ $< -shared
+	yosys-config --build $@ $^ -shared
 
 %.o: src/%.cpp
 	yosys-config --exec --cxx -c --cxxflags $(CXX_FLAGS) -o $@ $<
