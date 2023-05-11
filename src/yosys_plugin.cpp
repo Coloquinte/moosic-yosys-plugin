@@ -1,3 +1,6 @@
+/*
+ * Copyright (c) 2023 Gabriel Gouvine
+ */
 
 #include "kernel/celltypes.h"
 #include "kernel/rtlil.h"

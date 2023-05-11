@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2023 Gabriel Gouvine
+ */
+
 #include "logic_locking_optimizer.hpp"
 
 #include <algorithm>

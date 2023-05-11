@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2023 Gabriel Gouvine
+ */
+
 #include <iosfwd>
 #include <vector>
 
