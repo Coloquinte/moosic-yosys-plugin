@@ -423,11 +423,11 @@ std::vector<std::pair<Cell *, Cell *>> PairwiseSecurityAnalyzer::compute_pairwis
 	}
 	std::vector<std::pair<Cell *, Cell *>> ret;
 	for (int i = 0; i < GetSize(signals); ++i) {
-		log("\tSimulating %s\n", log_id(cells[i]->name));
+		log("\tSimulating %s (%d/%d)\n", log_id(cells[i]->name), i + 1, GetSize(signals));
 		for (int j = i + 1; j < GetSize(signals); ++j) {
 			if (is_pairwise_secure(signals[i], signals[j])) {
 				ret.emplace_back(cells[i], cells[j]);
-				log("\t\tPairwise secure %s <-> %s\n", log_id(cells[i]->name), log_id(cells[j]->name));
+				log_debug("\t\tPairwise secure %s <-> %s\n", log_id(cells[i]->name), log_id(cells[j]->name));
 			}
 		}
 	}
@@ -572,7 +572,7 @@ void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percen
 {
 	int nb_cells = GetSize(module->cells_);
 	int max_number = static_cast<int>(0.01 * nb_cells * percent_locking);
-	log("Running logic locking with %d test vectors, target %.1f%% (%d cells out of %d).", nb_test_vectors, percent_locking, max_number,
+	log("Running logic locking with %d test vectors, target %.1f%% (%d cells out of %d).\n", nb_test_vectors, percent_locking, max_number,
 	    nb_cells);
 
 	PairwiseSecurityAnalyzer pw(module);
@@ -703,6 +703,11 @@ struct LogicLockingPass : public Pass {
 		log("Mix the output of one gate with another, adding a mux and a module input.\n");
 		log("\n");
 		log("\n");
+		log("Security is evaluated by computing which gates are \"pairwise secure\".\n");
+		log("Two gates are pairwise secure if the value of the locking key for one of them \n");
+		log("cannot be recovered just by controlling the inputs, independently of the other.\n");
+		log("Additionally, the MOOSIC plugin forces \"useful\" pairwise security, which \n");
+		log("prevents redundant locking in buffer chains or xor trees.\n");
 	}
 
 } LogicLockingPass;
