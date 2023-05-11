@@ -528,7 +528,7 @@ std::vector<RTLIL::Wire *> mix_gates(RTLIL::Module *module, const std::vector<st
 	return mix_gates(module, cells, key_values);
 }
 
-std::vector<std::vector<Cell *>> optimize_logic_locking(std::vector<std::pair<Cell *, Cell *>> pairwise_security, double percentLocking)
+std::vector<Cell *> optimize_logic_locking(std::vector<std::pair<Cell *, Cell *>> pairwise_security, int maxNumber)
 {
 	pool<Cell *> cells;
 	for (auto p : pairwise_security) {
@@ -551,23 +551,30 @@ std::vector<std::vector<Cell *>> optimize_logic_locking(std::vector<std::pair<Ce
 		gr[j].push_back(i);
 	}
 
-	int maxNumber = static_cast<int>(0.01 * cells.size() * percentLocking);
-	auto sol = LogicLockingOptimizer(gr).solveBruteForce(maxNumber);
+	auto opt = LogicLockingOptimizer(gr);
+	log("Running optimization on the interference graph with %d non-trivial nodes out of %d and %d edges.\n", opt.nbConnectedNodes(),
+	    opt.nbNodes(), opt.nbEdges());
+	auto sol = opt.solveBruteForce(maxNumber);
 
-	std::vector<std::vector<Cell *>> ret;
+	std::vector<Cell *> ret;
 	for (const auto &clique : sol) {
-		std::vector<Cell *> cur;
 		for (int c : clique) {
-			cur.push_back(ind_to_cell[c]);
+			ret.push_back(ind_to_cell[c]);
 		}
-		ret.push_back(cur);
 	}
+
+	double security = opt.value(sol);
+	log("Locking solution with %d cliques, %d cells and %.2f estimated security.\n", (int)sol.size(), (int)ret.size(), security);
 	return ret;
 }
 
 void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percent_locking)
 {
-	log("Running logic locking with %d test vectors, target %.1f%%.", nb_test_vectors, percent_locking);
+	int nb_cells = GetSize(module->cells_);
+	int max_number = static_cast<int>(0.01 * nb_cells * percent_locking);
+	log("Running logic locking with %d test vectors, target %.1f%% (%d cells out of %d).", nb_test_vectors, percent_locking, max_number,
+	    nb_cells);
+
 	PairwiseSecurityAnalyzer pw(module);
 	pw.gen_test_vectors(nb_test_vectors, 1);
 
@@ -575,18 +582,12 @@ void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percen
 	auto pairwise_security = pw.compute_pairwise_secure_graph();
 
 	// Optimize chosen cliques
-	auto cliques = optimize_logic_locking(pairwise_security, percent_locking);
+	auto locked_gates = optimize_logic_locking(pairwise_security, max_number);
 
 	// Implement
-	std::vector<Cell *> locked_gates;
-	for (auto clique : cliques) {
-		for (Cell *c : clique) {
-			locked_gates.push_back(c);
-		}
-	}
-	std::vector<bool> key_values;
 	// WARNING: NOT SECURE AT ALL (fixed seed + bad PRNG)
 	// Change this before shipping anything security-related
+	std::vector<bool> key_values;
 	std::mt19937 rgen;
 	std::bernoulli_distribution dist;
 	for (Cell *c : locked_gates) {

@@ -12,6 +12,7 @@ LogicLockingOptimizer::LogicLockingOptimizer(const std::vector<std::vector<int>>
 	sortNeighbours();
 	removeSelfLoops();
 	removeDirectedEdges();
+	removeExclusiveEquivalentNodes();
 	check();
 }
 
@@ -47,6 +48,32 @@ void LogicLockingOptimizer::removeDirectedEdges()
 			}
 		}
 		pairwiseInterference_[i] = filtered;
+	}
+}
+
+void LogicLockingOptimizer::removeExclusiveEquivalentNodes()
+{
+	for (int i = 0; i < nbNodes(); ++i) {
+		const std::vector<int> &v = pairwiseInterference_[i];
+		for (int j = i + 1; j < nbNodes(); ++j) {
+			// If the nodes are equivalent but not connected
+			// Since the self-loops are ignored, the adjacency lists are different
+			// if the nodes have an edge between them
+			if (pairwiseInterference_[j] == v) {
+				// Remove all these edges from the other nodes
+				for (int k : pairwiseInterference_[j]) {
+					// No self-loop precondition
+					assert(k != i);
+					assert(k != j);
+					std::vector<int> &o = pairwiseInterference_[k];
+					auto it = std::find(o.begin(), o.end(), j);
+					// No directed edge precondition
+					assert(it != o.end());
+					o.erase(it);
+				}
+				pairwiseInterference_[j].clear();
+			}
+		}
 	}
 }
 
@@ -108,6 +135,26 @@ void LogicLockingOptimizer::check() const
 			throw std::runtime_error("Pairwise interference is invalid: should have no duplicate");
 		}
 	}
+}
+
+int LogicLockingOptimizer::nbConnectedNodes() const
+{
+	int ret = 0;
+	for (int i = 0; i + 1 < nbNodes(); ++i) {
+		if (!pairwiseInterference_[i].empty()) {
+			++ret;
+		}
+	}
+	return ret;
+}
+
+int LogicLockingOptimizer::nbEdges() const
+{
+	int ret = 0;
+	for (int i = 0; i + 1 < nbNodes(); ++i) {
+		ret += (int)pairwiseInterference_[i].size();
+	}
+	return ret / 2;
 }
 
 bool LogicLockingOptimizer::hasEdge(int from, int to) const

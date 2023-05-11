@@ -36,6 +36,16 @@ class LogicLockingOptimizer
 	int nbNodes() const { return pairwiseInterference_.size(); }
 
 	/**
+	 * @brief Number of nodes with connections in the interference graph
+	 */
+	int nbConnectedNodes() const;
+
+	/**
+	 * @brief Number of edges in the interference graph
+	 */
+	int nbEdges() const;
+
+	/**
 	 * @brief Obtain the objective value associated with a solution
 	 *
 	 * log2(sum(2^|C| for C independent clique of pairwise interference))
@@ -106,6 +116,12 @@ class LogicLockingOptimizer
 	 * both directions
 	 */
 	void removeDirectedEdges();
+
+	/**
+	 * @brief Cleanup at construction time: remove nodes that have no edge between them but
+	 * have otherwise identical connections
+	 */
+	void removeExclusiveEquivalentNodes();
 
 	/**
 	 * @brief Recursive function for the enumeration of maximal cliques
