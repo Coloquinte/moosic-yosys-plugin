@@ -165,6 +165,11 @@ class PairwiseSecurityAnalyzer
 	std::vector<std::pair<Cell *, Cell *>> compute_pairwise_secure_graph();
 
 	/**
+	 * @brief List the combinatorial inputs of the module (inputs + flip-flop outputs)
+	 */
+	pool<SigBit> get_comb_inputs() const;
+
+	/**
 	 * @brief Simulate on one of the test vectors and return the module's outputs
 	 */
 	dict<SigBit, State> simulate(int tv, const pool<SigBit> &toggled_bits);
@@ -198,19 +203,37 @@ PairwiseSecurityAnalyzer::PairwiseSecurityAnalyzer(RTLIL::Module *module) : modu
 
 void PairwiseSecurityAnalyzer::set_test_vectors(const std::vector<dict<SigBit, State>> &test_vectors) { test_vectors_ = test_vectors; }
 
+pool<SigBit> PairwiseSecurityAnalyzer::get_comb_inputs() const
+{
+	pool<SigBit> ret;
+	for (RTLIL::Wire *wire : module_->wires()) {
+		if (wire->port_input) {
+			ret.emplace(wire);
+		}
+	}
+	for (RTLIL::Cell *cell : module_->cells()) {
+		// Handle non-combinatorial cells
+		if (!yosys_celltypes.cell_evaluable(cell->type)) {
+			for (auto it : cell->connections()) {
+				if (cell->output(it.first)) {
+					ret.emplace(it.second.as_bit());
+				}
+			}
+		}
+	}
+	return ret;
+}
+
 void PairwiseSecurityAnalyzer::gen_test_vectors(int nb, size_t seed)
 {
 	std::mt19937 rgen(seed);
 	std::bernoulli_distribution dist;
 	test_vectors_.clear();
+	pool<SigBit> inputs = get_comb_inputs();
 	for (int i = 0; i < nb; ++i) {
 		dict<SigBit, State> tv;
-		for (RTLIL::Wire *wire : module_->wires()) {
-			if (!wire->port_input) {
-				continue;
-			}
-			SigBit bit(wire);
-			tv[bit] = dist(rgen) ? RTLIL::State::S1 : RTLIL::State::S0;
+		for (SigBit b : inputs) {
+			tv[b] = dist(rgen) ? RTLIL::State::S1 : RTLIL::State::S0;
 		}
 		test_vectors_.push_back(tv);
 	}
@@ -249,6 +272,16 @@ dict<SigBit, State> PairwiseSecurityAnalyzer::get_output_state() const
 		}
 		SigBit bit(wire);
 		ret[bit] = state_.at(bit);
+	}
+	for (RTLIL::Cell *cell : module_->cells()) {
+		if (!yosys_celltypes.cell_evaluable(cell->type)) {
+			for (auto it : cell->connections()) {
+				if (cell->input(it.first)) {
+					SigBit bit = it.second.as_bit();
+					ret[bit] = state_.at(bit);
+				}
+			}
+		}
 	}
 	return ret;
 }
@@ -376,7 +409,6 @@ void PairwiseSecurityAnalyzer::simulate_cell(RTLIL::Cell *cell)
 			return;
 		}
 	}
-	log_error("Unsupported cell type: %s (%s.%s)\n", log_id(cell->type), log_id(module_), log_id(cell));
 }
 
 bool PairwiseSecurityAnalyzer::is_pairwise_secure(SigBit a, SigBit b)
