@@ -484,7 +484,7 @@ std::vector<std::pair<Cell *, Cell *>> PairwiseSecurityAnalyzer::compute_pairwis
 }
 
 /**
- * @brief Lock the gates in the module given a key bit value
+ * @brief Lock the gates in the module given a key bit value; return the input key wires
  */
 std::vector<RTLIL::Wire *> lock_gates(RTLIL::Module *module, const std::vector<Cell *> &cells, const std::vector<bool> &key_values)
 {
@@ -503,7 +503,7 @@ std::vector<RTLIL::Wire *> lock_gates(RTLIL::Module *module, const std::vector<C
 }
 
 /**
- * @brief Lock the gates in the module by name and key bit value
+ * @brief Lock the gates in the module by name and key bit value; return the input key wires
  */
 std::vector<RTLIL::Wire *> lock_gates(RTLIL::Module *module, const std::vector<IdString> &names, const std::vector<bool> &key_values)
 {
@@ -599,7 +599,7 @@ std::vector<Cell *> optimize_logic_locking(std::vector<std::pair<Cell *, Cell *>
 	}
 
 	double security = opt.value(sol);
-	log("Locking solution with %d cliques, %d cells and %.2f estimated security.\n", (int)sol.size(), (int)ret.size(), security);
+	log("Locking solution with %d cliques, %d locked wires and %.2f estimated security.\n", (int)sol.size(), (int)ret.size(), security);
 	return ret;
 }
 
@@ -628,6 +628,18 @@ void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percen
 	for (Cell *c : locked_gates) {
 		key_values.push_back(dist(rgen));
 	}
+
+	/*
+	 * TODO: the locking should be at the signal level, not the gate level.
+	 * This would allow locking on the input ports.
+	 *
+	 * At the moment, the locking gate is added right after the cell, replacing
+	 * its original output wire.
+	 * To implement locking on input ports, we need to lock after the input instead,
+	 * so that the name is kept, and update all reader cells.
+	 * This would give more targets for locking, as primary inputs are not considered
+	 * right now.
+	 */
 	lock_gates(module, locked_gates, key_values);
 }
 
@@ -718,8 +730,8 @@ struct LogicLockingPass : public Pass {
 		log("\n");
 		log("This command adds inputs to the design, so that a secret value \n");
 		log("is required to obtain the correct functionality.\n");
-		log("By default, it runs simulations and optimizes the subset of gates that \n");
-		log("are locked to make it difficult to recover the original design.\n");
+		log("By default, it runs simulations and optimizes the subset of signals that \n");
+		log("are locked, making it difficult to recover the original design.\n");
 		log("\n");
 		log("    -max-percent <value>\n");
 		log("        specify the maximum number of gates that are added (default=5)\n");
@@ -728,21 +740,27 @@ struct LogicLockingPass : public Pass {
 		log("        specify the number of test vectors used for analysis (default=10)\n");
 		log("\n");
 		log("\n");
-		log("The following options control locking manually, adding the corresponding \n");
-		log("gates directly without any optimization. They can be mixed and repeated.\n");
+		log("The following options control locking manually, locking the corresponding \n");
+		log("gate outputs directly without any optimization. They can be mixed and repeated.\n");
 		log("\n");
 		log("    -lock-gate <name> <key_value>\n");
-		log("Lock the output of the gate, adding a xor/xnor and a module input.\n");
+		log("        lock the output of the gate, adding a xor/xnor and a module input.\n");
 		log("\n");
 		log("    -mix-gate <name1> <name2> <key_value>\n");
-		log("Mix the output of one gate with another, adding a mux and a module input.\n");
+		log("        mix the output of one gate with another, adding a mux and a module input.\n");
 		log("\n");
 		log("\n");
-		log("Security is evaluated by computing which gates are \"pairwise secure\".\n");
-		log("Two gates are pairwise secure if the value of the locking key for one of them \n");
+		log("Security is evaluated by computing which signals are \"pairwise secure\".\n");
+		log("Two signals are pairwise secure if the value of the locking key for one of them \n");
 		log("cannot be recovered just by controlling the inputs, independently of the other.\n");
 		log("Additionally, the MOOSIC plugin forces \"useful\" pairwise security, which \n");
 		log("prevents redundant locking in buffer chains or xor trees.\n");
+		log("\n");
+		log("Only gate outputs (not primary inputs) are considered for locking.\n");
+		log("Sequential cells are treated as primary inputs and outputs for security evaluation.\n");
+		log("The design must be flattened.\n");
+		log("\n");
+		log("\n");
 	}
 
 } LogicLockingPass;
