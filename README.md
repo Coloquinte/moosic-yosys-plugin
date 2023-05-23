@@ -2,17 +2,6 @@
 # moosic-yosys-plugin: Logic Locking for Yosys
 
 
-## Build as a module
-
-To install this plugin
-- Install [Yosys](https://github.com/YosysHQ/yosys) from source.
-- Build and install:
-
-```sh
-make
-make install
-```
-
 ## Using the plugin
 
 The plugin defines a new `logic_locking` command. To run Yosys with the plugin:
@@ -27,4 +16,22 @@ help logic_locking
 ```
 
 
+## Installation instructions
 
+To install this plugin
+- Install [Yosys](https://github.com/YosysHQ/yosys) from source (a recent version is required).
+```sh
+git clone https://github.com/YosysHQ/yosys
+cd yosys
+# For global install
+sudo make install
+# Alternatively for a user install
+make install PREFIX=~/.local
+export PATH=~/.local/bin/:$PATH
+```
+
+- Build and install:
+```sh
+make
+sudo make install
+```
