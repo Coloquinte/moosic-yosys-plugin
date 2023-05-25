@@ -261,6 +261,18 @@ void PairwiseSecurityAnalyzer::set_input_state(const dict<SigBit, State> &state)
 	for (auto &it : state_) {
 		dirty_bits_.insert(it.first);
 	}
+
+	// Handle direct connections to constants
+	for (auto it : module_->connections()) {
+		SigBit a(it.first);
+		SigBit b(it.second);
+		if (a.is_wire() && !b.is_wire()) {
+			state_[a] = b.data;
+		}
+		if (b.is_wire() && !a.is_wire()) {
+			state_[b] = a.data;
+		}
+	}
 }
 
 dict<SigBit, State> PairwiseSecurityAnalyzer::get_output_state() const
@@ -271,14 +283,22 @@ dict<SigBit, State> PairwiseSecurityAnalyzer::get_output_state() const
 			continue;
 		}
 		SigBit bit(wire);
-		ret[bit] = state_.at(bit);
+		if (state_.count(bit)) {
+			ret[bit] = state_.at(bit);
+		} else {
+			log_error("Signal not found in output %s\n", log_id(wire->name));
+		}
 	}
 	for (RTLIL::Cell *cell : module_->cells()) {
 		if (!yosys_celltypes.cell_evaluable(cell->type)) {
 			for (auto it : cell->connections()) {
 				if (cell->input(it.first)) {
 					SigBit bit = it.second.as_bit();
-					ret[bit] = state_.at(bit);
+					if (state_.count(bit)) {
+						ret[bit] = state_.at(bit);
+					} else {
+						log_error("Signal not found in cell input %s\n", log_id(cell->name));
+					}
 				}
 			}
 		}
@@ -347,6 +367,12 @@ dict<SigBit, State> PairwiseSecurityAnalyzer::simulate(int tv, const pool<SigBit
 		}
 		dirty_cells_.clear();
 	}
+	for (RTLIL::Wire *wire : module_->wires()) {
+		SigBit bit(wire);
+		if (!state_.count(bit)) {
+			log_error("\tWire %s not simulated\n", log_id(wire->name));
+		}
+	}
 	return get_output_state();
 }
 
@@ -408,6 +434,8 @@ void PairwiseSecurityAnalyzer::simulate_cell(RTLIL::Cell *cell)
 			set_state(sig_y, CellTypes::eval(cell, get_state(sig_a), get_state(sig_b), get_state(sig_s)));
 			return;
 		}
+
+		log_error("Cell %s of type %s cannot be evaluated", log_id(cell->name), log_id(cell->type));
 	}
 }
 
@@ -514,7 +542,7 @@ std::vector<RTLIL::Wire *> lock_gates(RTLIL::Module *module, const std::vector<I
 		if (cell) {
 			cells.push_back(cell);
 		} else {
-			log_error("Cell %s not found in module", name.c_str());
+			log_error("Cell %s not found in module\n", name.c_str());
 		}
 	}
 	return lock_gates(module, cells, key_values);
@@ -555,9 +583,9 @@ std::vector<RTLIL::Wire *> mix_gates(RTLIL::Module *module, const std::vector<st
 		if (c1 && c2) {
 			cells.emplace_back(c1, c2);
 		} else if (!c1) {
-			log_error("Cell %s not found in module", names[i].first.c_str());
+			log_error("Cell %s not found in module\n", names[i].first.c_str());
 		} else {
-			log_error("Cell %s not found in module", names[i].second.c_str());
+			log_error("Cell %s not found in module\n", names[i].second.c_str());
 		}
 	}
 	return mix_gates(module, cells, key_values);
