@@ -175,7 +175,15 @@ class PairwiseSecurityAnalyzer
 	dict<SigBit, State> simulate(int tv, const pool<SigBit> &toggled_bits);
 
       private:
+	/**
+	 * @brief Create wire to consuming cells information
+	 */
 	void init_wire_to_cells();
+
+	/**
+	 * @brief Create wire to connected wires (aliases) information
+	 */
+	void init_wire_to_wires();
 
 	void set_input_state(const dict<SigBit, State> &state);
 
@@ -194,12 +202,17 @@ class PairwiseSecurityAnalyzer
 	std::vector<dict<SigBit, State>> test_vectors_;
 	dict<SigBit, State> state_;
 	dict<SigBit, pool<RTLIL::Cell *>> wire_to_cells_;
+	dict<SigBit, pool<SigBit>> wire_to_wires_;
 	pool<RTLIL::SigBit> dirty_bits_;
 	pool<RTLIL::Cell *> dirty_cells_;
 	pool<RTLIL::SigBit> toggled_bits_;
 };
 
-PairwiseSecurityAnalyzer::PairwiseSecurityAnalyzer(RTLIL::Module *module) : module_(module) { init_wire_to_cells(); }
+PairwiseSecurityAnalyzer::PairwiseSecurityAnalyzer(RTLIL::Module *module) : module_(module)
+{
+	init_wire_to_cells();
+	init_wire_to_wires();
+}
 
 void PairwiseSecurityAnalyzer::set_test_vectors(const std::vector<dict<SigBit, State>> &test_vectors) { test_vectors_ = test_vectors; }
 
@@ -250,6 +263,22 @@ void PairwiseSecurityAnalyzer::init_wire_to_cells()
 				it->second.insert(cell);
 			}
 		}
+	}
+}
+
+void PairwiseSecurityAnalyzer::init_wire_to_wires()
+{
+	wire_to_wires_.clear();
+	for (auto it : module_->connections()) {
+		SigBit a(it.first);
+		SigBit b(it.second);
+		if (!a.is_wire() || !b.is_wire()) {
+			continue;
+		}
+		if (!wire_to_wires_.count(b)) {
+			wire_to_wires_[b] = pool<SigBit>();
+		}
+		wire_to_wires_[b].emplace(a);
 	}
 }
 
@@ -356,9 +385,19 @@ dict<SigBit, State> PairwiseSecurityAnalyzer::simulate(int tv, const pool<SigBit
 		if (dirty_bits_.empty() && dirty_cells_.empty()) {
 			break;
 		}
+		pool<SigBit> next_dirty;
 		for (SigBit b : dirty_bits_) {
 			for (RTLIL::Cell *cell : wire_to_cells_[b]) {
 				dirty_cells_.insert(cell);
+			}
+			// Handle direct connections by adding the connected wires to the dirty list
+			if (wire_to_wires_.count(b)) {
+				for (SigBit c : wire_to_wires_[b]) {
+					if (!state_.count(c)) {
+						state_[c] = state_[b];
+						next_dirty.emplace(c);
+					}
+				}
 			}
 		}
 		dirty_bits_.clear();
