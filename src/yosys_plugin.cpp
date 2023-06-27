@@ -11,13 +11,14 @@
 #include "logic_locking_analyzer.hpp"
 #include "logic_locking_optimizer.hpp"
 #include "mini_aig.hpp"
+#include "output_corruption_optimizer.hpp"
 
 #include <random>
 
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-std::vector<Cell *> optimize_logic_locking(std::vector<std::pair<Cell *, Cell *>> pairwise_security, int maxNumber)
+std::vector<Cell *> optimize_pairwise_security(const std::vector<std::pair<Cell *, Cell *>> &pairwise_security, int maxNumber)
 {
 	pool<Cell *> cells;
 	for (auto p : pairwise_security) {
@@ -57,6 +58,34 @@ std::vector<Cell *> optimize_logic_locking(std::vector<std::pair<Cell *, Cell *>
 	return ret;
 }
 
+std::vector<Cell *> optimize_output_corruption(const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data, int maxNumber)
+{
+	std::vector<Cell *> ind_to_cell;
+	std::vector<std::vector<std::uint64_t>> corruptionData;
+	for (auto p : data) {
+		ind_to_cell.push_back(p.first);
+		std::vector<std::uint64_t> cellCorruption;
+		for (const auto &v : p.second) {
+			for (std::uint64_t d : v) {
+				cellCorruption.push_back(d);
+			}
+		}
+		corruptionData.push_back(cellCorruption);
+	}
+	OutputCorruptionOptimizer opt(corruptionData);
+	vector<int> sol = opt.solveGreedy(maxNumber);
+	float cover = 100.0 * opt.corruptionCover(sol);
+	float rate = 100.0 * opt.corruptionRate(sol);
+
+	log("Locking solution with %d locked wires, %.2f%% corruption cover and %.2f%% corruption rate.\n", (int)sol.size(), cover, rate);
+
+	std::vector<Cell *> ret;
+	for (int c : sol) {
+		ret.push_back(ind_to_cell[c]);
+	}
+	return ret;
+}
+
 void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percent_locking)
 {
 	int nb_cells = GetSize(module->cells_);
@@ -67,13 +96,14 @@ void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percen
 	LogicLockingAnalyzer pw(module);
 	pw.gen_test_vectors(nb_test_vectors, 1);
 
-	pw.report_output_corruption();
-
-	// Determine pairwise security
-	auto pairwise_security = pw.compute_pairwise_secure_graph();
-
-	// Optimize chosen cliques
-	auto locked_gates = optimize_logic_locking(pairwise_security, max_number);
+	std::vector<Cell *> locked_gates;
+	if (false) {
+		auto pairwise_security = pw.compute_pairwise_secure_graph();
+		locked_gates = optimize_pairwise_security(pairwise_security, max_number);
+	} else {
+		auto corruption_data = pw.compute_output_corruption_data();
+		locked_gates = optimize_output_corruption(corruption_data, max_number);
+	}
 
 	// Implement
 	// WARNING: NOT SECURE AT ALL (fixed seed + bad PRNG)
