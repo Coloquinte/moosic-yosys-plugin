@@ -102,12 +102,12 @@ class LogicLockingAnalyzer
 	/**
 	 * @brief Returns whether the two bits are pairwise secure with the given test vectors
 	 */
-	bool is_pairwise_secure(SigBit a, SigBit b, bool check_sim = false);
+	bool is_pairwise_secure(SigBit a, SigBit b);
 
 	/**
 	 * @brief Returns the list of pairwise-secure signal pairs
 	 */
-	std::vector<std::pair<Cell *, Cell *>> compute_pairwise_secure_graph(bool check_sim = false);
+	std::vector<std::pair<Cell *, Cell *>> compute_pairwise_secure_graph();
 
 	/**
 	 * @brief Report on the output corruption

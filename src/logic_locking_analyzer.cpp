@@ -9,6 +9,12 @@
 #include <bitset>
 #include <random>
 
+#ifdef DEBUG_LOGIC_SIMULATION
+constexpr bool check_sim = true;
+#else
+constexpr bool check_sim = false;
+#endif
+
 USING_YOSYS_NAMESPACE
 
 LogicLockingAnalyzer::LogicLockingAnalyzer(RTLIL::Module *module) : module_(module)
@@ -490,7 +496,14 @@ std::vector<std::uint64_t> LogicLockingAnalyzer::simulate_aig(int tv, const pool
 	for (SigBit bit : toggled_bits) {
 		toggling.push_back(wire_to_aig_.at(bit));
 	}
-	return aig_.simulateWithToggling(test_vectors_[tv], toggling);
+	auto ret = aig_.simulateWithToggling(test_vectors_[tv], toggling);
+	if (check_sim) {
+		auto ret_checked = simulate_basic(tv, toggled_bits);
+		if (ret_checked != ret) {
+			log_error("Fast simulation result does not match expected");
+		}
+	}
+	return ret;
 }
 
 void LogicLockingAnalyzer::simulate_cell(RTLIL::Cell *cell)
@@ -608,14 +621,14 @@ dict<Cell *, std::vector<std::vector<std::uint64_t>>> LogicLockingAnalyzer::comp
 {
 	std::vector<SigBit> signals = get_lockable_signals();
 	std::vector<Cell *> cells = get_lockable_cells();
-    dict<Cell *, std::vector<std::vector<std::uint64_t>>> ret;
-    for (int i = 0; i < GetSize(signals); ++i) {
-        ret.emplace(cells[i], compute_output_corruption_data(signals[i]));
-    }
-    return ret;
+	dict<Cell *, std::vector<std::vector<std::uint64_t>>> ret;
+	for (int i = 0; i < GetSize(signals); ++i) {
+		ret.emplace(cells[i], compute_output_corruption_data(signals[i]));
+	}
+	return ret;
 }
 
-bool LogicLockingAnalyzer::is_pairwise_secure(SigBit a, SigBit b, bool check_sim)
+bool LogicLockingAnalyzer::is_pairwise_secure(SigBit a, SigBit b)
 {
 	bool same_impact = true;
 	for (int i = 0; i < nb_test_vectors(); ++i) {
@@ -623,17 +636,6 @@ bool LogicLockingAnalyzer::is_pairwise_secure(SigBit a, SigBit b, bool check_sim
 		auto toggle_a = simulate_aig(i, {a});
 		auto toggle_b = simulate_aig(i, {b});
 		auto toggle_both = simulate_aig(i, {a, b});
-
-		if (check_sim) {
-			auto no_toggle_base = simulate_basic(i, {});
-			auto toggle_a_base = simulate_basic(i, {a});
-			auto toggle_b_base = simulate_basic(i, {b});
-			auto toggle_both_base = simulate_basic(i, {a, b});
-			if (no_toggle_base != no_toggle || toggle_a_base != toggle_a || toggle_b_base != toggle_b ||
-			    toggle_both_base != toggle_both) {
-				log_error("Fast simulation result does not match expected");
-			}
-		}
 
 		for (size_t i = 0; i < no_toggle.size(); ++i) {
 			std::uint64_t state_none = no_toggle[i];
@@ -655,7 +657,7 @@ bool LogicLockingAnalyzer::is_pairwise_secure(SigBit a, SigBit b, bool check_sim
 	return !same_impact;
 }
 
-std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_pairwise_secure_graph(bool check_sim)
+std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_pairwise_secure_graph()
 {
 	std::vector<SigBit> signals = get_lockable_signals();
 	std::vector<Cell *> cells = get_lockable_cells();
@@ -664,7 +666,7 @@ std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_pairwise_se
 	for (int i = 0; i < GetSize(signals); ++i) {
 		log("\tSimulating %s (%d/%d)\n", log_id(cells[i]->name), i + 1, GetSize(signals));
 		for (int j = i + 1; j < GetSize(signals); ++j) {
-			if (is_pairwise_secure(signals[i], signals[j], check_sim)) {
+			if (is_pairwise_secure(signals[i], signals[j])) {
 				ret.emplace_back(cells[i], cells[j]);
 				log_debug("\t\tPairwise secure %s <-> %s\n", log_id(cells[i]->name), log_id(cells[j]->name));
 			}

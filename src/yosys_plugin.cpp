@@ -7,10 +7,10 @@
 #include "kernel/sigtools.h"
 #include "kernel/yosys.h"
 
+#include "gate_insertion.hpp"
 #include "logic_locking_analyzer.hpp"
 #include "logic_locking_optimizer.hpp"
 #include "mini_aig.hpp"
-#include "gate_insertion.hpp"
 
 #include <random>
 
@@ -57,7 +57,7 @@ std::vector<Cell *> optimize_logic_locking(std::vector<std::pair<Cell *, Cell *>
 	return ret;
 }
 
-void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percent_locking, bool check_sim)
+void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percent_locking)
 {
 	int nb_cells = GetSize(module->cells_);
 	int max_number = static_cast<int>(0.01 * nb_cells * percent_locking);
@@ -70,7 +70,7 @@ void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percen
 	pw.report_output_corruption();
 
 	// Determine pairwise security
-	auto pairwise_security = pw.compute_pairwise_secure_graph(check_sim);
+	auto pairwise_security = pw.compute_pairwise_secure_graph();
 
 	// Optimize chosen cliques
 	auto locked_gates = optimize_logic_locking(pairwise_security, max_number);
@@ -121,7 +121,6 @@ struct LogicLockingPass : public Pass {
 
 		double percentLocking = 5.0f;
 		int nbTestVectors = 10;
-		bool check_sim = false;
 		std::vector<IdString> gates_to_lock;
 		std::vector<bool> lock_key_values;
 		std::vector<std::pair<IdString, IdString>> gates_to_mix;
@@ -157,10 +156,6 @@ struct LogicLockingPass : public Pass {
 				nbTestVectors = std::atoi(args[++argidx].c_str());
 				continue;
 			}
-			if (arg == "-check-sim") {
-				check_sim = true;
-				continue;
-			}
 			break;
 		}
 
@@ -180,7 +175,7 @@ struct LogicLockingPass : public Pass {
 		}
 		for (auto &it : design->modules_)
 			if (design->selected_module(it.first))
-				run_logic_locking(it.second, nbTestVectors, percentLocking, check_sim);
+				run_logic_locking(it.second, nbTestVectors, percentLocking);
 	}
 
 	void help() override
