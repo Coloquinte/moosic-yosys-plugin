@@ -67,6 +67,8 @@ void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percen
 	LogicLockingAnalyzer pw(module);
 	pw.gen_test_vectors(nb_test_vectors, 1);
 
+	pw.report_output_corruption();
+
 	// Determine pairwise security
 	auto pairwise_security = pw.compute_pairwise_secure_graph(check_sim);
 

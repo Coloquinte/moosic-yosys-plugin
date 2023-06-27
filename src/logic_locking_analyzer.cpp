@@ -61,6 +61,36 @@ pool<SigBit> LogicLockingAnalyzer::get_comb_outputs() const
 	return ret;
 }
 
+std::vector<SigBit> LogicLockingAnalyzer::get_lockable_signals() const
+{
+	std::vector<SigBit> signals;
+	for (auto it : module_->cells_) {
+		Cell *cell = it.second;
+		for (auto conn : cell->connections()) {
+			if (cell->output(conn.first)) {
+				signals.emplace_back(conn.second);
+				break;
+			}
+		}
+	}
+	return signals;
+}
+
+std::vector<Cell *> LogicLockingAnalyzer::get_lockable_cells() const
+{
+	std::vector<Cell *> cells;
+	for (auto it : module_->cells_) {
+		Cell *cell = it.second;
+		for (auto conn : cell->connections()) {
+			if (cell->output(conn.first)) {
+				cells.push_back(cell);
+				break;
+			}
+		}
+	}
+	return cells;
+}
+
 void LogicLockingAnalyzer::gen_test_vectors(int nb, size_t seed)
 {
 	std::mt19937 rgen(seed);
@@ -526,9 +556,9 @@ void LogicLockingAnalyzer::simulate_cell(RTLIL::Cell *cell)
 	}
 }
 
-float LogicLockingAnalyzer::compute_total_output_corruption(SigBit a, bool check_sim)
+float LogicLockingAnalyzer::compute_total_output_corruption(SigBit a)
 {
-	std::vector<float> corruption = compute_output_corruption(a, check_sim);
+	std::vector<float> corruption = compute_output_corruption(a);
 	if (corruption.empty()) {
 		return 0.0f;
 	}
@@ -540,31 +570,49 @@ float LogicLockingAnalyzer::compute_total_output_corruption(SigBit a, bool check
 	return sum_corr;
 }
 
-std::vector<float> LogicLockingAnalyzer::compute_output_corruption(SigBit a, bool check_sim)
+std::vector<float> LogicLockingAnalyzer::compute_output_corruption(SigBit a)
 {
-	std::vector<float> change_counts(comb_outputs_.size(), 0);
-	for (int i = 0; i < nb_test_vectors(); ++i) {
-		auto no_toggle = simulate_aig(i, {});
-		auto toggle = simulate_aig(i, {a});
-
-		if (check_sim) {
-			auto no_toggle_base = simulate_basic(i, {});
-			auto toggle_base = simulate_basic(i, {a});
-			if (no_toggle_base != no_toggle || toggle_base != toggle) {
-				log_error("Fast simulation result does not match expected");
-			}
+	auto data = compute_output_corruption_data(a);
+	std::vector<float> change_counts;
+	assert(data.size() == comb_outputs_.size());
+	for (const auto &v : data) {
+		int nb_changes = 0;
+		for (std::uint64_t t : v) {
+			nb_changes += std::bitset<64>(t).count();
 		}
-
-		for (size_t i = 0; i < no_toggle.size(); ++i) {
-			int nb_changes = std::bitset<64>(toggle[i] ^ no_toggle[i]).count();
-			change_counts.at(i) += nb_changes;
-		}
+		change_counts.push_back((float)nb_changes);
 	}
 	float ratio = 1.0 / (nb_test_vectors() * 64);
 	for (float &f : change_counts) {
 		f *= ratio;
 	}
 	return change_counts;
+}
+
+std::vector<std::vector<std::uint64_t>> LogicLockingAnalyzer::compute_output_corruption_data(SigBit a)
+{
+	std::vector<std::vector<std::uint64_t>> ret(comb_outputs_.size());
+	for (int i = 0; i < nb_test_vectors(); ++i) {
+		auto no_toggle = simulate_aig(i, {});
+		auto toggle = simulate_aig(i, {a});
+
+		for (size_t i = 0; i < no_toggle.size(); ++i) {
+			std::uint64_t t = toggle[i] ^ no_toggle[i];
+			ret.at(i).push_back(t);
+		}
+	}
+	return ret;
+}
+
+dict<Cell *, std::vector<std::vector<std::uint64_t>>> LogicLockingAnalyzer::compute_output_corruption_data()
+{
+	std::vector<SigBit> signals = get_lockable_signals();
+	std::vector<Cell *> cells = get_lockable_cells();
+    dict<Cell *, std::vector<std::vector<std::uint64_t>>> ret;
+    for (int i = 0; i < GetSize(signals); ++i) {
+        ret.emplace(cells[i], compute_output_corruption_data(signals[i]));
+    }
+    return ret;
 }
 
 bool LogicLockingAnalyzer::is_pairwise_secure(SigBit a, SigBit b, bool check_sim)
@@ -609,19 +657,9 @@ bool LogicLockingAnalyzer::is_pairwise_secure(SigBit a, SigBit b, bool check_sim
 
 std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_pairwise_secure_graph(bool check_sim)
 {
-	// Gather the signals that are cell outputs
-	std::vector<SigBit> signals;
-	std::vector<Cell *> cells;
-	for (auto it : module_->cells_) {
-		Cell *cell = it.second;
-		for (auto conn : cell->connections()) {
-			if (cell->output(conn.first)) {
-				cells.push_back(cell);
-				signals.emplace_back(conn.second);
-				break;
-			}
-		}
-	}
+	std::vector<SigBit> signals = get_lockable_signals();
+	std::vector<Cell *> cells = get_lockable_cells();
+
 	std::vector<std::pair<Cell *, Cell *>> ret;
 	for (int i = 0; i < GetSize(signals); ++i) {
 		log("\tSimulating %s (%d/%d)\n", log_id(cells[i]->name), i + 1, GetSize(signals));
@@ -649,23 +687,12 @@ std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_pairwise_se
 	return ret;
 }
 
-void LogicLockingAnalyzer::report_output_corruption(bool check_sim)
+void LogicLockingAnalyzer::report_output_corruption()
 {
-	// Gather the signals that are cell outputs
-	std::vector<SigBit> signals;
-	std::vector<Cell *> cells;
-	for (auto it : module_->cells_) {
-		Cell *cell = it.second;
-		for (auto conn : cell->connections()) {
-			if (cell->output(conn.first)) {
-				cells.push_back(cell);
-				signals.emplace_back(conn.second);
-				break;
-			}
-		}
-	}
+	std::vector<SigBit> signals = get_lockable_signals();
+	std::vector<Cell *> cells = get_lockable_cells();
 	for (int i = 0; i < GetSize(signals); ++i) {
-		float output_corr = 100.0f * compute_total_output_corruption(signals[i], check_sim);
+		float output_corr = 100.0f * compute_total_output_corruption(signals[i]);
 		log("\tOutput corruption %s: %.1f%%\n", log_id(cells[i]->name), output_corr);
 	}
 }

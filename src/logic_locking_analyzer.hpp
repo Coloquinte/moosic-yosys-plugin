@@ -81,13 +81,23 @@ class LogicLockingAnalyzer
 	 *     - a corruption probability of 1 is not that good, as it's just a toggling of the output. The best if 0.5
 	 *     - correlations between outputs are not accounted for
 	 */
-	float compute_total_output_corruption(SigBit a, bool check_sim = false);
+	float compute_total_output_corruption(SigBit a);
 
 	/**
 	 * @brief Returns a measure of output corruption for all outputs for a bit,
 	 * with the given test vectors
 	 */
-	std::vector<float> compute_output_corruption(SigBit a, bool check_sim = false);
+	std::vector<float> compute_output_corruption(SigBit a);
+
+	/**
+	 * @brief Returns the impact of locking cells (per output per test vector)
+	 */
+	std::vector<std::vector<std::uint64_t>> compute_output_corruption_data(SigBit a);
+
+	/**
+	 * @brief Returns the impact of locking cells (per output per test vector)
+	 */
+	dict<Cell *, std::vector<std::vector<std::uint64_t>>> compute_output_corruption_data();
 
 	/**
 	 * @brief Returns whether the two bits are pairwise secure with the given test vectors
@@ -102,7 +112,7 @@ class LogicLockingAnalyzer
 	/**
 	 * @brief Report on the output corruption
 	 */
-	void report_output_corruption(bool check_sim = false);
+	void report_output_corruption();
 
 	/**
 	 * @brief List the combinatorial inputs of the module (inputs + flip-flop outputs)
@@ -113,6 +123,16 @@ class LogicLockingAnalyzer
 	 * @brief List the combinatorial outputs of the module (outputs + flip-flop inputs)
 	 */
 	pool<SigBit> get_comb_outputs() const;
+
+	/**
+	 * @brief Obtain the lockable signals (outputs of lockable cells)
+	 */
+	std::vector<SigBit> get_lockable_signals() const;
+
+	/**
+	 * @brief Obtain the lockable cells (each output is a lockable signal)
+	 */
+	std::vector<Cell *> get_lockable_cells() const;
 
 	/**
 	 * @brief Simulate on a bitset of test vectors and return the module's outputs
