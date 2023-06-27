@@ -2,6 +2,9 @@
  * Copyright (c) 2023 Gabriel Gouvine
  */
 
+#ifndef MOOSIC_LOGIC_OPTIMIZER_H
+#define MOOSIC_LOGIC_OPTIMIZER_H
+
 #include <iosfwd>
 #include <vector>
 
@@ -135,3 +138,5 @@ class LogicLockingOptimizer
       private:
 	std::vector<std::vector<int>> pairwiseInterference_;
 };
+
+#endif

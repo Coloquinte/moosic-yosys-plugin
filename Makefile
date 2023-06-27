@@ -1,7 +1,7 @@
 
 CXX_FLAGS ?= -O2
 LD_FLAGS ?= 
-OBJECTS = yosys_plugin.o logic_locking_optimizer.o
+OBJECTS = yosys_plugin.o logic_locking_optimizer.o logic_locking_analyzer.o mini_aig.o
 LIBNAME = moosic-yosys-plugin.so
 # Default command substitution for yosys
 DESTDIR ?= --datdir
