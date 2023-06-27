@@ -6,6 +6,7 @@
 
 #include "kernel/celltypes.h"
 
+#include <bitset>
 #include <random>
 
 USING_YOSYS_NAMESPACE
@@ -525,6 +526,47 @@ void LogicLockingAnalyzer::simulate_cell(RTLIL::Cell *cell)
 	}
 }
 
+float LogicLockingAnalyzer::compute_total_output_corruption(SigBit a, bool check_sim)
+{
+	std::vector<float> corruption = compute_output_corruption(a, check_sim);
+	if (corruption.empty()) {
+		return 0.0f;
+	}
+	float sum_corr = 0.0;
+	for (float p : corruption) {
+		sum_corr += p;
+	}
+	sum_corr /= corruption.size();
+	return sum_corr;
+}
+
+std::vector<float> LogicLockingAnalyzer::compute_output_corruption(SigBit a, bool check_sim)
+{
+	std::vector<float> change_counts(comb_outputs_.size(), 0);
+	for (int i = 0; i < nb_test_vectors(); ++i) {
+		auto no_toggle = simulate_aig(i, {});
+		auto toggle = simulate_aig(i, {a});
+
+		if (check_sim) {
+			auto no_toggle_base = simulate_basic(i, {});
+			auto toggle_base = simulate_basic(i, {a});
+			if (no_toggle_base != no_toggle || toggle_base != toggle) {
+				log_error("Fast simulation result does not match expected");
+			}
+		}
+
+		for (size_t i = 0; i < no_toggle.size(); ++i) {
+			int nb_changes = std::bitset<64>(toggle[i] ^ no_toggle[i]).count();
+			change_counts.at(i) += nb_changes;
+		}
+	}
+	float ratio = 1.0 / (nb_test_vectors() * 64);
+	for (float &f : change_counts) {
+		f *= ratio;
+	}
+	return change_counts;
+}
+
 bool LogicLockingAnalyzer::is_pairwise_secure(SigBit a, SigBit b, bool check_sim)
 {
 	bool same_impact = true;
@@ -605,4 +647,25 @@ std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_pairwise_se
 		log("\tCell %s: %d pairwise secure\n", log_id(cells[i]->name), nb_secure[cells[i]]);
 	}
 	return ret;
+}
+
+void LogicLockingAnalyzer::report_output_corruption(bool check_sim)
+{
+	// Gather the signals that are cell outputs
+	std::vector<SigBit> signals;
+	std::vector<Cell *> cells;
+	for (auto it : module_->cells_) {
+		Cell *cell = it.second;
+		for (auto conn : cell->connections()) {
+			if (cell->output(conn.first)) {
+				cells.push_back(cell);
+				signals.emplace_back(conn.second);
+				break;
+			}
+		}
+	}
+	for (int i = 0; i < GetSize(signals); ++i) {
+		float output_corr = 100.0f * compute_total_output_corruption(signals[i], check_sim);
+		log("\tOutput corruption %s: %.1f%%\n", log_id(cells[i]->name), output_corr);
+	}
 }

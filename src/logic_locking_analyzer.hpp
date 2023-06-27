@@ -21,19 +21,20 @@ using Yosys::RTLIL::SigSpec;
 using Yosys::RTLIL::State;
 
 /**
- * @brief Analyze the effect of locking on the combinatorial gates of the circuit.
+ * @brief Analyze the effect of locking on the combinatorial gates of the circuit,
+ * using several metrics.
  *
  * Pairwise security
  * =================
  *
- * Two gates are pairwise secure if, for the given test vectors, no output value is sensitive
- * to one gate and not the other.
+ * Two signals are pairwise secure if, for the given test vectors, no output value is sensitive
+ * to one signal and not the other.
  *
  * That is, with f the output function of the test vector and the toggling values applied to each gate,
  * for every test vector tv either:
- * 		* the output is insensitive to both gates
+ * 		* the output is insensitive to both signals
  * 			- f(tv, 0, 0) = f(tv, 0, 1) = f(tv, 1, 0) = f(tv, 1, 1)
- *      * the output is sensitive to both gates
+ *      * the output is sensitive to both signals
  * 			- f(tv, 0, 0) != f(tv, 0, 1) or f(tv, 1, 0) != f(tv, 1, 1)
  * 			- f(tv, 0, 0) != f(tv, 1, 0) or f(tv, 0, 1) != f(tv, 1, 1)
  *
@@ -45,6 +46,14 @@ using Yosys::RTLIL::State;
  *      * Variable impact of a locking bit on different input vectors?
  * 			- there is tv1, f(tv1, 0) != f(tv1, 1)
  * 			- there is tv2, f(tv2, 0) = f(tv2, 1)
+ *
+ * Output corruption
+ * =================
+ *
+ * A signal corrupts an output with probability p if changing the value of the signal
+ * changes the value of the output with probability p. It is better if the signals chosen
+ * for locking have a high output corruption.
+ *
  */
 class LogicLockingAnalyzer
 {
@@ -65,6 +74,22 @@ class LogicLockingAnalyzer
 	void gen_test_vectors(int nb, size_t seed);
 
 	/**
+	 * @brief Returns a measure of total output corruption for a bit with the given test vectors
+	 *
+	 * As of now, it is just the sum of corruption probabilities for all outputs.
+	 * We could work on better measures:
+	 *     - a corruption probability of 1 is not that good, as it's just a toggling of the output. The best if 0.5
+	 *     - correlations between outputs are not accounted for
+	 */
+	float compute_total_output_corruption(SigBit a, bool check_sim = false);
+
+	/**
+	 * @brief Returns a measure of output corruption for all outputs for a bit,
+	 * with the given test vectors
+	 */
+	std::vector<float> compute_output_corruption(SigBit a, bool check_sim = false);
+
+	/**
 	 * @brief Returns whether the two bits are pairwise secure with the given test vectors
 	 */
 	bool is_pairwise_secure(SigBit a, SigBit b, bool check_sim = false);
@@ -72,7 +97,12 @@ class LogicLockingAnalyzer
 	/**
 	 * @brief Returns the list of pairwise-secure signal pairs
 	 */
-	std::vector<std::pair<Cell *, Cell *>> compute_pairwise_secure_graph(bool check_sim);
+	std::vector<std::pair<Cell *, Cell *>> compute_pairwise_secure_graph(bool check_sim = false);
+
+	/**
+	 * @brief Report on the output corruption
+	 */
+	void report_output_corruption(bool check_sim = false);
 
 	/**
 	 * @brief List the combinatorial inputs of the module (inputs + flip-flop outputs)
