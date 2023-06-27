@@ -572,9 +572,9 @@ std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_pairwise_se
 	std::vector<Cell *> cells;
 	for (auto it : module_->cells_) {
 		Cell *cell = it.second;
-		cells.push_back(cell);
 		for (auto conn : cell->connections()) {
 			if (cell->output(conn.first)) {
+				cells.push_back(cell);
 				signals.emplace_back(conn.second);
 				break;
 			}
