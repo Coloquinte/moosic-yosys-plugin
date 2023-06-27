@@ -111,7 +111,11 @@ static RTLIL::IdString get_output_portname(RTLIL::Cell *cell)
 }
 
 /**
- * @brief Analyze the pairwise security of pairs of combinatorial gates in the model.
+ * @brief Analyze the effect of locking on the combinatorial gates of the circuit.
+ *
+ * Pairwise security
+ * =================
+ *
  * Two gates are pairwise secure if, for the given test vectors, no output value is sensitive
  * to one gate and not the other.
  *
@@ -125,20 +129,20 @@ static RTLIL::IdString get_output_portname(RTLIL::Cell *cell)
  *
  * We could add more security properties later to avoid some failure modes. It remains to be seen if it
  * would be useful.
- *      * Non-simplifiablity of two locking bits (avoid redundant keys)
+ *      * It shouldn't be possible to separate two locking bits at all (avoid redundant keys)
  * 			- f(tv, x, y) cannot be written f(tv, g(x, y))
  *          - the truth table with respect to x, y are different for at least two input vectors
  *      * Variable impact of a locking bit on different input vectors?
  * 			- there is tv1, f(tv1, 0) != f(tv1, 1)
  * 			- there is tv2, f(tv2, 0) = f(tv2, 1)
  */
-class PairwiseSecurityAnalyzer
+class LogicLockingAnalyzer
 {
       public:
 	/**
 	 * @brief Initialize with a module
 	 */
-	PairwiseSecurityAnalyzer(RTLIL::Module *module);
+	LogicLockingAnalyzer(RTLIL::Module *module);
 
 	/**
 	 * @brief Number of test vectors currently registered
@@ -225,7 +229,7 @@ class PairwiseSecurityAnalyzer
 	pool<RTLIL::SigBit> toggled_bits_;
 };
 
-PairwiseSecurityAnalyzer::PairwiseSecurityAnalyzer(RTLIL::Module *module) : module_(module)
+LogicLockingAnalyzer::LogicLockingAnalyzer(RTLIL::Module *module) : module_(module)
 {
 	comb_inputs_ = get_comb_inputs();
 	comb_outputs_ = get_comb_outputs();
@@ -234,7 +238,7 @@ PairwiseSecurityAnalyzer::PairwiseSecurityAnalyzer(RTLIL::Module *module) : modu
 	init_aig();
 }
 
-pool<SigBit> PairwiseSecurityAnalyzer::get_comb_inputs() const
+pool<SigBit> LogicLockingAnalyzer::get_comb_inputs() const
 {
 	pool<SigBit> ret;
 	for (RTLIL::Wire *wire : module_->wires()) {
@@ -255,7 +259,7 @@ pool<SigBit> PairwiseSecurityAnalyzer::get_comb_inputs() const
 	return ret;
 }
 
-pool<SigBit> PairwiseSecurityAnalyzer::get_comb_outputs() const
+pool<SigBit> LogicLockingAnalyzer::get_comb_outputs() const
 {
 	pool<SigBit> ret;
 	for (RTLIL::Wire *wire : module_->wires()) {
@@ -275,7 +279,7 @@ pool<SigBit> PairwiseSecurityAnalyzer::get_comb_outputs() const
 	return ret;
 }
 
-void PairwiseSecurityAnalyzer::gen_test_vectors(int nb, size_t seed)
+void LogicLockingAnalyzer::gen_test_vectors(int nb, size_t seed)
 {
 	std::mt19937 rgen(seed);
 	std::uniform_int_distribution<std::uint64_t> dist;
@@ -293,7 +297,7 @@ void PairwiseSecurityAnalyzer::gen_test_vectors(int nb, size_t seed)
 	}
 }
 
-void PairwiseSecurityAnalyzer::init_wire_to_cells()
+void LogicLockingAnalyzer::init_wire_to_cells()
 {
 	wire_to_cells_.clear();
 	for (RTLIL::Cell *cell : module_->cells()) {
@@ -307,7 +311,7 @@ void PairwiseSecurityAnalyzer::init_wire_to_cells()
 	}
 }
 
-void PairwiseSecurityAnalyzer::init_wire_to_wires()
+void LogicLockingAnalyzer::init_wire_to_wires()
 {
 	wire_to_wires_.clear();
 	for (auto it : module_->connections()) {
@@ -323,7 +327,7 @@ void PairwiseSecurityAnalyzer::init_wire_to_wires()
 	}
 }
 
-void PairwiseSecurityAnalyzer::init_aig()
+void LogicLockingAnalyzer::init_aig()
 {
 	wire_to_aig_.clear();
 	dirty_bits_.clear();
@@ -390,7 +394,7 @@ void PairwiseSecurityAnalyzer::init_aig()
 	}
 }
 
-void PairwiseSecurityAnalyzer::cell_to_aig(RTLIL::Cell *cell)
+void LogicLockingAnalyzer::cell_to_aig(RTLIL::Cell *cell)
 {
 	if (!yosys_celltypes.cell_evaluable(cell->type)) {
 		return;
@@ -506,7 +510,7 @@ RTLIL::State invert_state(RTLIL::State val)
 	}
 }
 
-void PairwiseSecurityAnalyzer::set_input_state(const dict<SigBit, State> &state)
+void LogicLockingAnalyzer::set_input_state(const dict<SigBit, State> &state)
 {
 	state_ = state;
 	dirty_bits_.clear();
@@ -532,7 +536,7 @@ void PairwiseSecurityAnalyzer::set_input_state(const dict<SigBit, State> &state)
 	}
 }
 
-dict<SigBit, State> PairwiseSecurityAnalyzer::get_output_state() const
+dict<SigBit, State> LogicLockingAnalyzer::get_output_state() const
 {
 	dict<SigBit, State> ret;
 	for (RTLIL::Wire *wire : module_->wires()) {
@@ -563,7 +567,7 @@ dict<SigBit, State> PairwiseSecurityAnalyzer::get_output_state() const
 	return ret;
 }
 
-bool PairwiseSecurityAnalyzer::has_state(SigSpec sig)
+bool LogicLockingAnalyzer::has_state(SigSpec sig)
 {
 	for (auto bit : sig)
 		if (bit.wire != nullptr && !state_.count(bit))
@@ -571,7 +575,7 @@ bool PairwiseSecurityAnalyzer::has_state(SigSpec sig)
 	return true;
 }
 
-RTLIL::Const PairwiseSecurityAnalyzer::get_state(SigSpec sig)
+RTLIL::Const LogicLockingAnalyzer::get_state(SigSpec sig)
 {
 	RTLIL::Const value;
 
@@ -586,7 +590,7 @@ RTLIL::Const PairwiseSecurityAnalyzer::get_state(SigSpec sig)
 	return value;
 }
 
-void PairwiseSecurityAnalyzer::set_state(SigSpec sig, RTLIL::Const value)
+void LogicLockingAnalyzer::set_state(SigSpec sig, RTLIL::Const value)
 {
 	log_assert(GetSize(sig) <= GetSize(value));
 
@@ -601,7 +605,7 @@ void PairwiseSecurityAnalyzer::set_state(SigSpec sig, RTLIL::Const value)
 		}
 }
 
-std::vector<std::uint64_t> PairwiseSecurityAnalyzer::simulate_basic(int tv, const pool<SigBit> &toggled_bits)
+std::vector<std::uint64_t> LogicLockingAnalyzer::simulate_basic(int tv, const pool<SigBit> &toggled_bits)
 {
 	aig_.resetState();
 	std::vector<std::uint64_t> ret(comb_outputs_.size());
@@ -668,7 +672,7 @@ std::vector<std::uint64_t> PairwiseSecurityAnalyzer::simulate_basic(int tv, cons
 	return ret;
 }
 
-std::vector<std::uint64_t> PairwiseSecurityAnalyzer::simulate_aig(int tv, const pool<SigBit> &toggled_bits)
+std::vector<std::uint64_t> LogicLockingAnalyzer::simulate_aig(int tv, const pool<SigBit> &toggled_bits)
 {
 	std::vector<Lit> toggling;
 	for (SigBit bit : toggled_bits) {
@@ -677,7 +681,7 @@ std::vector<std::uint64_t> PairwiseSecurityAnalyzer::simulate_aig(int tv, const 
 	return aig_.simulateWithToggling(test_vectors_[tv], toggling);
 }
 
-void PairwiseSecurityAnalyzer::simulate_cell(RTLIL::Cell *cell)
+void LogicLockingAnalyzer::simulate_cell(RTLIL::Cell *cell)
 {
 	// Taken from passes/sat/sim.cc
 	if (yosys_celltypes.cell_evaluable(cell->type)) {
@@ -740,7 +744,7 @@ void PairwiseSecurityAnalyzer::simulate_cell(RTLIL::Cell *cell)
 	}
 }
 
-bool PairwiseSecurityAnalyzer::is_pairwise_secure(SigBit a, SigBit b, bool check_sim)
+bool LogicLockingAnalyzer::is_pairwise_secure(SigBit a, SigBit b, bool check_sim)
 {
 	bool same_impact = true;
 	for (int i = 0; i < nb_test_vectors(); ++i) {
@@ -780,7 +784,7 @@ bool PairwiseSecurityAnalyzer::is_pairwise_secure(SigBit a, SigBit b, bool check
 	return !same_impact;
 }
 
-std::vector<std::pair<Cell *, Cell *>> PairwiseSecurityAnalyzer::compute_pairwise_secure_graph(bool check_sim)
+std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_pairwise_secure_graph(bool check_sim)
 {
 	// Gather the signals that are cell outputs
 	std::vector<SigBit> signals;
@@ -949,7 +953,7 @@ void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percen
 	log("Running logic locking with %d test vectors, target %.1f%% (%d cells out of %d).\n", nb_test_vectors, percent_locking, max_number,
 	    nb_cells);
 
-	PairwiseSecurityAnalyzer pw(module);
+	LogicLockingAnalyzer pw(module);
 	pw.gen_test_vectors(nb_test_vectors, 1);
 
 	// Determine pairwise security
