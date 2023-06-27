@@ -18,6 +18,8 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
+enum OptimizationTarget { PAIRWISE_SECURITY, OUTPUT_CORRUPTION };
+
 std::vector<Cell *> optimize_pairwise_security(const std::vector<std::pair<Cell *, Cell *>> &pairwise_security, int maxNumber)
 {
 	pool<Cell *> cells;
@@ -86,7 +88,7 @@ std::vector<Cell *> optimize_output_corruption(const dict<Cell *, std::vector<st
 	return ret;
 }
 
-void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percent_locking)
+void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percent_locking, OptimizationTarget target)
 {
 	int nb_cells = GetSize(module->cells_);
 	int max_number = static_cast<int>(0.01 * nb_cells * percent_locking);
@@ -97,7 +99,7 @@ void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percen
 	pw.gen_test_vectors(nb_test_vectors, 1);
 
 	std::vector<Cell *> locked_gates;
-	if (false) {
+	if (target == PAIRWISE_SECURITY) {
 		auto pairwise_security = pw.compute_pairwise_secure_graph();
 		locked_gates = optimize_pairwise_security(pairwise_security, max_number);
 	} else {
@@ -148,7 +150,7 @@ struct LogicLockingPass : public Pass {
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
 		log_header(design, "Executing LOGIC_LOCKING pass.\n");
-
+		OptimizationTarget target = PAIRWISE_SECURITY;
 		double percentLocking = 5.0f;
 		int nbTestVectors = 10;
 		std::vector<IdString> gates_to_lock;
@@ -186,6 +188,19 @@ struct LogicLockingPass : public Pass {
 				nbTestVectors = std::atoi(args[++argidx].c_str());
 				continue;
 			}
+			if (arg == "-target") {
+				if (argidx + 1 >= args.size())
+					break;
+				auto t = args[++argidx];
+				if (t == "pairwise") {
+					target = PAIRWISE_SECURITY;
+				} else if (t == "corruption") {
+					target = OUTPUT_CORRUPTION;
+				} else {
+					log_error("Invalid target option %s", t.c_str());
+				}
+				continue;
+			}
 			break;
 		}
 
@@ -205,7 +220,7 @@ struct LogicLockingPass : public Pass {
 		}
 		for (auto &it : design->modules_)
 			if (design->selected_module(it.first))
-				run_logic_locking(it.second, nbTestVectors, percentLocking);
+				run_logic_locking(it.second, nbTestVectors, percentLocking, target);
 	}
 
 	void help() override
@@ -223,6 +238,9 @@ struct LogicLockingPass : public Pass {
 		log("\n");
 		log("    -nb-test-vectors <value>\n");
 		log("        specify the number of test vectors used for analysis (default=10)\n");
+		log("\n");
+		log("    -target {pairwise|corruption}\n");
+		log("        specify the optimization target for locking (default=pairwise)\n");
 		log("\n");
 		log("\n");
 		log("The following options control locking manually, locking the corresponding \n");
