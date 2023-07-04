@@ -36,10 +36,12 @@ class OutputCorruptionOptimizer
 	 */
 	int nbData() const { return outputCorruption_.empty() ? 0 : outputCorruption_.front().size(); }
 
-    /**
-     * @brief Get nodes with unique corruption patterns
-    */
-    std::vector<int> getUniqueNodes() const;
+	/**
+	 * @brief Get nodes with unique corruption patterns
+	 *
+	 * @param preLocked Nodes considered already locked, which will be removed as well as their equivalents
+	 */
+	std::vector<int> getUniqueNodes(const std::vector<int> &preLocked = std::vector<int>()) const;
 
 	/**
 	 * @brief Obtain the proportion of signals corrupted at least once
@@ -54,7 +56,7 @@ class OutputCorruptionOptimizer
 	/**
 	 * @brief Maximize output corruption by picking one best gate to lock at a time
 	 */
-	Solution solveGreedy(int maxNumber) const;
+	Solution solveGreedy(int maxNumber, const Solution &preLocked) const;
 
 	/**
 	 * @brief Check datastructure consistency

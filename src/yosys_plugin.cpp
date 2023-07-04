@@ -69,7 +69,7 @@ std::vector<Cell *> optimize_output_corruption(const std::vector<Cell*> &cells, 
 		corruptionData.push_back(cellCorruption);
 	}
 	OutputCorruptionOptimizer opt(corruptionData);
-	vector<int> sol = opt.solveGreedy(maxNumber);
+	vector<int> sol = opt.solveGreedy(maxNumber, std::vector<int>());
 	float cover = 100.0 * opt.corruptionCover(sol);
 	float rate = 100.0 * opt.corruptionRate(sol);
 

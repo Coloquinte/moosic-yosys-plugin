@@ -63,15 +63,19 @@ float OutputCorruptionOptimizer::corruptionRate(const Solution &solution) const
 	return ((float)count) / (64 * nbData());
 }
 
-std::vector<int> OutputCorruptionOptimizer::getUniqueNodes() const
+std::vector<int> OutputCorruptionOptimizer::getUniqueNodes(const std::vector<int> &preLocked) const
 {
 	std::vector<int> nodes;
 	for (int i = 0; i < nbNodes(); ++i) {
 		bool hasEquivalent = false;
+		for (int n : preLocked) {
+			if (outputCorruption_[i] == outputCorruption_[n]) {
+				hasEquivalent = true;
+			}
+		}
 		for (int j = 0; j < i; ++j) {
 			if (outputCorruption_[i] == outputCorruption_[j]) {
 				hasEquivalent = true;
-				break;
 			}
 		}
 		if (!hasEquivalent) {
@@ -81,11 +85,11 @@ std::vector<int> OutputCorruptionOptimizer::getUniqueNodes() const
 	return nodes;
 }
 
-OutputCorruptionOptimizer::Solution OutputCorruptionOptimizer::solveGreedy(int maxNumber) const
+OutputCorruptionOptimizer::Solution OutputCorruptionOptimizer::solveGreedy(int maxNumber, const Solution &preLocked) const
 {
-	std::vector<int> remaining = getUniqueNodes();
+	std::vector<int> remaining = getUniqueNodes(preLocked);
 
-	std::vector<int> sol;
+	std::vector<int> sol = preLocked;
 	CorruptionData corr(nbData());
 	for (int i = 0; i < std::min(nbNodes(), maxNumber); ++i) {
 		// Compute the coverage added by each remaining gate
