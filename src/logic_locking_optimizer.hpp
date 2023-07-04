@@ -137,6 +137,7 @@ class LogicLockingOptimizer
 
       private:
 	std::vector<std::vector<int>> pairwiseInterference_;
+	std::vector<std::vector<int>> cliques_;
 };
 
 #endif

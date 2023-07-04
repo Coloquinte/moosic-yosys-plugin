@@ -17,6 +17,7 @@ LogicLockingOptimizer::LogicLockingOptimizer(const std::vector<std::vector<int>>
 	removeSelfLoops();
 	removeDirectedEdges();
 	removeExclusiveEquivalentNodes();
+	cliques_ = listMaximalCliques();
 	check();
 }
 
@@ -239,7 +240,7 @@ void LogicLockingOptimizer::bronKerbosch(std::vector<int> R, std::vector<int> P,
 LogicLockingOptimizer::ExplicitSolution LogicLockingOptimizer::solveBruteForce(int maxNumber) const
 {
 	int currentNumber = 0;
-	auto cliques = listMaximalCliques();
+	auto cliques = cliques_;
 	ExplicitSolution ret;
 	while (!cliques.empty() && currentNumber < maxNumber) {
 		// Pick the largest remaining clique
