@@ -237,7 +237,7 @@ void LogicLockingOptimizer::bronKerbosch(std::vector<int> R, std::vector<int> P,
 	}
 }
 
-LogicLockingOptimizer::ExplicitSolution LogicLockingOptimizer::solveBruteForce(int maxNumber) const
+LogicLockingOptimizer::ExplicitSolution LogicLockingOptimizer::solveGreedy(int maxNumber) const
 {
 	int currentNumber = 0;
 	auto cliques = cliques_;

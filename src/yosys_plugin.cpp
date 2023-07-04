@@ -18,13 +18,14 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-enum OptimizationTarget { PAIRWISE_SECURITY, OUTPUT_CORRUPTION };
+enum OptimizationTarget { PAIRWISE_SECURITY, OUTPUT_CORRUPTION, REPORT_ONLY };
 
-std::vector<Cell *> optimize_pairwise_security(const std::vector<Cell*> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security, int maxNumber)
+LogicLockingOptimizer make_optimizer(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security)
 {
 	pool<Cell *> cell_set(cells.begin(), cells.end());
 	for (auto p : pairwise_security) {
-		assert (cell_set.count(p.first));assert (cell_set.count(p.second));
+		assert(cell_set.count(p.first));
+		assert(cell_set.count(p.second));
 	}
 	dict<Cell *, int> cell_to_ind;
 	for (int i = 0; i < GetSize(cells); ++i) {
@@ -39,10 +40,32 @@ std::vector<Cell *> optimize_pairwise_security(const std::vector<Cell*> &cells, 
 		gr[j].push_back(i);
 	}
 
-	auto opt = LogicLockingOptimizer(gr);
+	return LogicLockingOptimizer(gr);
+}
+
+OutputCorruptionOptimizer make_optimizer(const std::vector<Cell *> &cells, const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data)
+{
+	std::vector<std::vector<std::uint64_t>> corruptionData;
+	for (Cell *c : cells) {
+		std::vector<std::uint64_t> cellCorruption;
+		for (const auto &v : data.at(c)) {
+			for (std::uint64_t d : v) {
+				cellCorruption.push_back(d);
+			}
+		}
+		corruptionData.push_back(cellCorruption);
+	}
+	return OutputCorruptionOptimizer(corruptionData);
+}
+
+std::vector<Cell *> optimize_pairwise_security(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security,
+					       int maxNumber)
+{
+	auto opt = make_optimizer(cells, pairwise_security);
+
 	log("Running optimization on the interference graph with %d non-trivial nodes out of %d and %d edges.\n", opt.nbConnectedNodes(),
 	    opt.nbNodes(), opt.nbEdges());
-	auto sol = opt.solveBruteForce(maxNumber);
+	auto sol = opt.solveGreedy(maxNumber);
 
 	std::vector<Cell *> ret;
 	for (const auto &clique : sol) {
@@ -56,19 +79,10 @@ std::vector<Cell *> optimize_pairwise_security(const std::vector<Cell*> &cells, 
 	return ret;
 }
 
-std::vector<Cell *> optimize_output_corruption(const std::vector<Cell*> &cells, const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data, int maxNumber)
+std::vector<Cell *> optimize_output_corruption(const std::vector<Cell *> &cells, const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data,
+					       int maxNumber)
 {
-	std::vector<std::vector<std::uint64_t>> corruptionData;
-	for (Cell *c : cells) {
-		std::vector<std::uint64_t> cellCorruption;
-		for (const auto &v : data.at(c)) {
-			for (std::uint64_t d : v) {
-				cellCorruption.push_back(d);
-			}
-		}
-		corruptionData.push_back(cellCorruption);
-	}
-	OutputCorruptionOptimizer opt(corruptionData);
+	auto opt = make_optimizer(cells, data);
 	vector<int> sol = opt.solveGreedy(maxNumber, std::vector<int>());
 	float cover = 100.0 * opt.corruptionCover(sol);
 	float rate = 100.0 * opt.corruptionRate(sol);
@@ -80,6 +94,41 @@ std::vector<Cell *> optimize_output_corruption(const std::vector<Cell*> &cells, 
 		ret.push_back(cells[c]);
 	}
 	return ret;
+}
+
+void report_tradeoff(const std::vector<Cell *> &cells, const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data)
+{
+	log("Reporting output corruption by number of cells locked\n");
+	auto opt = make_optimizer(cells, data);
+	auto order = opt.solveGreedy(opt.nbNodes(), std::vector<int>());
+	log("Locked\tCover\tRate\n");
+	for (int i = 1; i < GetSize(order); ++i) {
+		std::vector<int> sol = order;
+		sol.resize(i);
+		double cover = 100.0 * opt.corruptionCover(sol);
+		double rate = 100.0 * opt.corruptionRate(sol);
+		log("%d\t%.2f\t%.2f\n", i, cover, rate);
+	}
+}
+
+void report_tradeoff(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security)
+{
+	log("Reporting pairwise security by number of cells locked\n");
+	auto opt = make_optimizer(cells, pairwise_security);
+	auto all_cliques = opt.solveGreedy(opt.nbNodes());
+	log("Locked\tSecurity\n");
+	int nbLocked = 0;
+	for (int i = 0; i < GetSize(all_cliques); ++i) {
+		std::vector<int> clique = all_cliques[i];
+		for (int j = 1; j <= GetSize(clique); ++j) {
+			std::vector<std::vector<int>> sol = all_cliques;
+			sol.resize(i + 1);
+			sol.back().resize(j);
+			double security = opt.value(sol);
+			log("%d\t%.2f\n", nbLocked + j, security);
+		}
+		nbLocked += GetSize(clique);
+	}
 }
 
 void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percent_locking, OptimizationTarget target)
@@ -94,36 +143,44 @@ void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percen
 
 	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
 	std::vector<Cell *> locked_gates;
-	if (target == PAIRWISE_SECURITY) {
-		auto pairwise_security = pw.compute_pairwise_secure_graph();
-		locked_gates = optimize_pairwise_security(lockable_cells, pairwise_security, max_number);
+	if (target == PAIRWISE_SECURITY || target == OUTPUT_CORRUPTION) {
+		if (target == PAIRWISE_SECURITY) {
+			auto pairwise_security = pw.compute_pairwise_secure_graph();
+			locked_gates = optimize_pairwise_security(lockable_cells, pairwise_security, max_number);
+		} else {
+			auto corruption_data = pw.compute_output_corruption_data();
+			locked_gates = optimize_output_corruption(lockable_cells, corruption_data, max_number);
+		}
+
+		// Implement
+		// WARNING: NOT SECURE AT ALL (fixed seed + bad PRNG)
+		// Change this before shipping anything security-related
+		std::vector<bool> key_values;
+		std::mt19937 rgen;
+		std::bernoulli_distribution dist;
+		for (int i = 0; i < GetSize(locked_gates); ++i) {
+			key_values.push_back(dist(rgen));
+		}
+
+		/*
+		 * TODO: the locking should be at the signal level, not the gate level.
+		 * This would allow locking on the input ports.
+		 *
+		 * At the moment, the locking gate is added right after the cell, replacing
+		 * its original output wire.
+		 * To implement locking on input ports, we need to lock after the input instead,
+		 * so that the name is kept, and update all reader cells.
+		 * This would give more targets for locking, as primary inputs are not considered
+		 * right now.
+		 */
+		lock_gates(module, locked_gates, key_values);
 	} else {
+		// Report
 		auto corruption_data = pw.compute_output_corruption_data();
-		locked_gates = optimize_output_corruption(lockable_cells, corruption_data, max_number);
+		auto pairwise_security = pw.compute_pairwise_secure_graph();
+		report_tradeoff(lockable_cells, corruption_data);
+		report_tradeoff(lockable_cells, pairwise_security);
 	}
-
-	// Implement
-	// WARNING: NOT SECURE AT ALL (fixed seed + bad PRNG)
-	// Change this before shipping anything security-related
-	std::vector<bool> key_values;
-	std::mt19937 rgen;
-	std::bernoulli_distribution dist;
-	for (int i = 0; i < GetSize(locked_gates); ++i) {
-		key_values.push_back(dist(rgen));
-	}
-
-	/*
-	 * TODO: the locking should be at the signal level, not the gate level.
-	 * This would allow locking on the input ports.
-	 *
-	 * At the moment, the locking gate is added right after the cell, replacing
-	 * its original output wire.
-	 * To implement locking on input ports, we need to lock after the input instead,
-	 * so that the name is kept, and update all reader cells.
-	 * This would give more targets for locking, as primary inputs are not considered
-	 * right now.
-	 */
-	lock_gates(module, locked_gates, key_values);
 }
 
 /**
@@ -191,6 +248,8 @@ struct LogicLockingPass : public Pass {
 					target = PAIRWISE_SECURITY;
 				} else if (t == "corruption") {
 					target = OUTPUT_CORRUPTION;
+				} else if (t == "report") {
+					target = REPORT_ONLY;
 				} else {
 					log_error("Invalid target option %s", t.c_str());
 				}
@@ -234,7 +293,7 @@ struct LogicLockingPass : public Pass {
 		log("    -nb-test-vectors <value>\n");
 		log("        specify the number of test vectors used for analysis (default=10)\n");
 		log("\n");
-		log("    -target {pairwise|corruption}\n");
+		log("    -target {pairwise|corruption|report}\n");
 		log("        specify the optimization target for locking (default=pairwise)\n");
 		log("\n");
 		log("\n");

@@ -93,7 +93,7 @@ class LogicLockingOptimizer
 	 * @brief Obtain a logic locking by explicit enumeration, adding larger
 	 * cliques first
 	 */
-	ExplicitSolution solveBruteForce(int maxNumber) const;
+	ExplicitSolution solveGreedy(int maxNumber) const;
 
 	/**
 	 * @brief Obtain a logic locking with a simple heuristic, adding new nodes one
