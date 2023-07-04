@@ -20,19 +20,15 @@ PRIVATE_NAMESPACE_BEGIN
 
 enum OptimizationTarget { PAIRWISE_SECURITY, OUTPUT_CORRUPTION };
 
-std::vector<Cell *> optimize_pairwise_security(const std::vector<std::pair<Cell *, Cell *>> &pairwise_security, int maxNumber)
+std::vector<Cell *> optimize_pairwise_security(const std::vector<Cell*> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security, int maxNumber)
 {
-	pool<Cell *> cells;
+	pool<Cell *> cell_set(cells.begin(), cells.end());
 	for (auto p : pairwise_security) {
-		cells.insert(p.first);
-		cells.insert(p.second);
+		assert (cell_set.count(p.first));assert (cell_set.count(p.second));
 	}
 	dict<Cell *, int> cell_to_ind;
-	std::vector<Cell *> ind_to_cell;
-	int ind = 0;
-	for (Cell *c : cells) {
-		cell_to_ind[c] = ind++;
-		ind_to_cell.push_back(c);
+	for (int i = 0; i < GetSize(cells); ++i) {
+		cell_to_ind[cells[i]] = i;
 	}
 
 	std::vector<std::vector<int>> gr(cells.size());
@@ -51,7 +47,7 @@ std::vector<Cell *> optimize_pairwise_security(const std::vector<std::pair<Cell 
 	std::vector<Cell *> ret;
 	for (const auto &clique : sol) {
 		for (int c : clique) {
-			ret.push_back(ind_to_cell[c]);
+			ret.push_back(cells[c]);
 		}
 	}
 
@@ -60,14 +56,12 @@ std::vector<Cell *> optimize_pairwise_security(const std::vector<std::pair<Cell 
 	return ret;
 }
 
-std::vector<Cell *> optimize_output_corruption(const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data, int maxNumber)
+std::vector<Cell *> optimize_output_corruption(const std::vector<Cell*> &cells, const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data, int maxNumber)
 {
-	std::vector<Cell *> ind_to_cell;
 	std::vector<std::vector<std::uint64_t>> corruptionData;
-	for (auto p : data) {
-		ind_to_cell.push_back(p.first);
+	for (Cell *c : cells) {
 		std::vector<std::uint64_t> cellCorruption;
-		for (const auto &v : p.second) {
+		for (const auto &v : data.at(c)) {
 			for (std::uint64_t d : v) {
 				cellCorruption.push_back(d);
 			}
@@ -83,7 +77,7 @@ std::vector<Cell *> optimize_output_corruption(const dict<Cell *, std::vector<st
 
 	std::vector<Cell *> ret;
 	for (int c : sol) {
-		ret.push_back(ind_to_cell[c]);
+		ret.push_back(cells[c]);
 	}
 	return ret;
 }
@@ -98,13 +92,14 @@ void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percen
 	LogicLockingAnalyzer pw(module);
 	pw.gen_test_vectors(nb_test_vectors, 1);
 
+	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
 	std::vector<Cell *> locked_gates;
 	if (target == PAIRWISE_SECURITY) {
 		auto pairwise_security = pw.compute_pairwise_secure_graph();
-		locked_gates = optimize_pairwise_security(pairwise_security, max_number);
+		locked_gates = optimize_pairwise_security(lockable_cells, pairwise_security, max_number);
 	} else {
 		auto corruption_data = pw.compute_output_corruption_data();
-		locked_gates = optimize_output_corruption(corruption_data, max_number);
+		locked_gates = optimize_output_corruption(lockable_cells, corruption_data, max_number);
 	}
 
 	// Implement
@@ -113,7 +108,7 @@ void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percen
 	std::vector<bool> key_values;
 	std::mt19937 rgen;
 	std::bernoulli_distribution dist;
-	for (Cell *c : locked_gates) {
+	for (int i = 0; i < GetSize(locked_gates); ++i) {
 		key_values.push_back(dist(rgen));
 	}
 
