@@ -109,6 +109,7 @@ void report_tradeoff(const std::vector<Cell *> &cells, const dict<Cell *, std::v
 		double rate = 100.0 * opt.corruptionRate(sol);
 		log("%d\t%.2f\t%.2f\n", i, cover, rate);
 	}
+	log("\n\n");
 }
 
 void report_tradeoff(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security)
@@ -129,6 +130,7 @@ void report_tradeoff(const std::vector<Cell *> &cells, const std::vector<std::pa
 		}
 		nbLocked += GetSize(clique);
 	}
+	log("\n\n");
 }
 
 void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percent_locking, OptimizationTarget target)
