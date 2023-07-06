@@ -92,6 +92,7 @@ OutputCorruptionOptimizer::Solution OutputCorruptionOptimizer::solveGreedy(int m
 	std::vector<int> sol = preLocked;
 	CorruptionData corr(nbData());
 	for (int i = 0; i < std::min(nbNodes(), maxNumber); ++i) {
+		if (remaining.empty()) break;
 		// Compute the coverage added by each remaining gate
 		int bestCover = 0;
 		int bestRate = 0;
@@ -99,7 +100,7 @@ OutputCorruptionOptimizer::Solution OutputCorruptionOptimizer::solveGreedy(int m
 		for (int k : remaining) {
 			int cover = additionalCorruption(corr, outputCorruption_[k]);
 			int rate = corruptionRate_[k];
-			if (cover < bestCover || (cover == bestCover && rate < bestRate)) {
+			if (cover > bestCover || (cover == bestCover && rate > bestRate)) {
 				bestCover = cover;
 				bestRate = rate;
 				bestK = k;

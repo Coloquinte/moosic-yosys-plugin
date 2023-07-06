@@ -102,7 +102,7 @@ void report_tradeoff(const std::vector<Cell *> &cells, const dict<Cell *, std::v
 	auto opt = make_optimizer(cells, data);
 	auto order = opt.solveGreedy(opt.nbNodes(), std::vector<int>());
 	log("Locked\tCover\tRate\n");
-	for (int i = 1; i < GetSize(order); ++i) {
+	for (int i = 1; i <= GetSize(order); ++i) {
 		std::vector<int> sol = order;
 		sol.resize(i);
 		double cover = 100.0 * opt.corruptionCover(sol);
