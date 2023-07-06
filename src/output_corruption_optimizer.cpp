@@ -91,8 +91,9 @@ OutputCorruptionOptimizer::Solution OutputCorruptionOptimizer::solveGreedy(int m
 
 	std::vector<int> sol = preLocked;
 	CorruptionData corr(nbData());
-	for (int i = 0; i < std::min(nbNodes(), maxNumber); ++i) {
-		if (remaining.empty()) break;
+	for (int i = preLocked.size(); i < std::min(nbNodes(), maxNumber); ++i) {
+		if (remaining.empty())
+			break;
 		// Compute the coverage added by each remaining gate
 		int bestCover = 0;
 		int bestRate = 0;

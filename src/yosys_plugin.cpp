@@ -18,7 +18,7 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-enum OptimizationTarget { PAIRWISE_SECURITY, OUTPUT_CORRUPTION, REPORT_ONLY };
+enum OptimizationTarget { PAIRWISE_SECURITY, OUTPUT_CORRUPTION, HYBRID };
 
 LogicLockingOptimizer make_optimizer(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security)
 {
@@ -83,11 +83,42 @@ std::vector<Cell *> optimize_output_corruption(const std::vector<Cell *> &cells,
 					       int maxNumber)
 {
 	auto opt = make_optimizer(cells, data);
-	vector<int> sol = opt.solveGreedy(maxNumber, std::vector<int>());
+
+	log("Running corruption optimization with %d unique nodes out of %d.\n", (int)opt.getUniqueNodes().size(), opt.nbNodes());
+	std::vector<int> sol = opt.solveGreedy(maxNumber, std::vector<int>());
 	float cover = 100.0 * opt.corruptionCover(sol);
 	float rate = 100.0 * opt.corruptionRate(sol);
 
 	log("Locking solution with %d locked wires, %.2f%% corruption cover and %.2f%% corruption rate.\n", (int)sol.size(), cover, rate);
+
+	std::vector<Cell *> ret;
+	for (int c : sol) {
+		ret.push_back(cells[c]);
+	}
+	return ret;
+}
+
+std::vector<Cell *> optimize_hybrid(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security,
+				    const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data, int maxNumber)
+{
+	auto pairw = make_optimizer(cells, pairwise_security);
+	auto corr = make_optimizer(cells, data);
+
+	log("Running hybrid optimization\n");
+	log("Interference graph with %d non-trivial nodes out of %d and %d edges.\n", pairw.nbConnectedNodes(), pairw.nbNodes(), pairw.nbEdges());
+	log("Corruption data with %d unique nodes out of %d.\n", (int)corr.getUniqueNodes().size(), corr.nbNodes());
+	auto pairwSol = pairw.solveGreedy(maxNumber);
+	std::vector<int> largestClique;
+	if (!pairwSol.empty() && pairwSol.front().size() > 1) {
+		largestClique = pairwSol.front();
+	}
+
+	std::vector<int> sol = corr.solveGreedy(maxNumber, largestClique);
+	float cover = 100.0 * corr.corruptionCover(sol);
+	float rate = 100.0 * corr.corruptionRate(sol);
+
+	log("Locking solution with %d locked wires, largest clique of size %d, %.2f%% corruption cover and %.2f%% corruption rate.\n",
+	    (int)sol.size(), (int)largestClique.size(), cover, rate);
 
 	std::vector<Cell *> ret;
 	for (int c : sol) {
@@ -133,7 +164,7 @@ void report_tradeoff(const std::vector<Cell *> &cells, const std::vector<std::pa
 	log("\n\n");
 }
 
-void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percent_locking, OptimizationTarget target)
+void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percent_locking, OptimizationTarget target, bool report)
 {
 	int nb_cells = GetSize(module->cells_);
 	int max_number = static_cast<int>(0.01 * nb_cells * percent_locking);
@@ -145,43 +176,48 @@ void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percen
 
 	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
 	std::vector<Cell *> locked_gates;
-	if (target == PAIRWISE_SECURITY || target == OUTPUT_CORRUPTION) {
-		if (target == PAIRWISE_SECURITY) {
-			auto pairwise_security = pw.compute_pairwise_secure_graph();
-			locked_gates = optimize_pairwise_security(lockable_cells, pairwise_security, max_number);
-		} else {
-			auto corruption_data = pw.compute_output_corruption_data();
-			locked_gates = optimize_output_corruption(lockable_cells, corruption_data, max_number);
-		}
-
-		// Implement
-		// WARNING: NOT SECURE AT ALL (fixed seed + bad PRNG)
-		// Change this before shipping anything security-related
-		std::vector<bool> key_values;
-		std::mt19937 rgen;
-		std::bernoulli_distribution dist;
-		for (int i = 0; i < GetSize(locked_gates); ++i) {
-			key_values.push_back(dist(rgen));
-		}
-
-		/*
-		 * TODO: the locking should be at the signal level, not the gate level.
-		 * This would allow locking on the input ports.
-		 *
-		 * At the moment, the locking gate is added right after the cell, replacing
-		 * its original output wire.
-		 * To implement locking on input ports, we need to lock after the input instead,
-		 * so that the name is kept, and update all reader cells.
-		 * This would give more targets for locking, as primary inputs are not considered
-		 * right now.
-		 */
-		lock_gates(module, locked_gates, key_values);
-	} else {
+	if (report) {
 		// Report
 		auto corruption_data = pw.compute_output_corruption_data();
 		auto pairwise_security = pw.compute_pairwise_secure_graph();
 		report_tradeoff(lockable_cells, corruption_data);
 		report_tradeoff(lockable_cells, pairwise_security);
+	}
+	if (target == PAIRWISE_SECURITY) {
+		auto pairwise_security = pw.compute_pairwise_secure_graph();
+		locked_gates = optimize_pairwise_security(lockable_cells, pairwise_security, max_number);
+	} else if (target == OUTPUT_CORRUPTION) {
+		auto corruption_data = pw.compute_output_corruption_data();
+		locked_gates = optimize_output_corruption(lockable_cells, corruption_data, max_number);
+	} else if (target == HYBRID) {
+		auto pairwise_security = pw.compute_pairwise_secure_graph();
+		auto corruption_data = pw.compute_output_corruption_data();
+		locked_gates = optimize_hybrid(lockable_cells, pairwise_security, corruption_data, max_number);
+	}
+
+	// Implement
+	// WARNING: NOT SECURE AT ALL (fixed seed + bad PRNG)
+	// Change this before shipping anything security-related
+	std::vector<bool> key_values;
+	std::mt19937 rgen;
+	std::bernoulli_distribution dist;
+	for (int i = 0; i < GetSize(locked_gates); ++i) {
+		key_values.push_back(dist(rgen));
+	}
+
+	/*
+	 * TODO: the locking should be at the signal level, not the gate level.
+	 * This would allow locking on the input ports.
+	 *
+	 * At the moment, the locking gate is added right after the cell, replacing
+	 * its original output wire.
+	 * To implement locking on input ports, we need to lock after the input instead,
+	 * so that the name is kept, and update all reader cells.
+	 * This would give more targets for locking, as primary inputs are not considered
+	 * right now.
+	 */
+	if (!report) {
+		lock_gates(module, locked_gates, key_values);
 	}
 }
 
@@ -207,6 +243,7 @@ struct LogicLockingPass : public Pass {
 		OptimizationTarget target = PAIRWISE_SECURITY;
 		double percentLocking = 5.0f;
 		int nbTestVectors = 10;
+		bool report = false;
 		std::vector<IdString> gates_to_lock;
 		std::vector<bool> lock_key_values;
 		std::vector<std::pair<IdString, IdString>> gates_to_mix;
@@ -250,11 +287,15 @@ struct LogicLockingPass : public Pass {
 					target = PAIRWISE_SECURITY;
 				} else if (t == "corruption") {
 					target = OUTPUT_CORRUPTION;
-				} else if (t == "report") {
-					target = REPORT_ONLY;
+				} else if (t == "hybrid") {
+					target = HYBRID;
 				} else {
 					log_error("Invalid target option %s", t.c_str());
 				}
+				continue;
+			}
+			if (arg == "-report") {
+				report = true;
 				continue;
 			}
 			break;
@@ -276,7 +317,7 @@ struct LogicLockingPass : public Pass {
 		}
 		for (auto &it : design->modules_)
 			if (design->selected_module(it.first))
-				run_logic_locking(it.second, nbTestVectors, percentLocking, target);
+				run_logic_locking(it.second, nbTestVectors, percentLocking, target, report);
 	}
 
 	void help() override
@@ -295,8 +336,11 @@ struct LogicLockingPass : public Pass {
 		log("    -nb-test-vectors <value>\n");
 		log("        specify the number of test vectors used for analysis (default=10)\n");
 		log("\n");
-		log("    -target {pairwise|corruption|report}\n");
+		log("    -target {pairwise|corruption|hybrid}\n");
 		log("        specify the optimization target for locking (default=pairwise)\n");
+		log("\n");
+		log("    -report\n");
+		log("        print statistics but do not modify the circuit\n");
 		log("\n");
 		log("\n");
 		log("The following options control locking manually, locking the corresponding \n");
