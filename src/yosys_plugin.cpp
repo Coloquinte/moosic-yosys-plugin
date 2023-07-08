@@ -242,7 +242,7 @@ struct LogicLockingPass : public Pass {
 		log_header(design, "Executing LOGIC_LOCKING pass.\n");
 		OptimizationTarget target = PAIRWISE_SECURITY;
 		double percentLocking = 5.0f;
-		int nbTestVectors = 10;
+		int nbTestVectors = 64;
 		bool report = false;
 		std::vector<IdString> gates_to_lock;
 		std::vector<bool> lock_key_values;
@@ -334,7 +334,7 @@ struct LogicLockingPass : public Pass {
 		log("        specify the maximum number of gates that are added (default=5)\n");
 		log("\n");
 		log("    -nb-test-vectors <value>\n");
-		log("        specify the number of test vectors used for analysis (default=10)\n");
+		log("        specify the number of test vectors used for analysis (default=64)\n");
 		log("\n");
 		log("    -target {pairwise|corruption|hybrid}\n");
 		log("        specify the optimization target for locking (default=pairwise)\n");
