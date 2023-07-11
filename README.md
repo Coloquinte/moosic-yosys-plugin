@@ -23,17 +23,7 @@ logic_locking -max-percent 5 -target corruption
 ## Installation instructions
 
 To install this plugin
-- Install [Yosys](https://github.com/YosysHQ/yosys) from source (a recent version is required).
-```sh
-git clone https://github.com/YosysHQ/yosys
-cd yosys
-# For global install
-sudo make install
-# Alternatively for a user install
-make install PREFIX=~/.local
-export PATH=~/.local/bin/:$PATH
-```
-
+- Install [Yosys](https://github.com/YosysHQ/yosys) from source or from [oss-cad-suite](https://github.com/YosysHQ/oss-cad-suite-build) (a recent version is required):
 - Build and install:
 ```sh
 make
