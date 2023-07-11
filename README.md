@@ -1,5 +1,5 @@
 
-# moosic-yosys-plugin: Logic Locking for Yosys
+# Logic Locking for Yosys
 
 
 ## Using the plugin
@@ -10,9 +10,13 @@ The plugin defines a new `logic_locking` command. To run Yosys with the plugin:
 yosys -m moosic-yosys-plugin
 ```
 
-And in Yosys:
+And in Yosys, with a synthetized design:
 ```
+# Look at the command documentation
 help logic_locking
+
+# Add logic locking up to 5% of the module size, maximizing output corruption
+logic_locking -max-percent 5 -target corruption
 ```
 
 
