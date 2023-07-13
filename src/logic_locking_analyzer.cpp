@@ -31,7 +31,10 @@ pool<SigBit> LogicLockingAnalyzer::get_comb_inputs() const
 	pool<SigBit> ret;
 	for (RTLIL::Wire *wire : module_->wires()) {
 		if (wire->port_input) {
-			ret.emplace(wire);
+			RTLIL::SigSpec spec(wire);
+			for (SigBit sig : spec) {
+				ret.emplace(sig);
+			}
 		}
 	}
 	for (RTLIL::Cell *cell : module_->cells()) {
@@ -52,7 +55,10 @@ pool<SigBit> LogicLockingAnalyzer::get_comb_outputs() const
 	pool<SigBit> ret;
 	for (RTLIL::Wire *wire : module_->wires()) {
 		if (wire->port_output) {
-			ret.emplace(wire);
+			RTLIL::SigSpec spec(wire);
+			for (SigBit sig : spec) {
+				ret.emplace(sig);
+			}
 		}
 	}
 	for (RTLIL::Cell *cell : module_->cells()) {
@@ -121,8 +127,8 @@ void LogicLockingAnalyzer::init_wire_to_cells()
 	for (RTLIL::Cell *cell : module_->cells()) {
 		for (auto it : cell->connections()) {
 			if (cell->input(it.first)) {
-				RTLIL::Wire *wire = it.second.as_wire();
-				auto it = wire_to_cells_.insert(wire).first;
+				RTLIL::SigBit sig = it.second.as_bit();
+				auto it = wire_to_cells_.insert(sig).first;
 				it->second.insert(cell);
 			}
 		}
@@ -133,15 +139,23 @@ void LogicLockingAnalyzer::init_wire_to_wires()
 {
 	wire_to_wires_.clear();
 	for (auto it : module_->connections()) {
-		SigBit a(it.first);
-		SigBit b(it.second);
-		if (!a.is_wire() || !b.is_wire()) {
+		SigSpec a = it.first;
+		SigSpec b = it.second;
+		if (GetSize(a) != GetSize(b)) {
+			log_error("A connection doesn't have same-size signals on both sides");
 			continue;
 		}
-		if (!wire_to_wires_.count(b)) {
-			wire_to_wires_[b] = pool<SigBit>();
+		for (int i = 0; i < GetSize(a); ++i) {
+			SigBit sig_a = a[i];
+			SigBit sig_b = b[i];
+			if (!sig_a.is_wire() || !sig_b.is_wire()) {
+				continue;
+			}
+			if (!wire_to_wires_.count(sig_b)) {
+				wire_to_wires_[sig_b] = pool<SigBit>();
+			}
+			wire_to_wires_[sig_b].emplace(sig_a);
 		}
-		wire_to_wires_[b].emplace(a);
 	}
 }
 
@@ -160,17 +174,21 @@ void LogicLockingAnalyzer::init_aig()
 
 	// Handle direct connections to constants
 	for (auto it : module_->connections()) {
-		SigBit a(it.first);
-		SigBit b(it.second);
-		if (a.is_wire() && !b.is_wire()) {
-			log_debug("Adding constant wire %s\n", log_id(a.wire->name));
-			wire_to_aig_[a] = b.data == State::S0 ? Lit::zero() : Lit::one();
-			dirty_bits_.emplace(a.wire);
-		}
-		if (b.is_wire() && !a.is_wire()) {
-			log_debug("Adding constant wire %s\n", log_id(b.wire->name));
-			wire_to_aig_[b] = a.data == State::S0 ? Lit::zero() : Lit::one();
-			dirty_bits_.emplace(b.wire);
+		SigSpec a(it.first);
+		SigSpec b(it.second);
+		for (int i = 0; i < GetSize(a); ++i) {
+			SigBit sig_a = a[i];
+			SigBit sig_b = b[i];
+			if (sig_a.is_wire() && !sig_b.is_wire()) {
+				log_debug("Adding constant wire %s\n", log_id(sig_a.wire->name));
+				wire_to_aig_[sig_a] = sig_b.data == State::S0 ? Lit::zero() : Lit::one();
+				dirty_bits_.emplace(sig_a);
+			}
+			if (sig_b.is_wire() && !sig_a.is_wire()) {
+				log_debug("Adding constant wire %s\n", log_id(sig_b.wire->name));
+				wire_to_aig_[sig_b] = sig_a.data == State::S0 ? Lit::zero() : Lit::one();
+				dirty_bits_.emplace(sig_b);
+			}
 		}
 	}
 
