@@ -164,13 +164,9 @@ void report_tradeoff(const std::vector<Cell *> &cells, const std::vector<std::pa
 	log("\n\n");
 }
 
-void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percent_locking, OptimizationTarget target, bool report)
+void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, int nb_locked, const std::vector<bool> &key_values, OptimizationTarget target,
+		       bool report)
 {
-	int nb_cells = GetSize(module->cells_);
-	int max_number = static_cast<int>(0.01 * nb_cells * percent_locking);
-	log("Running logic locking with %d test vectors, target %.1f%% (%d cells out of %d).\n", nb_test_vectors, percent_locking, max_number,
-	    nb_cells);
-
 	LogicLockingAnalyzer pw(module);
 	pw.gen_test_vectors(nb_test_vectors, 1);
 
@@ -185,24 +181,14 @@ void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, double percen
 	}
 	if (target == PAIRWISE_SECURITY) {
 		auto pairwise_security = pw.compute_pairwise_secure_graph();
-		locked_gates = optimize_pairwise_security(lockable_cells, pairwise_security, max_number);
+		locked_gates = optimize_pairwise_security(lockable_cells, pairwise_security, nb_locked);
 	} else if (target == OUTPUT_CORRUPTION) {
 		auto corruption_data = pw.compute_output_corruption_data();
-		locked_gates = optimize_output_corruption(lockable_cells, corruption_data, max_number);
+		locked_gates = optimize_output_corruption(lockable_cells, corruption_data, nb_locked);
 	} else if (target == HYBRID) {
 		auto pairwise_security = pw.compute_pairwise_secure_graph();
 		auto corruption_data = pw.compute_output_corruption_data();
-		locked_gates = optimize_hybrid(lockable_cells, pairwise_security, corruption_data, max_number);
-	}
-
-	// Implement
-	// WARNING: NOT SECURE AT ALL (fixed seed + bad PRNG)
-	// Change this before shipping anything security-related
-	std::vector<bool> key_values;
-	std::mt19937 rgen;
-	std::bernoulli_distribution dist;
-	for (int i = 0; i < GetSize(locked_gates); ++i) {
-		key_values.push_back(dist(rgen));
+		locked_gates = optimize_hybrid(lockable_cells, pairwise_security, corruption_data, nb_locked);
 	}
 
 	/*
@@ -235,48 +221,114 @@ static bool parse_bool(const std::string &str)
 	log_error("Invalid boolean value: %s", str.c_str());
 }
 
+/**
+ * Create a locking key
+ */
+static std::vector<bool> create_key(int nb_locked)
+{
+	std::vector<bool> key_values;
+	std::random_device rgen;
+	std::bernoulli_distribution dist;
+	for (int i = 0; i < nb_locked; ++i) {
+		key_values.push_back(dist(rgen));
+	}
+	return key_values;
+}
+
+/**
+ * Parse an hexadecimal string
+ */
+static std::vector<bool> parse_hex_string(const std::string &str)
+{
+	std::vector<bool> ret;
+	for (auto it = str.rbegin(); it != str.rend(); ++it) {
+		char cur = *it;
+		char c = std::tolower(cur);
+		int v = 0;
+		if (c >= '0' && c <= '9') {
+			v = c - '0';
+		} else if (c >= 'a' && c <= 'f') {
+			v = (c - 'a') + 10;
+		} else {
+			log_error("<%c> is not a proper hexadecimal character\n", cur);
+		}
+		for (int i = 0; i < 4; ++i) {
+			ret.push_back(v % 2);
+			v /= 2;
+		}
+	}
+	return ret;
+}
+
+static std::string create_hex_string(std::vector<bool> &key)
+{
+	std::string ret;
+	for (int i = 0; i < GetSize(key); i += 4) {
+		int v = 0;
+		int c = 1;
+		for (int j = i; j < i + 4 && j < GetSize(key); ++j) {
+			if (key[j]) {
+				v += c;
+			}
+			c *= 2;
+		}
+		if (v < 10) {
+			ret.push_back('0' + v);
+		}
+		else {
+			ret.push_back('a' + (v - 10));
+		}
+	}
+	std::reverse(ret.begin(), ret.end());
+	return ret;
+}
+
 struct LogicLockingPass : public Pass {
 	LogicLockingPass() : Pass("logic_locking") {}
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
 		log_header(design, "Executing LOGIC_LOCKING pass.\n");
 		OptimizationTarget target = PAIRWISE_SECURITY;
-		double percentLocking = 5.0f;
-		int nbTestVectors = 64;
+		double percent_locked = 5.0f;
+		int key_size = -1;
+		int nb_test_vectors = 64;
 		bool report = false;
 		std::vector<IdString> gates_to_lock;
-		std::vector<bool> lock_key_values;
+		std::string key;
 		std::vector<std::pair<IdString, IdString>> gates_to_mix;
-		std::vector<bool> mix_key_values;
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
 			std::string arg = args[argidx];
 			if (arg == "-lock-gate") {
-				if (argidx + 2 >= args.size())
+				if (argidx + 1 >= args.size())
 					break;
 				gates_to_lock.emplace_back(args[++argidx]);
-				lock_key_values.emplace_back(parse_bool(args[++argidx]));
 				continue;
 			}
 			if (arg == "-mix-gate") {
-				if (argidx + 3 >= args.size())
+				if (argidx + 2 >= args.size())
 					break;
 				IdString n1 = args[++argidx];
 				IdString n2 = args[++argidx];
 				gates_to_mix.emplace_back(n1, n2);
-				mix_key_values.emplace_back(parse_bool(args[++argidx]));
 				continue;
 			}
-			if (arg == "-max-percent") {
+			if (arg == "-key-percent") {
 				if (argidx + 1 >= args.size())
 					break;
-				percentLocking = std::atof(args[++argidx].c_str());
+				percent_locked = std::atof(args[++argidx].c_str());
+				continue;
+			}
+			if (arg == "-key-bits") {
+				if (argidx + 1 >= args.size())
+					break;
+				key_size = std::atoi(args[++argidx].c_str());
 				continue;
 			}
 			if (arg == "-nb-test-vectors") {
 				if (argidx + 1 >= args.size())
 					break;
-				nbTestVectors = std::atoi(args[++argidx].c_str());
+				nb_test_vectors = std::atoi(args[++argidx].c_str());
 				continue;
 			}
 			if (arg == "-target") {
@@ -294,6 +346,12 @@ struct LogicLockingPass : public Pass {
 				}
 				continue;
 			}
+			if (arg == "-key") {
+				if (argidx + 1 >= args.size())
+					break;
+				key = args[++argidx];
+				continue;
+			}
 			if (arg == "-report") {
 				report = true;
 				continue;
@@ -301,23 +359,60 @@ struct LogicLockingPass : public Pass {
 			break;
 		}
 
-		log_assert(percentLocking >= 0.0f);
-		log_assert(percentLocking <= 100.0f);
+		log_assert(percent_locked >= 0.0f);
+		log_assert(percent_locked <= 100.0f);
 
 		// handle extra options (e.g. selection)
 		extra_args(args, argidx, design);
 
-		if (!gates_to_lock.empty() || !gates_to_mix.empty()) {
-			for (auto &it : design->modules_)
-				if (design->selected_module(it.first)) {
-					lock_gates(it.second, gates_to_lock, lock_key_values);
-					mix_gates(it.second, gates_to_mix, mix_key_values);
-				}
+		std::vector<RTLIL::Module *> modules_to_run;
+		for (auto &it : design->modules_) {
+			if (design->selected_module(it.first)) {
+				modules_to_run.push_back(it.second);
+			}
+		}
+		if (modules_to_run.size() >= 2) {
+			log_error("Multiple modules are selected. Please run logic locking on a single module to avoid duplicate keys.");
+		}
+		if (modules_to_run.empty()) {
 			return;
 		}
-		for (auto &it : design->modules_)
-			if (design->selected_module(it.first))
-				run_logic_locking(it.second, nbTestVectors, percentLocking, target, report);
+
+		RTLIL::Module *mod = modules_to_run.front();
+
+		bool explicit_locking = !gates_to_lock.empty() || !gates_to_mix.empty();
+		int nb_locked;
+		if (explicit_locking) {
+			nb_locked = gates_to_lock.size() + gates_to_mix.size();
+		} else if (key_size >= 0) {
+			nb_locked = key_size;
+		} else {
+			nb_locked = static_cast<int>(0.01 * GetSize(mod->cells_) * percent_locked);
+		}
+
+		std::vector<bool> key_values;
+		if (key.empty()) {
+			key_values = create_key(nb_locked);
+		} else {
+			key_values = parse_hex_string(key);
+		}
+		if (nb_locked > GetSize(key_values)) {
+			log_error("Key size is %d bits, which is not enough to lock %d gates\n", GetSize(key_values), nb_locked);
+		}
+		std::string key_check = create_hex_string(key_values);
+
+		if (explicit_locking) {
+			log("Explicit logic locking solution: %zu xor locks and %zu mux locks, key %s\n", gates_to_lock.size(), gates_to_mix.size(),
+			    key_check.c_str());
+			std::vector<bool> lock_key(key_values.begin(), key_values.begin() + gates_to_lock.size());
+			lock_gates(mod, gates_to_lock, lock_key);
+			std::vector<bool> mix_key(key_values.begin() + gates_to_lock.size(), key_values.begin() + nb_locked);
+			mix_gates(mod, gates_to_mix, mix_key);
+			return;
+		}
+		log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,
+		    GetSize(mod->cells_), key_check.c_str());
+		run_logic_locking(mod, nb_test_vectors, percent_locked, key_values, target, report);
 	}
 
 	void help() override
@@ -330,14 +425,20 @@ struct LogicLockingPass : public Pass {
 		log("By default, it runs simulations and optimizes the subset of signals that \n");
 		log("are locked, making it difficult to recover the original design.\n");
 		log("\n");
-		log("    -max-percent <value>\n");
-		log("        specify the maximum number of gates that are added (default=5)\n");
+		log("    -key <value>\n");
+		log("        the locking key (hexadecimal)\n");
 		log("\n");
-		log("    -nb-test-vectors <value>\n");
-		log("        specify the number of test vectors used for analysis (default=64)\n");
+		log("    -key-bits <value>\n");
+		log("        specify the size of the key in bits\n");
+		log("\n");
+		log("    -key-percent <value>\n");
+		log("        specify the size of the key as a percentage of the number of gates in the design (default=5)\n");
 		log("\n");
 		log("    -target {pairwise|corruption|hybrid}\n");
 		log("        specify the optimization target for locking (default=pairwise)\n");
+		log("\n");
+		log("    -nb-test-vectors <value>\n");
+		log("        specify the number of test vectors used for analysis (default=64)\n");
 		log("\n");
 		log("    -report\n");
 		log("        print statistics but do not modify the circuit\n");
@@ -346,10 +447,10 @@ struct LogicLockingPass : public Pass {
 		log("The following options control locking manually, locking the corresponding \n");
 		log("gate outputs directly without any optimization. They can be mixed and repeated.\n");
 		log("\n");
-		log("    -lock-gate <name> <key_value>\n");
+		log("    -lock-gate <name>\n");
 		log("        lock the output of the gate, adding a xor/xnor and a module input.\n");
 		log("\n");
-		log("    -mix-gate <name1> <name2> <key_value>\n");
+		log("    -mix-gate <name1> <name2>\n");
 		log("        mix the output of one gate with another, adding a mux and a module input.\n");
 		log("\n");
 		log("\n");

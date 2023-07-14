@@ -109,7 +109,7 @@ static IdString get_output_portname(Cell *cell)
  */
 std::vector<Wire *> lock_gates(Module *module, const std::vector<Cell *> &cells, const std::vector<bool> &key_values)
 {
-	if (cells.size() != key_values.size()) {
+	if (cells.size() > key_values.size()) {
 		log_error("Number of cells and values for logic locking should be the same");
 	}
 	std::vector<Wire *> key_inputs;
