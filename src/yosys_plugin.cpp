@@ -164,21 +164,25 @@ void report_tradeoff(const std::vector<Cell *> &cells, const std::vector<std::pa
 	log("\n\n");
 }
 
-void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, int nb_locked, const std::vector<bool> &key_values, OptimizationTarget target,
-		       bool report)
+void report_logic_locking(RTLIL::Module *module, int nb_test_vectors)
+{
+	LogicLockingAnalyzer pw(module);
+	pw.gen_test_vectors(nb_test_vectors, 1);
+
+	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
+	auto corruption_data = pw.compute_output_corruption_data();
+	auto pairwise_security = pw.compute_pairwise_secure_graph();
+	report_tradeoff(lockable_cells, corruption_data);
+	report_tradeoff(lockable_cells, pairwise_security);
+}
+
+std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors, int nb_locked, OptimizationTarget target)
 {
 	LogicLockingAnalyzer pw(module);
 	pw.gen_test_vectors(nb_test_vectors, 1);
 
 	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
 	std::vector<Cell *> locked_gates;
-	if (report) {
-		// Report
-		auto corruption_data = pw.compute_output_corruption_data();
-		auto pairwise_security = pw.compute_pairwise_secure_graph();
-		report_tradeoff(lockable_cells, corruption_data);
-		report_tradeoff(lockable_cells, pairwise_security);
-	}
 	if (target == PAIRWISE_SECURITY) {
 		auto pairwise_security = pw.compute_pairwise_secure_graph();
 		locked_gates = optimize_pairwise_security(lockable_cells, pairwise_security, nb_locked);
@@ -190,21 +194,7 @@ void run_logic_locking(RTLIL::Module *module, int nb_test_vectors, int nb_locked
 		auto corruption_data = pw.compute_output_corruption_data();
 		locked_gates = optimize_hybrid(lockable_cells, pairwise_security, corruption_data, nb_locked);
 	}
-
-	/*
-	 * TODO: the locking should be at the signal level, not the gate level.
-	 * This would allow locking on the input ports.
-	 *
-	 * At the moment, the locking gate is added right after the cell, replacing
-	 * its original output wire.
-	 * To implement locking on input ports, we need to lock after the input instead,
-	 * so that the name is kept, and update all reader cells.
-	 * This would give more targets for locking, as primary inputs are not considered
-	 * right now.
-	 */
-	if (!report) {
-		lock_gates(module, locked_gates, key_values);
-	}
+	return locked_gates;
 }
 
 /**
@@ -274,8 +264,7 @@ static std::string create_hex_string(std::vector<bool> &key)
 		}
 		if (v < 10) {
 			ret.push_back('0' + v);
-		}
-		else {
+		} else {
 			ret.push_back('a' + (v - 10));
 		}
 	}
@@ -401,6 +390,17 @@ struct LogicLockingPass : public Pass {
 		}
 		std::string key_check = create_hex_string(key_values);
 
+		/*
+		 * TODO: the locking should be at the signal level, not the gate level.
+		 * This would allow locking on the input ports.
+		 *
+		 * At the moment, the locking gate is added right after the cell, replacing
+		 * its original output wire.
+		 * To implement locking on input ports, we need to lock after the input instead,
+		 * so that the name is kept, and update all reader cells.
+		 * This would give more targets for locking, as primary inputs are not considered
+		 * right now.
+		 */
 		if (explicit_locking) {
 			log("Explicit logic locking solution: %zu xor locks and %zu mux locks, key %s\n", gates_to_lock.size(), gates_to_mix.size(),
 			    key_check.c_str());
@@ -409,10 +409,14 @@ struct LogicLockingPass : public Pass {
 			std::vector<bool> mix_key(key_values.begin() + gates_to_lock.size(), key_values.begin() + nb_locked);
 			mix_gates(mod, gates_to_mix, mix_key);
 			return;
+		} else if (report) {
+			report_logic_locking(mod, nb_test_vectors);
+		} else {
+			log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,
+			    GetSize(mod->cells_), key_check.c_str());
+			auto locked_gates = run_logic_locking(mod, nb_test_vectors, percent_locked, target);
+			lock_gates(mod, locked_gates, key_values);
 		}
-		log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,
-		    GetSize(mod->cells_), key_check.c_str());
-		run_logic_locking(mod, nb_test_vectors, percent_locked, key_values, target, report);
 	}
 
 	void help() override

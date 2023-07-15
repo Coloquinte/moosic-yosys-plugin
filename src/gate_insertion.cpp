@@ -19,14 +19,13 @@ using Yosys::RTLIL::SigBit;
  * @param module Module to edit
  * @param locked_cell Cell whose output must be locked
  * @param locked_port Output port of the cell
- * @param key_bitwire Wire of the locking bit
+ * @param key_bit Locking bit
  * @param key_value Valid value of the key
  */
-Cell *insert_xor_locking_gate(Module *module, Cell *locked_cell, IdString locked_port, Wire *key_bitwire, bool key_value)
+Cell *insert_xor_locking_gate(Module *module, Cell *locked_cell, IdString locked_port, SigBit key_bit, bool key_value)
 {
 	log_assert(locked_cell->output(locked_port));
 	SigBit out_bit(locked_cell->getPort(locked_port));
-	SigBit key_bit(key_bitwire);
 
 	// Create a new wire to replace the former output
 	Wire *locked_bitwire = module->addWire(NEW_ID);
@@ -51,17 +50,16 @@ Cell *insert_xor_locking_gate(Module *module, Cell *locked_cell, IdString locked
  * @param locked_port1 Output port of the first cell
  * @param locked_cell2 Second cell whose output must be locked
  * @param locked_port2 Output port of the second cell
- * @param key_bitwire Wire of the locking bit
+ * @param key_bit Locking bit
  * @param key_value Valid value of the key
  */
-Cell *insert_mux_locking_gate(Module *module, Cell *locked_cell1, IdString locked_port1, Cell *locked_cell2, IdString locked_port2, Wire *key_bitwire,
+Cell *insert_mux_locking_gate(Module *module, Cell *locked_cell1, IdString locked_port1, Cell *locked_cell2, IdString locked_port2, SigBit key_bit,
 			      bool key_value)
 {
 	log_assert(locked_cell1->output(locked_port1));
 	log_assert(locked_cell1->output(locked_port2));
 	SigBit out_bit(locked_cell1->getPort(locked_port1));
 	SigBit mix_bit(locked_cell2->getPort(locked_port2));
-	SigBit key_bit(key_bitwire);
 
 	// Create a new wire to replace the former output
 	Wire *locked_bitwire = module->addWire(NEW_ID);
