@@ -463,15 +463,19 @@ struct LogicLockingPass : public Pass {
 		log("        mix the output of one gate with another, adding a mux and a module input.\n");
 		log("\n");
 		log("\n");
-		log("Security is evaluated by computing which signals are \"pairwise secure\".\n");
+		log("Security is evaluated with simple metrics:\n");
+		log("  * Target \"corruption\" maximizes the impact of the locked signals on the outputs.\n");
+		log("It will chose signals that cause changes in as many outputs for as many \n");
+		log("test vectors as possible.\n");
+		log("  * Target \"pairwise\" maximizes the number of mutually pairwise-secure signals.\n");
 		log("Two signals are pairwise secure if the value of the locking key for one of them \n");
 		log("cannot be recovered just by controlling the inputs, independently of the other.\n");
 		log("Additionally, the MOOSIC plugin forces \"useful\" pairwise security, which \n");
 		log("prevents redundant locking in buffer chains or xor trees.\n");
 		log("\n");
-		log("Only gate outputs (not primary inputs) are considered for locking.\n");
-		log("Sequential cells are treated as primary inputs and outputs for security evaluation.\n");
-		log("The design must be flattened.\n");
+		log("Only gate outputs (not primary inputs) are considered for locking at the moment.\n");
+		log("Sequential cells and hierarchical instances are treated as primary inputs and outputs \n");
+		log("for security evaluation.\n");
 		log("\n");
 		log("\n");
 	}

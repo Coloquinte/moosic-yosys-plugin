@@ -38,11 +38,13 @@ pool<SigBit> LogicLockingAnalyzer::get_comb_inputs() const
 		}
 	}
 	for (RTLIL::Cell *cell : module_->cells()) {
-		// Handle non-combinatorial cells
+		// Handle non-combinatorial cells and hierarchical modules
 		if (!yosys_celltypes.cell_evaluable(cell->type)) {
 			for (auto it : cell->connections()) {
 				if (cell->output(it.first)) {
-					ret.emplace(it.second.as_bit());
+					for (SigBit b : it.second) {
+						ret.emplace(b);
+					}
 				}
 			}
 		}
@@ -62,10 +64,13 @@ pool<SigBit> LogicLockingAnalyzer::get_comb_outputs() const
 		}
 	}
 	for (RTLIL::Cell *cell : module_->cells()) {
+		// Handle non-combinatorial cells and hierarchical modules
 		if (!yosys_celltypes.cell_evaluable(cell->type)) {
 			for (auto it : cell->connections()) {
 				if (cell->input(it.first)) {
-					ret.emplace(it.second.as_bit());
+					for (SigBit b : it.second) {
+						ret.emplace(b);
+					}
 				}
 			}
 		}
@@ -79,7 +84,7 @@ std::vector<SigBit> LogicLockingAnalyzer::get_lockable_signals() const
 	for (auto it : module_->cells_) {
 		Cell *cell = it.second;
 		for (auto conn : cell->connections()) {
-			if (cell->output(conn.first)) {
+			if (cell->output(conn.first) && conn.second.size() == 1) {
 				signals.emplace_back(conn.second);
 				break;
 			}
@@ -94,7 +99,7 @@ std::vector<Cell *> LogicLockingAnalyzer::get_lockable_cells() const
 	for (auto it : module_->cells_) {
 		Cell *cell = it.second;
 		for (auto conn : cell->connections()) {
-			if (cell->output(conn.first)) {
+			if (cell->output(conn.first) && conn.second.size() == 1) {
 				cells.push_back(cell);
 				break;
 			}
@@ -127,9 +132,10 @@ void LogicLockingAnalyzer::init_wire_to_cells()
 	for (RTLIL::Cell *cell : module_->cells()) {
 		for (auto it : cell->connections()) {
 			if (cell->input(it.first)) {
-				RTLIL::SigBit sig = it.second.as_bit();
-				auto it = wire_to_cells_.insert(sig).first;
-				it->second.insert(cell);
+				for (SigBit b : it.second) {
+					auto it = wire_to_cells_.insert(b).first;
+					it->second.insert(cell);
+				}
 			}
 		}
 	}
