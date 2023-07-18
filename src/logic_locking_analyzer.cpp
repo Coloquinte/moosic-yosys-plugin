@@ -236,7 +236,19 @@ void LogicLockingAnalyzer::init_aig()
 	}
 }
 
-void LogicLockingAnalyzer::cell_to_aig(RTLIL::Cell *cell)
+bool LogicLockingAnalyzer::has_valid_port(Cell *cell, const IdString &port_name) const
+{
+	if (!cell->hasPort(port_name)) {
+		return false;
+	}
+	SigSpec spec = cell->getPort(port_name);
+	if (spec.size() != 1) {
+		return false;
+	}
+	return wire_to_aig_.count(spec);
+}
+
+void LogicLockingAnalyzer::cell_to_aig(Cell *cell)
 {
 	if (!yosys_celltypes.cell_evaluable(cell->type)) {
 		return;
@@ -244,12 +256,12 @@ void LogicLockingAnalyzer::cell_to_aig(RTLIL::Cell *cell)
 	Lit sig_a, sig_b, sig_c, sig_d, sig_s, sig_y;
 	bool has_a, has_b, has_c, has_d, has_s, has_y;
 
-	has_a = cell->hasPort(ID::A) && wire_to_aig_.count(cell->getPort(ID::A));
-	has_b = cell->hasPort(ID::B) && wire_to_aig_.count(cell->getPort(ID::B));
-	has_c = cell->hasPort(ID::C) && wire_to_aig_.count(cell->getPort(ID::C));
-	has_d = cell->hasPort(ID::D) && wire_to_aig_.count(cell->getPort(ID::D));
-	has_s = cell->hasPort(ID::S) && wire_to_aig_.count(cell->getPort(ID::S));
-	has_y = cell->hasPort(ID::Y) && wire_to_aig_.count(cell->getPort(ID::Y));
+	has_a = has_valid_port(cell, ID::A);
+	has_b = has_valid_port(cell, ID::B);
+	has_c = has_valid_port(cell, ID::C);
+	has_d = has_valid_port(cell, ID::D);
+	has_s = has_valid_port(cell, ID::S);
+	has_y = has_valid_port(cell, ID::Y);
 
 	if (has_a)
 		sig_a = wire_to_aig_[cell->getPort(ID::A)];
@@ -335,7 +347,7 @@ void LogicLockingAnalyzer::cell_to_aig(RTLIL::Cell *cell)
 			dirty_bits_.insert(cell->getPort(ID::Y));
 		}
 	} else {
-		log_error("Cell %s has type %s which is not supported", log_id(cell->name), log_id(cell->type));
+		log_error("Cell %s has type %s which is not supported\n", log_id(cell->name), log_id(cell->type));
 	}
 	log_debug("Converting cell %s of type %s, wire %s--> %d\n", log_id(cell->name), log_id(cell->getPort(ID::Y).as_wire()->name),
 		  log_id(cell->type), wire_to_aig_[cell->getPort(ID::Y)].variable());

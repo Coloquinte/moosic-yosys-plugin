@@ -15,6 +15,7 @@ using Yosys::dict;
 using Yosys::pool;
 using Yosys::RTLIL::Cell;
 using Yosys::RTLIL::Const;
+using Yosys::RTLIL::IdString;
 using Yosys::RTLIL::Module;
 using Yosys::RTLIL::SigBit;
 using Yosys::RTLIL::SigSpec;
@@ -170,6 +171,8 @@ class LogicLockingAnalyzer
 	void init_aig();
 
 	void cell_to_aig(Cell *cell);
+
+	bool has_valid_port(Cell *cell, const IdString &port_name) const;
 
       private:
 	Module *module_;
