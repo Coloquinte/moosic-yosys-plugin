@@ -361,7 +361,7 @@ struct LogicLockingPass : public Pass {
 			}
 		}
 		if (modules_to_run.size() >= 2) {
-			log_error("Multiple modules are selected. Please run logic locking on a single module to avoid duplicate keys.");
+			log_error("Multiple modules are selected. Please run logic locking on a single module to avoid duplicate keys.\n");
 		}
 		if (modules_to_run.empty()) {
 			return;
@@ -416,7 +416,7 @@ struct LogicLockingPass : public Pass {
 		} else {
 			log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,
 			    GetSize(mod->cells_), key_check.c_str());
-			auto locked_gates = run_logic_locking(mod, nb_test_vectors, percent_locked, target);
+			auto locked_gates = run_logic_locking(mod, nb_test_vectors, nb_locked, target);
 			nb_locked = locked_gates.size();
 			RTLIL::Wire *w = add_key_input(mod, nb_locked);
 			key_values.erase(key_values.begin() + nb_locked, key_values.end());
