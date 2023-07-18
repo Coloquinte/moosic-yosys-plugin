@@ -404,10 +404,12 @@ struct LogicLockingPass : public Pass {
 		if (explicit_locking) {
 			log("Explicit logic locking solution: %zu xor locks and %zu mux locks, key %s\n", gates_to_lock.size(), gates_to_mix.size(),
 			    key_check.c_str());
-			std::vector<bool> lock_key(key_values.begin(), key_values.begin() + gates_to_lock.size());
-			lock_gates(mod, gates_to_lock, lock_key);
+			RTLIL::Wire *w = add_key_input(mod, nb_locked);
+			int nb_xor_gates = gates_to_lock.size();
+			std::vector<bool> lock_key(key_values.begin(), key_values.begin() + nb_xor_gates);
+			lock_gates(mod, gates_to_lock, SigSpec(w, 0, nb_xor_gates), lock_key);
 			std::vector<bool> mix_key(key_values.begin() + gates_to_lock.size(), key_values.begin() + nb_locked);
-			mix_gates(mod, gates_to_mix, mix_key);
+			mix_gates(mod, gates_to_mix, SigSpec(w, nb_xor_gates, nb_locked), mix_key);
 			return;
 		} else if (report) {
 			report_logic_locking(mod, nb_test_vectors);
@@ -415,7 +417,10 @@ struct LogicLockingPass : public Pass {
 			log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,
 			    GetSize(mod->cells_), key_check.c_str());
 			auto locked_gates = run_logic_locking(mod, nb_test_vectors, percent_locked, target);
-			lock_gates(mod, locked_gates, key_values);
+			nb_locked = locked_gates.size();
+			RTLIL::Wire *w = add_key_input(mod, nb_locked);
+			key_values.erase(key_values.begin() + nb_locked, key_values.end());
+			lock_gates(mod, locked_gates, SigSpec(w), key_values);
 		}
 	}
 

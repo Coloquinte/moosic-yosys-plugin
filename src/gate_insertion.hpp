@@ -13,25 +13,31 @@
 using Yosys::RTLIL::Cell;
 using Yosys::RTLIL::IdString;
 using Yosys::RTLIL::Module;
+using Yosys::RTLIL::SigSpec;
 using Yosys::RTLIL::Wire;
 
 /**
- * @brief Lock the gates in the module by name and key bit value; return the input key wires
+ * @brief Add a new input port to the module to be used as a key
  */
-std::vector<Wire *> lock_gates(Module *module, const std::vector<IdString> &names, const std::vector<bool> &key_values);
+Wire *add_key_input(Module *module, int width);
 
 /**
- * @brief Lock the gates in the module by name and key bit value; return the input key wires
+ * @brief Lock the gates in the module by name and key bit value
  */
-std::vector<Wire *> lock_gates(Module *module, const std::vector<Cell *> &names, const std::vector<bool> &key_values);
+void lock_gates(Module *module, const std::vector<IdString> &names, SigSpec key, const std::vector<bool> &key_values);
+
+/**
+ * @brief Lock the gates in the module by object and key bit value
+ */
+void lock_gates(Module *module, const std::vector<Cell *> &names, SigSpec key, const std::vector<bool> &key_values);
 
 /**
  * @brief Mix the gates in the module by name and key bit value
  */
-std::vector<Wire *> mix_gates(Module *module, const std::vector<std::pair<IdString, IdString>> &names, const std::vector<bool> &key_values);
+void mix_gates(Module *module, const std::vector<std::pair<IdString, IdString>> &names, SigSpec key, const std::vector<bool> &key_values);
 
 /**
- * @brief Mix the gates in the module by name and key bit value
+ * @brief Mix the gates in the module by object and key bit value
  */
-std::vector<Wire *> mix_gates(Module *module, const std::vector<std::pair<Cell *, Cell *>> &names, const std::vector<bool> &key_values);
+void mix_gates(Module *module, const std::vector<std::pair<Cell *, Cell *>> &names, SigSpec key, const std::vector<bool> &key_values);
 #endif
