@@ -19,7 +19,6 @@ help logic_locking
 logic_locking -max-percent 5 -target corruption
 ```
 
-
 ## Installation instructions
 
 To install this plugin
@@ -29,3 +28,8 @@ To install this plugin
 make
 sudo make install
 ```
+
+
+## Questions
+
+You can ask any question you have on the [Matrix channel](https://app.element.io/#/room/#moosic-yosys-plugin:matrix.org). Don't hesitate to file an issue if you find a bug.
