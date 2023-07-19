@@ -8,9 +8,9 @@ When creating an electronic circuit, manufacturing steps are usually performed b
 
 This mangling makes it more difficult to reverse-engineer the circuit, to add trojans, or simply to reuse without the correct key.
 
-We present a Yosys plugin to add logic locking functionality to a circuit.
+This repository provides a Yosys plugin to add logic locking functionality to a circuit.
 
-[Link to presentation slides from Free Silicon Conference 2023](https://wiki.f-si.org/index.php?title=A_Yosys_plugin_for_logic_locking)
+[Slides from Free Silicon Conference 2023](https://wiki.f-si.org/index.php?title=A_Yosys_plugin_for_logic_locking)
 
 
 ## Techniques used
@@ -18,13 +18,13 @@ We present a Yosys plugin to add logic locking functionality to a circuit.
 ![My Image](doc/XOR_NXOR_insertion.svg)
 
 A technique used here is the insertion of XOR/NXOR gates on wires carrying signals, such that an extra input with the correct value is required for them to act as a (buffered) wire again. This value is 1 for NXOR and 0 for XOR.
-Each extra input is one bit of the key that needs to supplied to unlock the circuit.
+The key needs to be supplied as an input to unlock the circuit.
 
 ![My Image](doc/MUX_insertion.svg)
 
 Another technique is the mixing of signals using multiplexers. A MUX is inserted on a wire with an irrelevant signal connected to the other input of the MUX. The key value selects between the correct signal and the irrelevant one.
 
-Key handling (getting they key onto the chip) is left to the user.
+Key handling (getting the key onto the chip) is left to the user.
 
 ## Using the plugin
 
@@ -39,9 +39,14 @@ And in Yosys, with a synthetized design:
 # Look at the command documentation
 help logic_locking
 
-# Add logic locking up to 5% of the module size, maximizing output corruption
-logic_locking -max-percent 5 -target corruption
+# Add logic locking with a 16b key, with hexadecimal key 048c
+logic_locking -key-bits 16 -key 048c
+
+# Add logic locking up to 5% of the module size, maximizing output corruption, with an auto-generated key
+logic_locking -key-percent 5 -target corruption -key 048c
 ```
+
+A new port is created on the selected module, named `lock_key`. The module will work as designed only when the correct key is provided as an input.
 
 ## Installation instructions
 
