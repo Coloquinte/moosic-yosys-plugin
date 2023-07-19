@@ -16,10 +16,12 @@ We present a Yosys plugin to add logic locking functionality to a circuit.
 ## Techniques used
 
 ![My Image](doc/XOR_NXOR_insertion.svg)
+
 A technique used here is the insertion of XOR/NXOR gates on wires carrying signals, such that an extra input with the correct value is required for them to act as a (buffered) wire again. This value is 1 for NXOR and 0 for XOR.
-Each extra input that needs to be supplied is a one bit of the key that needs to supplied to unlock the circuit.
+Each extra input is one bit of the key that needs to supplied to unlock the circuit.
 
 ![My Image](doc/MUX_insertion.svg)
+
 Another technique is the mixing of signals using multiplexers. A MUX is inserted on a wire with an irrelevant signal connected to the other input of the MUX. The key value selects between the correct signal and the irrelevant one.
 
 Key handling (getting they key onto the chip) is left to the user.
