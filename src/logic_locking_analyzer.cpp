@@ -347,7 +347,7 @@ void LogicLockingAnalyzer::cell_to_aig(Cell *cell)
 			dirty_bits_.insert(cell->getPort(ID::Y));
 		}
 	} else {
-		log_error("Cell %s has type %s which is not supported\n", log_id(cell->name), log_id(cell->type));
+		log_error("Cell %s has type %s which is not supported. Did you run synthesis before?\n", log_id(cell->name), log_id(cell->type));
 	}
 	log_debug("Converting cell %s of type %s, wire %s--> %d\n", log_id(cell->name), log_id(cell->getPort(ID::Y).as_wire()->name),
 		  log_id(cell->type), wire_to_aig_[cell->getPort(ID::Y)].variable());
