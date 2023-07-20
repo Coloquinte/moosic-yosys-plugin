@@ -7,12 +7,15 @@
 #include "kernel/sigtools.h"
 #include "kernel/yosys.h"
 
+#include <boost/filesystem.hpp>
+
 #include "gate_insertion.hpp"
 #include "logic_locking_analyzer.hpp"
 #include "logic_locking_optimizer.hpp"
 #include "mini_aig.hpp"
 #include "output_corruption_optimizer.hpp"
 
+#include <cstdlib>
 #include <random>
 
 USING_YOSYS_NAMESPACE
@@ -127,28 +130,29 @@ std::vector<Cell *> optimize_hybrid(const std::vector<Cell *> &cells, const std:
 	return ret;
 }
 
-void report_tradeoff(const std::vector<Cell *> &cells, const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data)
+void report_tradeoff(const std::vector<Cell *> &cells, const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data, const std::string &fname)
 {
-	log("Reporting output corruption by number of cells locked\n");
+	log("Reporting output corruption by number of cells locked (%s)\n", fname.c_str());
 	auto opt = make_optimizer(cells, data);
 	auto order = opt.solveGreedy(opt.nbNodes(), std::vector<int>());
-	log("Locked\tCover\tRate\n");
+	std::ofstream f(fname);
+	f << "Locked\tCover\tRate" << std::endl;
 	for (int i = 1; i <= GetSize(order); ++i) {
 		std::vector<int> sol = order;
 		sol.resize(i);
 		double cover = 100.0 * opt.corruptionCover(sol);
 		double rate = 100.0 * opt.corruptionRate(sol);
-		log("%d\t%.2f\t%.2f\n", i, cover, rate);
+		f << i << "\t" << cover << "\t" << rate << std::endl;
 	}
-	log("\n\n");
 }
 
-void report_tradeoff(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security)
+void report_tradeoff(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security, const std::string &fname)
 {
-	log("Reporting pairwise security by number of cells locked\n");
+	log("Reporting pairwise security by number of cells locked (%s)\n", fname.c_str());
 	auto opt = make_optimizer(cells, pairwise_security);
 	auto all_cliques = opt.solveGreedy(opt.nbNodes());
-	log("Locked\tSecurity\n");
+	std::ofstream f(fname);
+	f << "Locked\tSecurity" << std::endl;
 	int nbLocked = 0;
 	for (int i = 0; i < GetSize(all_cliques); ++i) {
 		std::vector<int> clique = all_cliques[i];
@@ -157,14 +161,13 @@ void report_tradeoff(const std::vector<Cell *> &cells, const std::vector<std::pa
 			sol.resize(i + 1);
 			sol.back().resize(j);
 			double security = opt.value(sol);
-			log("%d\t%.2f\n", nbLocked + j, security);
+			f << nbLocked + j << "\t" << security << std::endl;
 		}
 		nbLocked += GetSize(clique);
 	}
-	log("\n\n");
 }
 
-void report_logic_locking(RTLIL::Module *module, int nb_test_vectors)
+void explore_logic_locking(RTLIL::Module *module, int nb_test_vectors, const std::string &output_dir)
 {
 	LogicLockingAnalyzer pw(module);
 	pw.gen_test_vectors(nb_test_vectors, 1);
@@ -172,8 +175,14 @@ void report_logic_locking(RTLIL::Module *module, int nb_test_vectors)
 	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
 	auto corruption_data = pw.compute_output_corruption_data();
 	auto pairwise_security = pw.compute_pairwise_secure_graph();
-	report_tradeoff(lockable_cells, corruption_data);
-	report_tradeoff(lockable_cells, pairwise_security);
+	if (!boost::filesystem::exists(output_dir)) {
+		boost::filesystem::create_directory(output_dir);
+	}
+	if (!boost::filesystem::is_directory(output_dir)) {
+		log_error("Path %s is not a directory\n", output_dir.c_str());
+	}
+	report_tradeoff(lockable_cells, corruption_data, output_dir + "/corruption.csv");
+	report_tradeoff(lockable_cells, pairwise_security, output_dir + "/pairwise.csv");
 }
 
 std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors, int nb_locked, OptimizationTarget target)
@@ -281,9 +290,10 @@ struct LogicLockingPass : public Pass {
 		double percent_locked = 5.0f;
 		int key_size = -1;
 		int nb_test_vectors = 64;
-		bool report = false;
-		std::vector<IdString> gates_to_lock;
+		bool explore = false;
 		std::string key;
+		std::string output_dir = "logic_locking";
+		std::vector<IdString> gates_to_lock;
 		std::vector<std::pair<IdString, IdString>> gates_to_mix;
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
@@ -341,8 +351,14 @@ struct LogicLockingPass : public Pass {
 				key = args[++argidx];
 				continue;
 			}
-			if (arg == "-report") {
-				report = true;
+			if (arg == "-explore") {
+				explore = true;
+				continue;
+			}
+			if (arg == "-output-dir") {
+				if (argidx + 1 >= args.size())
+					break;
+				output_dir = args[++argidx];
 				continue;
 			}
 			break;
@@ -411,8 +427,8 @@ struct LogicLockingPass : public Pass {
 			std::vector<bool> mix_key(key_values.begin() + gates_to_lock.size(), key_values.begin() + nb_locked);
 			mix_gates(mod, gates_to_mix, SigSpec(w, nb_xor_gates, nb_locked), mix_key);
 			return;
-		} else if (report) {
-			report_logic_locking(mod, nb_test_vectors);
+		} else if (explore) {
+			explore_logic_locking(mod, nb_test_vectors, output_dir);
 		} else {
 			log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,
 			    GetSize(mod->cells_), key_check.c_str());
@@ -449,18 +465,23 @@ struct LogicLockingPass : public Pass {
 		log("    -nb-test-vectors <value>\n");
 		log("        specify the number of test vectors used for analysis (default=64)\n");
 		log("\n");
-		log("    -report\n");
-		log("        print statistics but do not modify the circuit\n");
+		log("\n");
+		log("The following options provide design-space exploration features.\n");
+		log("The tool exports .csv files with data on security metrics and area tradeoffs.\n");
+		log("    -explore\n");
+		log("        enable design space exploration. Export statistics without modifying the circuit\n");
+		log("    -output-dir <dirname>\n");
+		log("        set the output directory (default=logic_locking)\n");
 		log("\n");
 		log("\n");
 		log("The following options control locking manually, locking the corresponding \n");
 		log("gate outputs directly without any optimization. They can be mixed and repeated.\n");
 		log("\n");
 		log("    -lock-gate <name>\n");
-		log("        lock the output of the gate, adding a xor/xnor and a module input.\n");
+		log("        lock the output of the gate, adding a xor/xnor and a module input\n");
 		log("\n");
 		log("    -mix-gate <name1> <name2>\n");
-		log("        mix the output of one gate with another, adding a mux and a module input.\n");
+		log("        mix the output of one gate with another, adding a mux and a module input\n");
 		log("\n");
 		log("\n");
 		log("Security is evaluated with simple metrics:\n");

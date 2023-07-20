@@ -1,6 +1,6 @@
 
 CXX_FLAGS ?= -O2
-LD_FLAGS ?= 
+LD_FLAGS ?= -lboost_system -lboost_filesystem
 OBJECTS = yosys_plugin.o logic_locking_optimizer.o output_corruption_optimizer.o logic_locking_analyzer.o mini_aig.o gate_insertion.o
 LIBNAME = moosic-yosys-plugin.so
 # Default command substitution for yosys

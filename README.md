@@ -42,8 +42,11 @@ help logic_locking
 # Add logic locking with a 16b key, with hexadecimal key 048c
 logic_locking -key-bits 16 -key 048c
 
+# Run design space exploration and export the result to test_dir; the design is not modified
+logic_locking -explore -output-dir test_dir
+
 # Add logic locking up to 5% of the module size, maximizing output corruption, with an auto-generated key
-logic_locking -key-percent 5 -target corruption -key 048c
+logic_locking -key-percent 5 -target corruption
 ```
 
 A new port is created on the selected module, named `lock_key`. The module will work as designed only when the correct key is provided as an input.
