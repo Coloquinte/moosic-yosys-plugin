@@ -169,21 +169,24 @@ void report_tradeoff(const std::vector<Cell *> &cells, const std::vector<std::pa
 
 void explore_logic_locking(RTLIL::Module *module, int nb_test_vectors, const std::string &output_dir)
 {
-	LogicLockingAnalyzer pw(module);
-	pw.gen_test_vectors(nb_test_vectors, 1);
-
-	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
-	auto corruption_data = pw.compute_output_corruption_data();
-	auto pairwise = pw.compute_pairwise_secure_graph();
-	auto pairwise_no_dedup = pw.compute_pairwise_secure_graph(false);
 	if (!boost::filesystem::exists(output_dir)) {
 		boost::filesystem::create_directory(output_dir);
 	}
 	if (!boost::filesystem::is_directory(output_dir)) {
 		log_error("Path %s is not a directory\n", output_dir.c_str());
 	}
+
+	LogicLockingAnalyzer pw(module);
+	pw.gen_test_vectors(nb_test_vectors, 1);
+
+	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
+	auto corruption_data = pw.compute_output_corruption_data();
 	report_tradeoff(lockable_cells, corruption_data, output_dir + "/corruption.csv");
+
+	auto pairwise = pw.compute_pairwise_secure_graph();
 	report_tradeoff(lockable_cells, pairwise, output_dir + "/pairwise.csv");
+
+	auto pairwise_no_dedup = pw.compute_pairwise_secure_graph(false);
 	report_tradeoff(lockable_cells, pairwise_no_dedup, output_dir + "/pairwise_no_dedup.csv");
 }
 
@@ -435,6 +438,8 @@ struct LogicLockingPass : public Pass {
 			mix_gates(mod, gates_to_mix, SigSpec(w, nb_xor_gates, nb_locked), mix_key);
 			return;
 		} else if (explore) {
+			log("Running design space exploration with %d test vectors on a module with %d cells\n", nb_test_vectors,
+			    GetSize(mod->cells_));
 			explore_logic_locking(mod, nb_test_vectors, output_dir);
 		} else {
 			log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,

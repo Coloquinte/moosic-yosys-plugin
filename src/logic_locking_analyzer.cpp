@@ -349,8 +349,8 @@ void LogicLockingAnalyzer::cell_to_aig(Cell *cell)
 	} else {
 		log_error("Cell %s has type %s which is not supported. Did you run synthesis before?\n", log_id(cell->name), log_id(cell->type));
 	}
-	log_debug("Converting cell %s of type %s, wire %s--> %d\n", log_id(cell->name), log_id(cell->getPort(ID::Y).as_wire()->name),
-		  log_id(cell->type), wire_to_aig_[cell->getPort(ID::Y)].variable());
+	log_debug("Converting cell %s of type %s, wire %s\n", log_id(cell->name), log_id(cell->type),
+		  log_id(cell->getPort(ID::Y).as_bit().wire->name));
 }
 
 RTLIL::State invert_state(RTLIL::State val)
@@ -700,7 +700,7 @@ std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_pairwise_se
 
 	std::vector<std::pair<Cell *, Cell *>> ret;
 	for (int i = 0; i < GetSize(signals); ++i) {
-		log("\tSimulating %s (%d/%d)\n", log_id(cells[i]->name), i + 1, GetSize(signals));
+		log_debug("\tSimulating %s (%d/%d)\n", log_id(cells[i]->name), i + 1, GetSize(signals));
 		for (int j = i + 1; j < GetSize(signals); ++j) {
 			if (is_pairwise_secure(signals[i], signals[j], ignore_duplicates)) {
 				ret.emplace_back(cells[i], cells[j]);
@@ -720,7 +720,7 @@ std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_pairwise_se
 		++nb_secure[p.second];
 	}
 	for (int i = 0; i < GetSize(cells); ++i) {
-		log("\tCell %s: %d pairwise secure\n", log_id(cells[i]->name), nb_secure[cells[i]]);
+		log_debug("\tCell %s: %d pairwise secure\n", log_id(cells[i]->name), nb_secure[cells[i]]);
 	}
 	return ret;
 }
