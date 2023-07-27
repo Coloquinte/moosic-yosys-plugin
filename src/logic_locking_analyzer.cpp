@@ -171,6 +171,8 @@ void LogicLockingAnalyzer::init_aig()
 	dirty_bits_.clear();
 	aig_ = MiniAIG(comb_inputs_.size());
 	int i = 0;
+	wire_to_aig_.emplace(SigBit(false), Lit::zero());
+	wire_to_aig_.emplace(SigBit(true), Lit::one());
 	for (SigBit bit : comb_inputs_) {
 		wire_to_aig_.emplace(bit, aig_.getInput(i));
 		log_debug("Adding input %s --> %d\n", log_id(bit.wire->name), aig_.getInput(i).variable());
