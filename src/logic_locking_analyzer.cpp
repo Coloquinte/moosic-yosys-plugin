@@ -664,7 +664,7 @@ dict<Cell *, std::vector<std::vector<std::uint64_t>>> LogicLockingAnalyzer::comp
 	return ret;
 }
 
-bool LogicLockingAnalyzer::is_pairwise_secure(SigBit a, SigBit b)
+bool LogicLockingAnalyzer::is_pairwise_secure(SigBit a, SigBit b, bool ignore_duplicates)
 {
 	bool same_impact = true;
 	for (int i = 0; i < nb_test_vectors(); ++i) {
@@ -690,10 +690,10 @@ bool LogicLockingAnalyzer::is_pairwise_secure(SigBit a, SigBit b)
 			}
 		}
 	}
-	return !same_impact;
+	return !ignore_duplicates || !same_impact;
 }
 
-std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_pairwise_secure_graph()
+std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_pairwise_secure_graph(bool ignore_duplicates)
 {
 	std::vector<SigBit> signals = get_lockable_signals();
 	std::vector<Cell *> cells = get_lockable_cells();
@@ -702,7 +702,7 @@ std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_pairwise_se
 	for (int i = 0; i < GetSize(signals); ++i) {
 		log("\tSimulating %s (%d/%d)\n", log_id(cells[i]->name), i + 1, GetSize(signals));
 		for (int j = i + 1; j < GetSize(signals); ++j) {
-			if (is_pairwise_secure(signals[i], signals[j])) {
+			if (is_pairwise_secure(signals[i], signals[j], ignore_duplicates)) {
 				ret.emplace_back(cells[i], cells[j]);
 				log_debug("\t\tPairwise secure %s <-> %s\n", log_id(cells[i]->name), log_id(cells[j]->name));
 			}

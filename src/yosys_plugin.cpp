@@ -21,7 +21,7 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-enum OptimizationTarget { PAIRWISE_SECURITY, OUTPUT_CORRUPTION, HYBRID };
+enum OptimizationTarget { PAIRWISE_SECURITY, PAIRWISE_SECURITY_NO_DEDUP, OUTPUT_CORRUPTION, HYBRID };
 
 LogicLockingOptimizer make_optimizer(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security)
 {
@@ -174,7 +174,8 @@ void explore_logic_locking(RTLIL::Module *module, int nb_test_vectors, const std
 
 	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
 	auto corruption_data = pw.compute_output_corruption_data();
-	auto pairwise_security = pw.compute_pairwise_secure_graph();
+	auto pairwise = pw.compute_pairwise_secure_graph();
+	auto pairwise_no_dedup = pw.compute_pairwise_secure_graph(false);
 	if (!boost::filesystem::exists(output_dir)) {
 		boost::filesystem::create_directory(output_dir);
 	}
@@ -182,7 +183,8 @@ void explore_logic_locking(RTLIL::Module *module, int nb_test_vectors, const std
 		log_error("Path %s is not a directory\n", output_dir.c_str());
 	}
 	report_tradeoff(lockable_cells, corruption_data, output_dir + "/corruption.csv");
-	report_tradeoff(lockable_cells, pairwise_security, output_dir + "/pairwise.csv");
+	report_tradeoff(lockable_cells, pairwise, output_dir + "/pairwise.csv");
+	report_tradeoff(lockable_cells, pairwise_no_dedup, output_dir + "/pairwise_no_dedup.csv");
 }
 
 std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors, int nb_locked, OptimizationTarget target)
@@ -194,6 +196,9 @@ std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors
 	std::vector<Cell *> locked_gates;
 	if (target == PAIRWISE_SECURITY) {
 		auto pairwise_security = pw.compute_pairwise_secure_graph();
+		locked_gates = optimize_pairwise_security(lockable_cells, pairwise_security, nb_locked);
+	} else if (target == PAIRWISE_SECURITY_NO_DEDUP) {
+		auto pairwise_security = pw.compute_pairwise_secure_graph(false);
 		locked_gates = optimize_pairwise_security(lockable_cells, pairwise_security, nb_locked);
 	} else if (target == OUTPUT_CORRUPTION) {
 		auto corruption_data = pw.compute_output_corruption_data();
@@ -336,6 +341,8 @@ struct LogicLockingPass : public Pass {
 				auto t = args[++argidx];
 				if (t == "pairwise") {
 					target = PAIRWISE_SECURITY;
+				} else if (t == "pairwise_no_dedup") {
+					target = PAIRWISE_SECURITY_NO_DEDUP;
 				} else if (t == "corruption") {
 					target = OUTPUT_CORRUPTION;
 				} else if (t == "hybrid") {

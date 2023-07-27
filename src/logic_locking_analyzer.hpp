@@ -102,13 +102,18 @@ class LogicLockingAnalyzer
 
 	/**
 	 * @brief Returns whether the two bits are pairwise secure with the given test vectors
+	 *
+	 * @param a, b Two signal bits to check
+	 * @param ignore_duplicates If true, signals with the same impact are not considered pairwise secure
 	 */
-	bool is_pairwise_secure(SigBit a, SigBit b);
+	bool is_pairwise_secure(SigBit a, SigBit b, bool ignore_duplicates = true);
 
 	/**
 	 * @brief Returns the list of pairwise-secure signal pairs
+	 *
+	 * @param ignore_duplicates If true, signals with the same impact are not considered pairwise secure
 	 */
-	std::vector<std::pair<Cell *, Cell *>> compute_pairwise_secure_graph();
+	std::vector<std::pair<Cell *, Cell *>> compute_pairwise_secure_graph(bool ignore_duplicates = true);
 
 	/**
 	 * @brief Report on the output corruption
