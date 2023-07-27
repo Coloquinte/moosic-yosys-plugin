@@ -71,14 +71,17 @@ std::vector<Cell *> optimize_pairwise_security(const std::vector<Cell *> &cells,
 	auto sol = opt.solveGreedy(maxNumber);
 
 	std::vector<Cell *> ret;
+	int max_clique = 0;
 	for (const auto &clique : sol) {
+		max_clique = std::max(max_clique, (int)clique.size());
 		for (int c : clique) {
 			ret.push_back(cells[c]);
 		}
 	}
 
 	double security = opt.value(sol);
-	log("Locking solution with %d cliques, %d locked wires and %.2f estimated security.\n", (int)sol.size(), (int)ret.size(), security);
+	log("Locking solution with %d cliques, %d locked wires and %.2f estimated security. Max clique was %d.\n", (int)sol.size(), (int)ret.size(),
+	    security, max_clique);
 	return ret;
 }
 
@@ -136,7 +139,7 @@ void report_tradeoff(const std::vector<Cell *> &cells, const dict<Cell *, std::v
 	auto opt = make_optimizer(cells, data);
 	auto order = opt.solveGreedy(opt.nbNodes(), std::vector<int>());
 	std::ofstream f(fname);
-	f << "Locked\tCover\tRate" << std::endl;
+	f << "CellsLocked\tCorruptionCover\tCorruptionRate" << std::endl;
 	for (int i = 1; i <= GetSize(order); ++i) {
 		std::vector<int> sol = order;
 		sol.resize(i);
@@ -152,7 +155,7 @@ void report_tradeoff(const std::vector<Cell *> &cells, const std::vector<std::pa
 	auto opt = make_optimizer(cells, pairwise_security);
 	auto all_cliques = opt.solveGreedy(opt.nbNodes());
 	std::ofstream f(fname);
-	f << "Locked\tSecurity" << std::endl;
+	f << "CellsLocked\tMaxClique\tPairwiseSecurity" << std::endl;
 	int nbLocked = 0;
 	for (int i = 0; i < GetSize(all_cliques); ++i) {
 		std::vector<int> clique = all_cliques[i];
@@ -161,7 +164,7 @@ void report_tradeoff(const std::vector<Cell *> &cells, const std::vector<std::pa
 			sol.resize(i + 1);
 			sol.back().resize(j);
 			double security = opt.value(sol);
-			f << nbLocked + j << "\t" << security << std::endl;
+			f << nbLocked + j << "\t" << sol.front().size() << "\t" << security << std::endl;
 		}
 		nbLocked += GetSize(clique);
 	}
