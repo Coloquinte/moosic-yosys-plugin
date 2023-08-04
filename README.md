@@ -10,7 +10,7 @@ This mangling makes it more difficult to reverse-engineer the circuit, to add tr
 
 This repository provides a Yosys plugin to add logic locking functionality to a circuit.
 
-[Slides from Free Silicon Conference 2023](https://wiki.f-si.org/index.php?title=A_Yosys_plugin_for_logic_locking)
+[Slides](https://wiki.f-si.org/images/5/5c/Gabriel_Gouvine_MOOSIC_FSiC_2023.pdf) and [Video](https://peertube.f-si.org/videos/watch/7f250190-6d8f-4a67-8ed6-d07deda7fba0) from [Free Silicon Conference 2023](https://wiki.f-si.org/index.php/FSiC2023)
 
 
 ## Techniques used
