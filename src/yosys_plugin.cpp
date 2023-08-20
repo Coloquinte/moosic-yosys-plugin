@@ -61,6 +61,9 @@ OutputCorruptionOptimizer make_optimizer(const std::vector<Cell *> &cells, const
 	return OutputCorruptionOptimizer(corruptionData);
 }
 
+/**
+ * @brief Run the optimization algorithm to maximize pairwise security
+ */
 std::vector<Cell *> optimize_pairwise_security(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security,
 					       int maxNumber)
 {
@@ -85,6 +88,9 @@ std::vector<Cell *> optimize_pairwise_security(const std::vector<Cell *> &cells,
 	return ret;
 }
 
+/**
+ * @brief Run the optimization algorithm to maximize output corruption
+ */
 std::vector<Cell *> optimize_output_corruption(const std::vector<Cell *> &cells, const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data,
 					       int maxNumber)
 {
@@ -104,6 +110,9 @@ std::vector<Cell *> optimize_output_corruption(const std::vector<Cell *> &cells,
 	return ret;
 }
 
+/**
+ * @brief Run the optimization algorithm to obtain a tradeoff between pairwise security and output corruption
+ */
 std::vector<Cell *> optimize_hybrid(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security,
 				    const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data, int maxNumber)
 {
@@ -133,7 +142,8 @@ std::vector<Cell *> optimize_hybrid(const std::vector<Cell *> &cells, const std:
 	return ret;
 }
 
-void report_tradeoff(const std::vector<Cell *> &cells, const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data, const std::string &fname)
+void report_output_corruption_tradeoff(const std::vector<Cell *> &cells, const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data,
+				       const std::string &fname)
 {
 	log("Reporting output corruption by number of cells locked (%s)\n", fname.c_str());
 	auto opt = make_optimizer(cells, data);
@@ -149,7 +159,8 @@ void report_tradeoff(const std::vector<Cell *> &cells, const dict<Cell *, std::v
 	}
 }
 
-void report_tradeoff(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security, const std::string &fname)
+void report_pairwise_security_tradeoff(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security,
+				       const std::string &fname)
 {
 	log("Reporting pairwise security by number of cells locked (%s)\n", fname.c_str());
 	auto opt = make_optimizer(cells, pairwise_security);
@@ -170,6 +181,9 @@ void report_tradeoff(const std::vector<Cell *> &cells, const std::vector<std::pa
 	}
 }
 
+/**
+ * @brief Perform design space exploration for logic locking, showing size/security tradeoffs in CSV files
+ */
 void explore_logic_locking(RTLIL::Module *module, int nb_test_vectors, const std::string &output_dir)
 {
 	if (!boost::filesystem::exists(output_dir)) {
@@ -184,15 +198,18 @@ void explore_logic_locking(RTLIL::Module *module, int nb_test_vectors, const std
 
 	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
 	auto corruption_data = pw.compute_output_corruption_data();
-	report_tradeoff(lockable_cells, corruption_data, output_dir + "/corruption.csv");
+	report_output_corruption_tradeoff(lockable_cells, corruption_data, output_dir + "/corruption.csv");
 
 	auto pairwise = pw.compute_pairwise_secure_graph();
-	report_tradeoff(lockable_cells, pairwise, output_dir + "/pairwise.csv");
+	report_pairwise_security_tradeoff(lockable_cells, pairwise, output_dir + "/pairwise.csv");
 
 	auto pairwise_no_dedup = pw.compute_pairwise_secure_graph(false);
-	report_tradeoff(lockable_cells, pairwise_no_dedup, output_dir + "/pairwise_no_dedup.csv");
+	report_pairwise_security_tradeoff(lockable_cells, pairwise_no_dedup, output_dir + "/pairwise_no_dedup.csv");
 }
 
+/**
+ * @brief Run the logic locking algorithm and return the cells to be locked
+ */
 std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors, int nb_locked, OptimizationTarget target)
 {
 	LogicLockingAnalyzer pw(module);
@@ -232,7 +249,7 @@ static bool parse_bool(const std::string &str)
 }
 
 /**
- * Create a locking key
+ * @brief Create a locking key
  */
 static std::vector<bool> create_key(int nb_locked)
 {
@@ -246,7 +263,7 @@ static std::vector<bool> create_key(int nb_locked)
 }
 
 /**
- * Parse an hexadecimal string
+ * @brief Parse an hexadecimal string
  */
 static std::vector<bool> parse_hex_string(const std::string &str)
 {
