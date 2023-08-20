@@ -607,39 +607,6 @@ void LogicLockingAnalyzer::simulate_cell(RTLIL::Cell *cell)
 	}
 }
 
-float LogicLockingAnalyzer::compute_total_output_corruption(SigBit a)
-{
-	std::vector<float> corruption = compute_output_corruption(a);
-	if (corruption.empty()) {
-		return 0.0f;
-	}
-	float sum_corr = 0.0;
-	for (float p : corruption) {
-		sum_corr += p;
-	}
-	sum_corr /= corruption.size();
-	return sum_corr;
-}
-
-std::vector<float> LogicLockingAnalyzer::compute_output_corruption(SigBit a)
-{
-	auto data = compute_output_corruption_data(a);
-	std::vector<float> change_counts;
-	assert(data.size() == comb_outputs_.size());
-	for (const auto &v : data) {
-		int nb_changes = 0;
-		for (std::uint64_t t : v) {
-			nb_changes += std::bitset<64>(t).count();
-		}
-		change_counts.push_back((float)nb_changes);
-	}
-	float ratio = 1.0 / (nb_test_vectors() * 64);
-	for (float &f : change_counts) {
-		f *= ratio;
-	}
-	return change_counts;
-}
-
 std::vector<std::vector<std::uint64_t>> LogicLockingAnalyzer::compute_output_corruption_data(SigBit a)
 {
 	std::vector<std::vector<std::uint64_t>> ret(comb_outputs_.size());
@@ -725,14 +692,4 @@ std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_pairwise_se
 		log_debug("\tCell %s: %d pairwise secure\n", log_id(cells[i]->name), nb_secure[cells[i]]);
 	}
 	return ret;
-}
-
-void LogicLockingAnalyzer::report_output_corruption()
-{
-	std::vector<SigBit> signals = get_lockable_signals();
-	std::vector<Cell *> cells = get_lockable_cells();
-	for (int i = 0; i < GetSize(signals); ++i) {
-		float output_corr = 100.0f * compute_total_output_corruption(signals[i]);
-		log("\tOutput corruption %s: %.1f%%\n", log_id(cells[i]->name), output_corr);
-	}
 }

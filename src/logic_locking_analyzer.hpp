@@ -75,28 +75,12 @@ class LogicLockingAnalyzer
 	void gen_test_vectors(int nb, size_t seed);
 
 	/**
-	 * @brief Returns a measure of total output corruption for a bit with the given test vectors
-	 *
-	 * As of now, it is just the sum of corruption probabilities for all outputs.
-	 * We could work on better measures:
-	 *     - a corruption probability of 1 is not that good, as it's just a toggling of the output. The best if 0.5
-	 *     - correlations between outputs are not accounted for
-	 */
-	float compute_total_output_corruption(SigBit a);
-
-	/**
-	 * @brief Returns a measure of output corruption for all outputs for a bit,
-	 * with the given test vectors
-	 */
-	std::vector<float> compute_output_corruption(SigBit a);
-
-	/**
-	 * @brief Returns the impact of locking cells (per output per test vector)
+	 * @brief Returns the impact of locking the cell (per output per test vector)
 	 */
 	std::vector<std::vector<std::uint64_t>> compute_output_corruption_data(SigBit a);
 
 	/**
-	 * @brief Returns the impact of locking cells (per output per test vector)
+	 * @brief Returns the impact of locking each cell (per output per test vector)
 	 */
 	dict<Cell *, std::vector<std::vector<std::uint64_t>>> compute_output_corruption_data();
 
