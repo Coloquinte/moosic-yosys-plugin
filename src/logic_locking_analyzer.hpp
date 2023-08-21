@@ -75,9 +75,19 @@ class LogicLockingAnalyzer
 	void gen_test_vectors(int nb, size_t seed);
 
 	/**
-	 * @brief Returns the impact of locking the cell (per output per test vector)
+	 * @brief Flatten corruption information that is originally per-output per-test-vector
+	*/
+	static std::vector<std::uint64_t> flattenCorruptionData(const std::vector<std::vector<std::uint64_t>> &data);
+
+	/**
+	 * @brief Returns the impact of toggling this signal (per output per test vector)
 	 */
 	std::vector<std::vector<std::uint64_t>> compute_output_corruption_data(SigBit a);
+
+	/**
+	 * @brief Returns the impact of toggling all these signals (per output per test vector)
+	 */
+	std::vector<std::vector<std::uint64_t>> compute_output_corruption_data(const pool<SigBit> &toggled_bits);
 
 	/**
 	 * @brief Returns the impact of locking each cell (per output per test vector)

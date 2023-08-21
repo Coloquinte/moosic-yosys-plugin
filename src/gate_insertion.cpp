@@ -102,6 +102,15 @@ static IdString get_output_portname(Cell *cell)
 }
 
 /**
+ * @brief Get the output port name of a cell
+ */
+SigBit get_output_signal(Cell *cell)
+{
+	IdString name = get_output_portname(cell);
+	return cell->getPort(name);
+}
+
+/**
  * @brief Lock the gates in the module given a key bit value; return the input key wires
  */
 void lock_gates(Module *module, const std::vector<Cell *> &cells, SigSpec key, const std::vector<bool> &key_values)

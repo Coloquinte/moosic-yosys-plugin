@@ -50,13 +50,7 @@ OutputCorruptionOptimizer make_optimizer(const std::vector<Cell *> &cells, const
 {
 	std::vector<std::vector<std::uint64_t>> corruptionData;
 	for (Cell *c : cells) {
-		std::vector<std::uint64_t> cellCorruption;
-		for (const auto &v : data.at(c)) {
-			for (std::uint64_t d : v) {
-				cellCorruption.push_back(d);
-			}
-		}
-		corruptionData.push_back(cellCorruption);
+		corruptionData.push_back(LogicLockingAnalyzer::flattenCorruptionData(data.at(c)));
 	}
 	return OutputCorruptionOptimizer(corruptionData);
 }
@@ -235,6 +229,57 @@ std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors
 }
 
 /**
+ * @brief Report on the actual output corruption on random keys
+ */
+void report_security(RTLIL::Module *module, const std::vector<Cell *> &cells, int nb_analysis_vectors, int nb_analysis_keys)
+{
+	if (nb_analysis_vectors == 0 || nb_analysis_keys == 0) {
+		return;
+	}
+	LogicLockingAnalyzer pw(module);
+	pw.gen_test_vectors(nb_analysis_vectors, 1);
+	std::mt19937 rgen(1);
+	std::bernoulli_distribution dist;
+	std::vector<double> corruptionPerKey;
+	pool<SigBit> signals;
+	for (Cell *c : cells) {
+		signals.insert(get_output_signal(c));
+	}
+	for (int i = 0; i < nb_analysis_keys; ++i) {
+		// Generate a random locking (1/2 chance of being wrong for each bit)
+		pool<SigBit> locked_sigs;
+		for (SigBit s : signals) {
+			if (dist(rgen)) {
+				locked_sigs.insert(s);
+			}
+		}
+		// Now simulate
+		auto corruption = pw.compute_output_corruption_data(locked_sigs);
+
+		// Now report the corruption
+		int countSet = 0;
+		int countTot = 0;
+		for (auto &v : corruption) {
+			for (std::uint64_t d : v) {
+				countTot += 64;
+				countSet += std::bitset<64>(d).count();
+			}
+		}
+		corruptionPerKey.push_back((double)countSet / countTot);
+	}
+
+	// Compute mean/min/max/std of corruption
+	double meanCorruption = 0.0;
+	for (float c : corruptionPerKey) {
+		meanCorruption += c;
+	}
+	meanCorruption /= corruptionPerKey.size();
+
+	log("Mean corruption over %d random keys and %d test vectors is %.1f%%; ideal corruption is 50.0%%\n", nb_analysis_keys, nb_analysis_vectors,
+	    100.0 * meanCorruption);
+}
+
+/**
  * @brief Parse a boolean value
  */
 static bool parse_bool(const std::string &str)
@@ -318,6 +363,8 @@ struct LogicLockingPass : public Pass {
 		double percent_locked = 5.0f;
 		int key_size = -1;
 		int nb_test_vectors = 64;
+		int nb_analysis_keys = 0;
+		int nb_analysis_vectors = 1024;
 		bool explore = false;
 		std::string key;
 		std::string output_dir = "logic_locking";
@@ -397,6 +444,18 @@ struct LogicLockingPass : public Pass {
 				output_dir = args[++argidx];
 				continue;
 			}
+			if (arg == "-nb-analysis-keys") {
+				if (argidx + 1 >= args.size())
+					break;
+				nb_analysis_keys = std::atoi(args[++argidx].c_str());
+				continue;
+			}
+			if (arg == "-nb-analysis-vectors") {
+				if (argidx + 1 >= args.size())
+					break;
+				nb_analysis_vectors = std::atoi(args[++argidx].c_str());
+				continue;
+			}
 			break;
 		}
 
@@ -470,6 +529,7 @@ struct LogicLockingPass : public Pass {
 			log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,
 			    GetSize(mod->cells_), key_check.c_str());
 			auto locked_gates = run_logic_locking(mod, nb_test_vectors, nb_locked, target);
+			report_security(mod, locked_gates, nb_analysis_keys, nb_analysis_vectors);
 			nb_locked = locked_gates.size();
 			RTLIL::Wire *w = add_key_input(mod, nb_locked);
 			key_values.erase(key_values.begin() + nb_locked, key_values.end());
@@ -509,6 +569,13 @@ struct LogicLockingPass : public Pass {
 		log("        enable design space exploration. Export statistics without modifying the circuit\n");
 		log("    -output-dir <dirname>\n");
 		log("        set the output directory (default=logic_locking)\n");
+		log("\n");
+		log("\n");
+		log("These options analyze the logic locking solution's security.\n");
+		log("    -nb-analysis-keys <value>\n");
+		log("        number of random keys used to analyze security\n");
+		log("    -nb-analysis-vectors <value>\n");
+		log("        number of test vectors used to analyze security\n");
 		log("\n");
 		log("\n");
 		log("The following options control locking manually, locking the corresponding \n");

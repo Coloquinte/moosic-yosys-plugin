@@ -607,12 +607,28 @@ void LogicLockingAnalyzer::simulate_cell(RTLIL::Cell *cell)
 	}
 }
 
-std::vector<std::vector<std::uint64_t>> LogicLockingAnalyzer::compute_output_corruption_data(SigBit a)
+std::vector<std::uint64_t> LogicLockingAnalyzer::flattenCorruptionData(const std::vector<std::vector<std::uint64_t>> &data) {
+	std::vector<std::uint64_t> ret;
+	for (const auto &v : data) {
+		for (std::uint64_t d : v) {
+			ret.push_back(d);
+		}
+	}
+	return ret;
+}
+
+std::vector<std::vector<std::uint64_t>> LogicLockingAnalyzer::compute_output_corruption_data(SigBit a) {
+	pool<SigBit> toggled_bits;
+	toggled_bits.insert(a);
+	return compute_output_corruption_data(toggled_bits);
+}
+
+std::vector<std::vector<std::uint64_t>> LogicLockingAnalyzer::compute_output_corruption_data(const pool<SigBit> &toggled_bits)
 {
 	std::vector<std::vector<std::uint64_t>> ret(comb_outputs_.size());
 	for (int i = 0; i < nb_test_vectors(); ++i) {
 		auto no_toggle = simulate_aig(i, {});
-		auto toggle = simulate_aig(i, {a});
+		auto toggle = simulate_aig(i, toggled_bits);
 
 		for (size_t i = 0; i < no_toggle.size(); ++i) {
 			std::uint64_t t = toggle[i] ^ no_toggle[i];
