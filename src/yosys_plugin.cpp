@@ -356,6 +356,12 @@ struct LogicLockingPass : public Pass {
 				if (argidx + 1 >= args.size())
 					break;
 				nb_test_vectors = std::atoi(args[++argidx].c_str());
+				if (nb_test_vectors % 64 != 0) {
+					int rounded = ((nb_test_vectors + 63) / 64) * 64;
+					log("Rounding the specified number of test vectors to the next multiple of 64 (%d -> %d)\n", nb_test_vectors,
+					    rounded);
+					nb_test_vectors = rounded;
+				}
 				continue;
 			}
 			if (arg == "-target") {
@@ -456,7 +462,6 @@ struct LogicLockingPass : public Pass {
 			lock_gates(mod, gates_to_lock, SigSpec(w, 0, nb_xor_gates), lock_key);
 			std::vector<bool> mix_key(key_values.begin() + gates_to_lock.size(), key_values.begin() + nb_locked);
 			mix_gates(mod, gates_to_mix, SigSpec(w, nb_xor_gates, nb_locked), mix_key);
-			return;
 		} else if (explore) {
 			log("Running design space exploration with %d test vectors on a module with %d cells\n", nb_test_vectors,
 			    GetSize(mod->cells_));
@@ -486,16 +491,16 @@ struct LogicLockingPass : public Pass {
 		log("        the locking key (hexadecimal)\n");
 		log("\n");
 		log("    -key-bits <value>\n");
-		log("        specify the size of the key in bits\n");
+		log("        size of the key in bits\n");
 		log("\n");
 		log("    -key-percent <value>\n");
-		log("        specify the size of the key as a percentage of the number of gates in the design (default=5)\n");
+		log("        size of the key as a percentage of the number of gates in the design (default=5)\n");
 		log("\n");
 		log("    -target {pairwise|corruption|hybrid}\n");
-		log("        specify the optimization target for locking (default=pairwise)\n");
+		log("        optimization target for locking (default=pairwise)\n");
 		log("\n");
 		log("    -nb-test-vectors <value>\n");
-		log("        specify the number of test vectors used for analysis (default=64)\n");
+		log("        number of test vectors used for analysis during optimization (default=64)\n");
 		log("\n");
 		log("\n");
 		log("The following options provide design-space exploration features.\n");
