@@ -119,7 +119,7 @@ void LogicLockingAnalyzer::gen_test_vectors(int nb, size_t seed)
 		if (nb - 64 * i < 64) {
 			mask = (((std::uint64_t)1) << (nb - 64 * i)) - 1;
 		}
-		for (SigBit b : comb_inputs_) {
+		for (size_t j = 0; j < comb_inputs_.size(); ++j) {
 			tv.push_back(dist(rgen) & mask);
 		}
 		test_vectors_.push_back(tv);

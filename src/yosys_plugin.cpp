@@ -280,20 +280,6 @@ void report_security(RTLIL::Module *module, const std::vector<Cell *> &cells, in
 }
 
 /**
- * @brief Parse a boolean value
- */
-static bool parse_bool(const std::string &str)
-{
-	if (str == "0" || str == "false") {
-		return false;
-	}
-	if (str == "1" || str == "true") {
-		return true;
-	}
-	log_error("Invalid boolean value: %s", str.c_str());
-}
-
-/**
  * @brief Create a locking key
  */
 static std::vector<bool> create_key(int nb_locked)
