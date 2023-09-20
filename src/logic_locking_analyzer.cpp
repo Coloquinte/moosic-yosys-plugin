@@ -173,14 +173,19 @@ void LogicLockingAnalyzer::init_aig()
 	dirty_bits_.clear();
 	aig_ = MiniAIG(comb_inputs_.size());
 	int i = 0;
+	// Handle constants
 	wire_to_aig_.emplace(SigBit(false), Lit::zero());
 	wire_to_aig_.emplace(SigBit(true), Lit::one());
+	for (int s = State::Sx; s < State::Sm; ++s) {
+		wire_to_aig_[SigBit((State) s)] = Lit::zero();
+	}
 	for (SigBit bit : comb_inputs_) {
 		wire_to_aig_.emplace(bit, aig_.getInput(i));
 		log_debug("Adding input %s --> %d\n", log_id(bit.wire->name), aig_.getInput(i).variable());
 		++i;
 		dirty_bits_.insert(bit);
 	}
+
 
 	// Handle direct connections to constants
 	for (auto it : module_->connections()) {
@@ -191,13 +196,19 @@ void LogicLockingAnalyzer::init_aig()
 			SigBit sig_b = b[i];
 			if (sig_a.is_wire() && !sig_b.is_wire()) {
 				log_debug("Adding constant wire %s\n", log_id(sig_a.wire->name));
-				wire_to_aig_[sig_a] = sig_b.data == State::S0 ? Lit::zero() : Lit::one();
+				wire_to_aig_[sig_a] = sig_b.data == State::S1 ?  Lit::one() : Lit::zero();
 				dirty_bits_.emplace(sig_a);
 			}
 			if (sig_b.is_wire() && !sig_a.is_wire()) {
 				log_warning("Detected connection of wire %s driving a constant; skipped.\n", log_id(sig_b.wire->name));
 			}
 		}
+	}
+
+	// Start by processing all cells that can be. Cells that are only driven by constants won't be touched otherwise
+	for (Cell *c : module_->cells()) {
+		// TODO: we could just add the constants to the dirty_bits, and handle them like the rest in wire_to_wires
+		cell_to_aig(c);
 	}
 
 	// TODO: unify traversal with a single topo sort
