@@ -4,14 +4,12 @@
 
 #include "gate_insertion.hpp"
 
-using Yosys::GetSize;
-using Yosys::log;
-using Yosys::log_error;
-using Yosys::log_id;
-using Yosys::RTLIL::Cell;
-using Yosys::RTLIL::escape_id;
-using Yosys::RTLIL::Module;
-using Yosys::RTLIL::SigBit;
+USING_YOSYS_NAMESPACE
+
+using RTLIL::Cell;
+using RTLIL::escape_id;
+using RTLIL::Module;
+using RTLIL::SigBit;
 
 /**
  * @brief Insert a Xor/Xnor locking gate at the output port of a cell
@@ -33,7 +31,7 @@ Cell *insert_xor_locking_gate(Module *module, Cell *locked_cell, IdString locked
 	locked_cell->unsetPort(locked_port);
 	locked_cell->setPort(locked_port, locked_bitwire);
 
-	log("Inserting locking gate at cell %s\n", log_id(locked_cell->name));
+	log_debug("Inserting locking gate at cell %s\n", log_id(locked_cell->name));
 
 	if (key_value) {
 		return module->addXnor(NEW_ID, locked_bit, key_bit, out_bit);
@@ -67,7 +65,7 @@ Cell *insert_mux_locking_gate(Module *module, Cell *locked_cell1, IdString locke
 	locked_cell1->unsetPort(locked_port1);
 	locked_cell1->setPort(locked_port1, locked_bitwire);
 
-	log("Inserting mixing gate at cell %s with cell %s\n", log_id(locked_cell1->name), log_id(locked_cell2->name));
+	log_debug("Inserting mixing gate at cell %s with cell %s\n", log_id(locked_cell1->name), log_id(locked_cell2->name));
 
 	if (key_value) {
 		return module->addMux(NEW_ID, mix_bit, locked_bit, key_bit, out_bit);
