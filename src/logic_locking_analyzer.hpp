@@ -76,7 +76,7 @@ class LogicLockingAnalyzer
 
 	/**
 	 * @brief Flatten corruption information that is originally per-output per-test-vector
-	*/
+	 */
 	static std::vector<std::uint64_t> flattenCorruptionData(const std::vector<std::vector<std::uint64_t>> &data);
 
 	/**
@@ -168,6 +168,11 @@ class LogicLockingAnalyzer
 	void simulate_cell(Cell *cell);
 
 	void init_aig();
+
+	/**
+	 * @brief Report potential issues when converting to AIG
+	 */
+	void report_conversion_issues() const;
 
 	void cell_to_aig(Cell *cell);
 

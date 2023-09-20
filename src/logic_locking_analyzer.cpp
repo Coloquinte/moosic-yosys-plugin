@@ -161,6 +161,8 @@ void LogicLockingAnalyzer::init_wire_to_wires()
 				wire_to_wires_[sig_b] = pool<SigBit>();
 			}
 			wire_to_wires_[sig_b].emplace(sig_a);
+
+			log_debug("Adding direct connection %s --> %s\n", log_id(sig_b.wire->name), log_id(sig_a.wire->name));
 		}
 	}
 }
@@ -193,9 +195,7 @@ void LogicLockingAnalyzer::init_aig()
 				dirty_bits_.emplace(sig_a);
 			}
 			if (sig_b.is_wire() && !sig_a.is_wire()) {
-				log_debug("Adding constant wire %s\n", log_id(sig_b.wire->name));
-				wire_to_aig_[sig_b] = sig_a.data == State::S0 ? Lit::zero() : Lit::one();
-				dirty_bits_.emplace(sig_b);
+				log_warning("Detected connection of wire %s driving a constant; skipped.\n", log_id(sig_b.wire->name));
 			}
 		}
 	}
@@ -228,13 +228,50 @@ void LogicLockingAnalyzer::init_aig()
 	}
 	dirty_bits_.clear();
 
+	report_conversion_issues();
+
 	for (SigBit bit : comb_outputs_) {
+		if (!wire_to_aig_.count(bit)) {
+			if (bit.wire) {
+				log_error("Missing output %s\n", log_id(bit.wire->name));
+			} else {
+				log_error("Missing constant output\n");
+			}
+		}
+
 		if (bit.wire) {
 			log_debug("Adding output %s --> %d\n", log_id(bit.wire->name), wire_to_aig_.at(bit).variable());
 		} else {
 			log_debug("Adding constant output\n");
 		}
 		aig_.addOutput(wire_to_aig_.at(bit));
+	}
+}
+
+void LogicLockingAnalyzer::report_conversion_issues() const
+{
+	for (auto c : module_->cells()) {
+		if (c->hasPort(ID::Y)) {
+			SigBit output = c->getPort(ID::Y);
+			if (wire_to_aig_.count(output)) {
+				continue;
+			}
+			for (auto conn : c->connections()) {
+				auto id = conn.first;
+				if (c->input(id)) {
+					SigBit input = conn.second;
+					if (!wire_to_aig_.count(input)) {
+						if (input.wire) {
+							log("Missing port %s on cell %s (output %s) with wire %s\n", log_id(id), log_id(c->name),
+							    log_id(output.wire->name), log_id(input.wire->name));
+						} else {
+							log("Missing port %s on cell %s (output %s) with value %d\n", log_id(id), log_id(c->name),
+							    log_id(output.wire->name), input.data);
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -351,8 +388,10 @@ void LogicLockingAnalyzer::cell_to_aig(Cell *cell)
 	} else {
 		log_error("Cell %s has type %s which is not supported. Did you run synthesis before?\n", log_id(cell->name), log_id(cell->type));
 	}
-	log_debug("Converting cell %s of type %s, wire %s\n", log_id(cell->name), log_id(cell->type),
-		  log_id(cell->getPort(ID::Y).as_bit().wire->name));
+	if (wire_to_aig_.count(cell->getPort(ID::Y))) {
+		log_debug("Converting cell %s of type %s, wire %s\n", log_id(cell->name), log_id(cell->type),
+			  log_id(cell->getPort(ID::Y).as_bit().wire->name));
+	}
 }
 
 RTLIL::State invert_state(RTLIL::State val)
@@ -607,7 +646,8 @@ void LogicLockingAnalyzer::simulate_cell(RTLIL::Cell *cell)
 	}
 }
 
-std::vector<std::uint64_t> LogicLockingAnalyzer::flattenCorruptionData(const std::vector<std::vector<std::uint64_t>> &data) {
+std::vector<std::uint64_t> LogicLockingAnalyzer::flattenCorruptionData(const std::vector<std::vector<std::uint64_t>> &data)
+{
 	std::vector<std::uint64_t> ret;
 	for (const auto &v : data) {
 		for (std::uint64_t d : v) {
@@ -617,7 +657,8 @@ std::vector<std::uint64_t> LogicLockingAnalyzer::flattenCorruptionData(const std
 	return ret;
 }
 
-std::vector<std::vector<std::uint64_t>> LogicLockingAnalyzer::compute_output_corruption_data(SigBit a) {
+std::vector<std::vector<std::uint64_t>> LogicLockingAnalyzer::compute_output_corruption_data(SigBit a)
+{
 	pool<SigBit> toggled_bits;
 	toggled_bits.insert(a);
 	return compute_output_corruption_data(toggled_bits);
