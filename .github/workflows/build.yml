@@ -22,5 +22,10 @@ jobs:
       run: git clone https://github.com/YosysHQ/yosys; cd yosys; make -j2; sudo make install; cd ..
 
     - name: Build
-      # Build your program with the given configuration
       run: sudo make install
+
+    - name: Install benchmarks
+      run: git clone https://github.com/santoshsmalagi/Benchmarks iscas
+
+    - name: Run
+      run: bash test/iscas_run.sh
