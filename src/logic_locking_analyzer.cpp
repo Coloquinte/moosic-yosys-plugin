@@ -303,7 +303,7 @@ void LogicLockingAnalyzer::cell_to_aig(Cell *cell)
 	if (!yosys_celltypes.cell_evaluable(cell->type)) {
 		return;
 	}
-	Lit sig_a, sig_b, sig_c, sig_d, sig_s, sig_y;
+	Lit sig_a, sig_b, sig_c, sig_d, sig_s;
 	bool has_a, has_b, has_c, has_d, has_s, has_y;
 
 	has_a = has_valid_port(cell, ID::A);
@@ -323,8 +323,6 @@ void LogicLockingAnalyzer::cell_to_aig(Cell *cell)
 		sig_d = wire_to_aig_[cell->getPort(ID::D)];
 	if (has_s)
 		sig_s = wire_to_aig_[cell->getPort(ID::S)];
-	if (has_y)
-		sig_y = wire_to_aig_[cell->getPort(ID::Y)];
 
 	if (has_y) {
 		return;

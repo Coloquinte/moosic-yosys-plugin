@@ -35,7 +35,7 @@ class LogicLockingOptimizer
 	/**
 	 * @brief Build the optimization problem
 	 */
-	LogicLockingOptimizer(const std::vector<std::vector<int>> &pairwiseInterference);
+	explicit LogicLockingOptimizer(const std::vector<std::vector<int>> &pairwiseInterference);
 
 	/**
 	 * @brief Number of nodes in the interference graph

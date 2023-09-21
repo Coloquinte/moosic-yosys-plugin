@@ -54,8 +54,8 @@ A new port is created on the selected module, named `lock_key`. The module will 
 ## Installation instructions
 
 To install this plugin
-- Install [Yosys](https://github.com/YosysHQ/yosys) from source or from [oss-cad-suite](https://github.com/YosysHQ/oss-cad-suite-build) (a recent version is required):
-- Build and install:
+-   Install [Yosys](https://github.com/YosysHQ/yosys) from source or from [oss-cad-suite](https://github.com/YosysHQ/oss-cad-suite-build) (a recent version is required).
+-   Build and install:
 ```sh
 make
 sudo make install

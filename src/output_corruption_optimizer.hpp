@@ -24,7 +24,7 @@ class OutputCorruptionOptimizer
 	/**
 	 * @brief Initialize the data structure given output corruption data for all signals
 	 */
-	OutputCorruptionOptimizer(const std::vector<CorruptionData> &data);
+	explicit OutputCorruptionOptimizer(const std::vector<CorruptionData> &data);
 
 	/**
 	 * @brief Number of lockable signals

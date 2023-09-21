@@ -29,7 +29,7 @@ struct Lit {
 
       private:
 	std::uint32_t data;
-	Lit(std::uint32_t a) : data(a) {}
+	explicit Lit(std::uint32_t a) : data(a) {}
 	friend class MiniAIG;
 };
 
@@ -41,7 +41,7 @@ struct Lit {
 class MiniAIG
 {
       public:
-	MiniAIG(int nbInputs = 0) : nbInputs_(nbInputs), state_(nbInputs_ + 1) {}
+	explicit MiniAIG(int nbInputs = 0) : nbInputs_(nbInputs), state_(nbInputs_ + 1) {}
 
 	/**
 	 * Query the number of inputs

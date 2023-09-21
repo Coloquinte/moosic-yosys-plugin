@@ -62,7 +62,7 @@ class LogicLockingAnalyzer
 	/**
 	 * @brief Initialize with a module
 	 */
-	LogicLockingAnalyzer(Module *module);
+	explicit LogicLockingAnalyzer(Module *module);
 
 	/**
 	 * @brief Number of test vectors currently registered
