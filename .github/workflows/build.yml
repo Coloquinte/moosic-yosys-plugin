@@ -1,0 +1,26 @@
+name: Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: sudo apt-get install tcl-dev libreadline-dev libffi-dev pkg-config python3 libboost-system-dev libboost-python-dev libboost-filesystem-dev zlib1g-dev
+
+    - name: Install yosys
+      run: git clone https://github.com/YosysHQ/yosys; cd yosys; make -j2; sudo make install; cd ..
+
+    - name: Build
+      # Build your program with the given configuration
+      run: sudo make install
