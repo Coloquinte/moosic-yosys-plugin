@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "*" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "*" ]
 
 jobs:
   build:
@@ -24,8 +24,8 @@ jobs:
     - name: Build
       run: sudo make install
 
-    - name: Install benchmarks
-      run: git clone https://github.com/santoshsmalagi/Benchmarks iscas
+    - name: Download benchmarks
+      run: bash test/download_benchmarks.sh
 
     - name: Run
-      run: bash test/iscas_run.sh
+      run: bash test/run_benchmarks.sh
