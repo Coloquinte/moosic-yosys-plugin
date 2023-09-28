@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for benchmark in benchmarks/iscas_*.blif
+for benchmark in benchmarks/blif/*.blif
 do
         name=$(basename "${benchmark}" .blif)
 	echo "Running benchmark ${name}"
