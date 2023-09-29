@@ -16,7 +16,7 @@ jobs:
         submodules: recursive
 
     - name: Install dependencies
-      run: sudo apt-get install tcl-dev libreadline-dev libffi-dev pkg-config python3 libboost-system-dev libboost-python-dev libboost-filesystem-dev zlib1g-dev
+      run: sudo apt-get install tcl-dev libreadline-dev libffi-dev pkg-config python3 libboost-system-dev libboost-python-dev libboost-filesystem-dev zlib1g-dev xz-utils
 
     - name: Install yosys
       run: git clone https://github.com/YosysHQ/yosys; cd yosys; make -j2; sudo make install; cd ..
