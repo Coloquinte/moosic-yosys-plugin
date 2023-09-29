@@ -11,7 +11,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v3
       with:
         submodules: recursive
 
@@ -29,3 +30,9 @@ jobs:
 
     - name: Run
       run: bash test/run_benchmarks.sh
+
+    - name: Archive
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmark-results
+        path: benchmark_results.tar.xz
