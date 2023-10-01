@@ -440,6 +440,12 @@ struct LogicLockingPass : public Pass {
 				if (argidx + 1 >= args.size())
 					break;
 				nb_analysis_vectors = std::atoi(args[++argidx].c_str());
+				if (nb_analysis_vectors % 64 != 0) {
+					int rounded = ((nb_analysis_vectors + 63) / 64) * 64;
+					log("Rounding the specified number of analysis vectors to the next multiple of 64 (%d -> %d)\n",
+					    nb_analysis_vectors, rounded);
+					nb_analysis_vectors = rounded;
+				}
 				continue;
 			}
 			break;
