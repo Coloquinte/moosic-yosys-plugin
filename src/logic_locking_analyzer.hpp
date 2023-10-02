@@ -90,6 +90,11 @@ class LogicLockingAnalyzer
 	static std::vector<std::uint64_t> flattenCorruptionData(const std::vector<std::vector<std::uint64_t>> &data);
 
 	/**
+	 * @brief Merge corruption information that is originally per-output per-test-vector to a simple per-output view
+	 */
+	static std::vector<std::uint64_t> mergeCorruptionData(const std::vector<std::vector<std::uint64_t>> &data);
+
+	/**
 	 * @brief Returns the impact of toggling this signal (per output per test vector)
 	 */
 	std::vector<std::vector<std::uint64_t>> compute_output_corruption_data(SigBit a);

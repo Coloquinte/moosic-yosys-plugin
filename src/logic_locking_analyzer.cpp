@@ -661,6 +661,19 @@ std::vector<std::uint64_t> LogicLockingAnalyzer::flattenCorruptionData(const std
 	return ret;
 }
 
+std::vector<std::uint64_t> LogicLockingAnalyzer::mergeCorruptionData(const std::vector<std::vector<std::uint64_t>> &data)
+{
+	std::vector<std::uint64_t> ret;
+	for (const auto &v : data) {
+		bool corrupted = false;
+		for (std::uint64_t d : v) {
+			corrupted |= (d != 0);
+		}
+		ret.push_back(corrupted ? -1 : 0);
+	}
+	return ret;
+}
+
 std::vector<std::vector<std::uint64_t>> LogicLockingAnalyzer::compute_output_corruption_data(SigBit a)
 {
 	pool<SigBit> toggled_bits;
