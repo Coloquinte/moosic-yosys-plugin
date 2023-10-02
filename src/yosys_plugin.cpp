@@ -188,7 +188,7 @@ void explore_logic_locking(RTLIL::Module *module, int nb_test_vectors, const std
 	}
 
 	LogicLockingAnalyzer pw(module);
-	pw.gen_test_vectors(nb_test_vectors, 1);
+	pw.gen_test_vectors(nb_test_vectors / 64, 1);
 
 	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
 	auto corruption_data = pw.compute_output_corruption_data();
@@ -207,7 +207,7 @@ void explore_logic_locking(RTLIL::Module *module, int nb_test_vectors, const std
 std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors, int nb_locked, OptimizationTarget target)
 {
 	LogicLockingAnalyzer pw(module);
-	pw.gen_test_vectors(nb_test_vectors, 1);
+	pw.gen_test_vectors(nb_test_vectors / 64, 1);
 
 	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
 	std::vector<Cell *> locked_gates;
@@ -237,7 +237,7 @@ void report_security(RTLIL::Module *module, const std::vector<Cell *> &cells, in
 		return;
 	}
 	LogicLockingAnalyzer pw(module);
-	pw.gen_test_vectors(nb_analysis_vectors, 1);
+	pw.gen_test_vectors(nb_analysis_vectors / 64, 1);
 	std::mt19937 rgen(1);
 	std::bernoulli_distribution dist;
 	std::vector<double> corruptionPerKey;

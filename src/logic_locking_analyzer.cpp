@@ -113,14 +113,10 @@ void LogicLockingAnalyzer::gen_test_vectors(int nb, size_t seed)
 	std::mt19937 rgen(seed);
 	std::uniform_int_distribution<std::uint64_t> dist;
 	test_vectors_.clear();
-	for (int i = 0; i < (nb + 63) / 64; ++i) {
+	for (int i = 0; i < nb; ++i) {
 		std::vector<std::uint64_t> tv;
-		std::uint64_t mask = -1;
-		if (nb - 64 * i < 64) {
-			mask = (((std::uint64_t)1) << (nb - 64 * i)) - 1;
-		}
 		for (size_t j = 0; j < comb_inputs_.size(); ++j) {
-			tv.push_back(dist(rgen) & mask);
+			tv.push_back(dist(rgen));
 		}
 		test_vectors_.push_back(tv);
 	}
@@ -177,7 +173,7 @@ void LogicLockingAnalyzer::init_aig()
 	wire_to_aig_.emplace(SigBit(false), Lit::zero());
 	wire_to_aig_.emplace(SigBit(true), Lit::one());
 	for (int s = State::Sx; s < State::Sm; ++s) {
-		wire_to_aig_[SigBit((State) s)] = Lit::zero();
+		wire_to_aig_[SigBit((State)s)] = Lit::zero();
 	}
 	for (SigBit bit : comb_inputs_) {
 		wire_to_aig_.emplace(bit, aig_.getInput(i));
@@ -185,7 +181,6 @@ void LogicLockingAnalyzer::init_aig()
 		++i;
 		dirty_bits_.insert(bit);
 	}
-
 
 	// Handle direct connections to constants
 	for (auto it : module_->connections()) {
@@ -196,7 +191,7 @@ void LogicLockingAnalyzer::init_aig()
 			SigBit sig_b = b[i];
 			if (sig_a.is_wire() && !sig_b.is_wire()) {
 				log_debug("Adding constant wire %s\n", log_id(sig_a.wire->name));
-				wire_to_aig_[sig_a] = sig_b.data == State::S1 ?  Lit::one() : Lit::zero();
+				wire_to_aig_[sig_a] = sig_b.data == State::S1 ? Lit::one() : Lit::zero();
 				dirty_bits_.emplace(sig_a);
 			}
 			if (sig_b.is_wire() && !sig_a.is_wire()) {
