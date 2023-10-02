@@ -233,7 +233,7 @@ std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors
  */
 void report_security(RTLIL::Module *module, const std::vector<Cell *> &cells, int nb_analysis_vectors, int nb_analysis_keys)
 {
-	if (nb_analysis_vectors == 0 || nb_analysis_keys == 0) {
+	if (nb_analysis_vectors < 64 || nb_analysis_keys == 0) {
 		return;
 	}
 	LogicLockingAnalyzer pw(module);
@@ -521,7 +521,7 @@ struct LogicLockingPass : public Pass {
 			log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,
 			    GetSize(mod->cells_), key_check.c_str());
 			auto locked_gates = run_logic_locking(mod, nb_test_vectors, nb_locked, target);
-			report_security(mod, locked_gates, nb_analysis_keys, nb_analysis_vectors);
+			report_security(mod, locked_gates, nb_analysis_vectors, nb_analysis_keys);
 			nb_locked = locked_gates.size();
 			RTLIL::Wire *w = add_key_input(mod, nb_locked);
 			key_values.erase(key_values.begin() + nb_locked, key_values.end());
