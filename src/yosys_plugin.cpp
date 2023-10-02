@@ -241,6 +241,7 @@ void report_security(RTLIL::Module *module, const std::vector<Cell *> &cells, in
 	std::mt19937 rgen(1);
 	std::bernoulli_distribution dist;
 	std::vector<double> corruptionPerKey;
+	std::vector<bool> corruptibleOutputs(pw.nb_outputs(), false);
 	pool<SigBit> signals;
 	for (Cell *c : cells) {
 		signals.insert(get_output_signal(c));
@@ -258,25 +259,45 @@ void report_security(RTLIL::Module *module, const std::vector<Cell *> &cells, in
 
 		// Now report the corruption
 		int countSet = 0;
-		int countTot = 0;
-		for (auto &v : corruption) {
-			for (std::uint64_t d : v) {
-				countTot += 64;
+		assert(GetSize(corruption) == pw.nb_outputs());
+		for (int o = 0; o < pw.nb_outputs(); ++o) {
+			bool corrupted = false;
+			assert(GetSize(corruption[o]) == pw.nb_test_vectors());
+			for (std::uint64_t d : corruption[o]) {
 				countSet += std::bitset<64>(d).count();
+				corrupted |= (d != 0);
+			}
+			if (corrupted) {
+				corruptibleOutputs[o] = true;
 			}
 		}
+		int countTot = pw.nb_outputs() * pw.nb_test_vectors() * 64;
 		corruptionPerKey.push_back((double)countSet / countTot);
 	}
 
 	// Compute mean/min/max/std of corruption
+	double minCorruption = std::numeric_limits<double>::infinity();
+	double maxCorruption = -std::numeric_limits<double>::infinity();
 	double meanCorruption = 0.0;
-	for (float c : corruptionPerKey) {
+	for (double c : corruptionPerKey) {
 		meanCorruption += c;
+		minCorruption = std::min(minCorruption, c);
+		maxCorruption = std::max(maxCorruption, c);
 	}
 	meanCorruption /= corruptionPerKey.size();
 
-	log("Mean corruption over %d random keys and %d test vectors is %.1f%%; ideal corruption is 50.0%%\n", nb_analysis_keys, nb_analysis_vectors,
-	    100.0 * meanCorruption);
+	double outputCorruption = 0.0;
+	for (bool c : corruptibleOutputs) {
+		if (c) {
+			outputCorruption += 1.0;
+		}
+	}
+	outputCorruption /= pw.nb_outputs();
+
+	log("Reporting corruption results over %d random keys and %d test vectors:\n", nb_analysis_keys, nb_analysis_vectors);
+	log("\t%.1f%% of output bits were corrupted over all outputs and test vectors (%.1f - %.1f); ideal results are close to 50.0%%\n",
+	    100.0 * meanCorruption, 100.0 * minCorruption, 100.0 * maxCorruption);
+	log("\t%.1f%% of outputs were corruptible; ideal result is 100.0%%\n", 100.0 * outputCorruption);
 }
 
 /**

@@ -65,6 +65,16 @@ class LogicLockingAnalyzer
 	explicit LogicLockingAnalyzer(Module *module);
 
 	/**
+	 * @brief Number of inputs of the circuit
+	 */
+	int nb_inputs() const { return comb_inputs_.size(); }
+
+	/**
+	 * @brief Number of outputs of the circuit
+	 */
+	int nb_outputs() const { return comb_outputs_.size(); }
+
+	/**
 	 * @brief Number of test vectors currently registered; note that each test vector is 64 combinations of input values
 	 */
 	int nb_test_vectors() const { return test_vectors_.size(); }
