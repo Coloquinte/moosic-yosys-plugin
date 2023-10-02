@@ -366,11 +366,11 @@ struct LogicLockingPass : public Pass {
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
 		log_header(design, "Executing LOGIC_LOCKING pass.\n");
-		OptimizationTarget target = PAIRWISE_SECURITY;
+		OptimizationTarget target = OUTPUT_CORRUPTION;
 		double percent_locked = 5.0f;
 		int key_size = -1;
 		int nb_test_vectors = 64;
-		int nb_analysis_keys = 0;
+		int nb_analysis_keys = 128;
 		int nb_analysis_vectors = 1024;
 		bool explore = false;
 		std::string key;
@@ -586,9 +586,9 @@ struct LogicLockingPass : public Pass {
 		log("\n");
 		log("These options analyze the logic locking solution's security.\n");
 		log("    -nb-analysis-keys <value>\n");
-		log("        number of random keys used to analyze security\n");
+		log("        number of random keys used to analyze security (default=128)\n");
 		log("    -nb-analysis-vectors <value>\n");
-		log("        number of test vectors used to analyze security\n");
+		log("        number of test vectors used to analyze security (default=1024)\n");
 		log("\n");
 		log("\n");
 		log("The following options control locking manually, locking the corresponding \n");
