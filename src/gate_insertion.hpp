@@ -13,8 +13,8 @@
 using Yosys::RTLIL::Cell;
 using Yosys::RTLIL::IdString;
 using Yosys::RTLIL::Module;
-using Yosys::RTLIL::SigSpec;
 using Yosys::RTLIL::SigBit;
+using Yosys::RTLIL::SigSpec;
 using Yosys::RTLIL::Wire;
 
 /**
@@ -24,8 +24,8 @@ Wire *add_key_input(Module *module, int width);
 
 /**
  * @brief Obtain the output signal of a gate
-*/
-SigBit get_output_signal(Cell* cell);
+ */
+SigBit get_output_signal(Cell *cell);
 
 /**
  * @brief Lock the gates in the module by name and key bit value

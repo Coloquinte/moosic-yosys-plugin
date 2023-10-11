@@ -4,7 +4,6 @@
 
 #include "mini_aig.hpp"
 
-
 std::vector<std::uint64_t> MiniAIG::simulate(const std::vector<std::uint64_t> &inputVals)
 {
 	assert(inputVals.size() == (std::size_t)nbInputs_);

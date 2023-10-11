@@ -286,18 +286,18 @@ void report_security(RTLIL::Module *module, const std::vector<Cell *> &cells, in
 	}
 	meanCorruption /= corruptionPerKey.size();
 
-	double outputCorruption = 0.0;
+	double outputCorruptibility = 0.0;
 	for (bool c : corruptibleOutputs) {
 		if (c) {
-			outputCorruption += 1.0;
+			outputCorruptibility += 1.0;
 		}
 	}
-	outputCorruption /= pw.nb_outputs();
+	outputCorruptibility /= pw.nb_outputs();
 
 	log("Reporting corruption results over %d random keys and %d test vectors:\n", nb_analysis_keys, nb_analysis_vectors);
 	log("\t%.1f%% of output bits were corrupted over all outputs and test vectors (%.1f - %.1f); ideal results are close to 50.0%%\n",
 	    100.0 * meanCorruption, 100.0 * minCorruption, 100.0 * maxCorruption);
-	log("\t%.1f%% of outputs were corruptible; ideal result is 100.0%%\n", 100.0 * outputCorruption);
+	log("\t%.1f%% of outputs were corruptible; ideal result is 100.0%%\n", 100.0 * outputCorruptibility);
 }
 
 /**
