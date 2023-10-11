@@ -12,6 +12,7 @@
 #include "gate_insertion.hpp"
 #include "logic_locking_analyzer.hpp"
 #include "logic_locking_optimizer.hpp"
+#include "logic_locking_statistics.hpp"
 #include "mini_aig.hpp"
 #include "output_corruption_optimizer.hpp"
 
@@ -240,12 +241,12 @@ void report_security(RTLIL::Module *module, const std::vector<Cell *> &cells, in
 	pw.gen_test_vectors(nb_analysis_vectors / 64, 1);
 	std::mt19937 rgen(1);
 	std::bernoulli_distribution dist;
-	std::vector<double> corruptionPerKey;
-	std::vector<bool> corruptibleOutputs(pw.nb_outputs(), false);
 	pool<SigBit> signals;
 	for (Cell *c : cells) {
 		signals.insert(get_output_signal(c));
 	}
+
+	LogicLockingStatistics stats(pw.nb_outputs(), pw.nb_test_vectors());
 	for (int i = 0; i < nb_analysis_keys; ++i) {
 		// Generate a random locking (1/2 chance of being wrong for each bit)
 		pool<SigBit> locked_sigs;
@@ -256,48 +257,14 @@ void report_security(RTLIL::Module *module, const std::vector<Cell *> &cells, in
 		}
 		// Now simulate
 		auto corruption = pw.compute_output_corruption_data(locked_sigs);
-
-		// Now report the corruption
-		int countSet = 0;
-		assert(GetSize(corruption) == pw.nb_outputs());
-		for (int o = 0; o < pw.nb_outputs(); ++o) {
-			bool corrupted = false;
-			assert(GetSize(corruption[o]) == pw.nb_test_vectors());
-			for (std::uint64_t d : corruption[o]) {
-				countSet += std::bitset<64>(d).count();
-				corrupted |= (d != 0);
-			}
-			if (corrupted) {
-				corruptibleOutputs[o] = true;
-			}
-		}
-		int countTot = pw.nb_outputs() * pw.nb_test_vectors() * 64;
-		corruptionPerKey.push_back((double)countSet / countTot);
+		stats.update(corruption);
 	}
-
-	// Compute mean/min/max/std of corruption
-	double minCorruption = std::numeric_limits<double>::infinity();
-	double maxCorruption = -std::numeric_limits<double>::infinity();
-	double meanCorruption = 0.0;
-	for (double c : corruptionPerKey) {
-		meanCorruption += c;
-		minCorruption = std::min(minCorruption, c);
-		maxCorruption = std::max(maxCorruption, c);
-	}
-	meanCorruption /= corruptionPerKey.size();
-
-	double outputCorruptibility = 0.0;
-	for (bool c : corruptibleOutputs) {
-		if (c) {
-			outputCorruptibility += 1.0;
-		}
-	}
-	outputCorruptibility /= pw.nb_outputs();
+	stats.check();
 
 	log("Reporting corruption results over %d random keys and %d test vectors:\n", nb_analysis_keys, nb_analysis_vectors);
-	log("\t%.1f%% of output bits were corrupted over all outputs and test vectors (%.1f - %.1f); ideal results are close to 50.0%%\n",
-	    100.0 * meanCorruption, 100.0 * minCorruption, 100.0 * maxCorruption);
-	log("\t%.1f%% of outputs were corruptible; ideal result is 100.0%%\n", 100.0 * outputCorruptibility);
+	log("\t%.1f%% corruption (±%.1f%%, %.1f%% to %.1f%%); ideal results are close to 50.0%%\n", stats.corruption(), stats.corruptionStd(),
+	    stats.corruptionMin(), stats.corruptionMax());
+	log("\t%.1f%% output corruptibility, %.1f%% corruptibility; ideal result is 100.0%%\n", stats.outputCorruptibility(), stats.corruptibility());
 }
 
 /**
