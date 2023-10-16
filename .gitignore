@@ -1,7 +1,9 @@
 *.o
 *.so
 *.d
+*.tar.xz
 .vscode
+abc.history
 downloads/
 benchmarks/
 logs/
