@@ -1,5 +1,13 @@
 
-OBJECTS = yosys_plugin.o logic_locking_optimizer.o output_corruption_optimizer.o logic_locking_analyzer.o logic_locking_statistics.o mini_aig.o gate_insertion.o
+OBJECTS = yosys_plugin.o \
+	  logic_locking_optimizer.o \
+	  output_corruption_optimizer.o \
+	  delay_analyzer.o \
+	  logic_locking_analyzer.o \
+	  logic_locking_statistics.o \
+	  mini_aig.o \
+	  gate_insertion.o \
+
 LIBNAME = moosic-yosys-plugin.so
 # Default command substitution for yosys
 CXX_FLAGS ?= -O2
