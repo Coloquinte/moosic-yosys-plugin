@@ -125,9 +125,9 @@ class LogicLockingAnalyzer
 	std::vector<std::pair<Cell *, Cell *>> compute_pairwise_secure_graph(bool ignore_duplicates = true);
 
 	/**
-	 * @brief Report on the output corruption
+	 * @brief Returns the dependency graph between cells (used for timing analysis)
 	 */
-	void report_output_corruption();
+	std::vector<std::pair<Cell *, Cell *>> compute_dependency_graph();
 
 	/**
 	 * @brief List the combinatorial inputs of the module (inputs + flip-flop outputs)
@@ -195,19 +195,38 @@ class LogicLockingAnalyzer
 
       private:
 	Module *module_;
+
+	/// @brief Combinatorial inputs of the design (includes flip-flop outputs)
 	pool<SigBit> comb_inputs_;
+
+	/// @brief Combinatorial outputs of the design (includes flip-flop inputs)
 	pool<SigBit> comb_outputs_;
+
+	/// @brief Test vectors used for analysis
 	std::vector<std::vector<std::uint64_t>> test_vectors_;
+
+	/// @brief Map a wire to the cells it inputs into
 	dict<SigBit, pool<Cell *>> wire_to_cells_;
+
+	/// @brief Map a wire to other wires it feeds
 	dict<SigBit, pool<SigBit>> wire_to_wires_;
 
-	// State for traversal
+	/// @brief Map a wire back to its driver cell
+	dict<SigBit, Cell*> wire_to_driver_;
+
+	/// @brief Wires that need to be examined during traversal
 	pool<SigBit> dirty_bits_;
 
+	/// @brief AIG representation of the circuit
 	MiniAIG aig_;
+
+	/// @brief Mapping between design wires and AIG literals
 	dict<SigBit, Lit> wire_to_aig_;
 
+	/// @brief During bit simulation, current state of the wires
 	dict<SigBit, State> state_;
+
+	/// @brief During bit simulation, current set of wires that are subject to toggling
 	pool<SigBit> toggled_bits_;
 };
 

@@ -166,6 +166,7 @@ void LogicLockingAnalyzer::init_wire_to_wires()
 void LogicLockingAnalyzer::init_aig()
 {
 	wire_to_aig_.clear();
+	wire_to_driver_.clear();
 	dirty_bits_.clear();
 	aig_ = MiniAIG(comb_inputs_.size());
 	int i = 0;
@@ -222,6 +223,9 @@ void LogicLockingAnalyzer::init_aig()
 				for (SigBit c : wire_to_wires_[b]) {
 					wire_to_aig_[c] = aig_.addBuffer(wire_to_aig_[b]);
 					next_dirty.emplace(c);
+					if (wire_to_driver_.count(b)) {
+						wire_to_driver_[c] = wire_to_driver_[b];
+					}
 				}
 			}
 		}
@@ -393,6 +397,7 @@ void LogicLockingAnalyzer::cell_to_aig(Cell *cell)
 	if (wire_to_aig_.count(cell->getPort(ID::Y))) {
 		log_debug("Converting cell %s of type %s, wire %s\n", log_id(cell->name), log_id(cell->type),
 			  log_id(cell->getPort(ID::Y).as_bit().wire->name));
+		wire_to_driver_[cell->getPort(ID::Y)] = cell;
 	}
 }
 
@@ -762,6 +767,23 @@ std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_pairwise_se
 	}
 	for (int i = 0; i < GetSize(cells); ++i) {
 		log_debug("\tCell %s: %d pairwise secure\n", log_id(cells[i]->name), nb_secure[cells[i]]);
+	}
+	return ret;
+}
+
+std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_dependency_graph()
+{
+	std::vector<std::pair<Cell *, Cell *>> ret;
+	for (Cell *cell : module_->cells()) {
+		for (auto conn : cell->connections()) {
+			SigBit b = conn.second;
+			if (wire_to_driver_.count(b)) {
+				Cell *dep = wire_to_driver_[b];
+				if (dep != cell) {
+					ret.emplace_back(dep, cell);
+				}
+			}
+		}
 	}
 	return ret;
 }
