@@ -45,34 +45,41 @@ void DelayAnalyzer::initGraph(const std::vector<Cell *> &cells)
 	for (auto p : deps) {
 		int from = cellToNode.at(p.first);
 		int to = cellToNode.at(p.second);
+		assert(from != to);
 		dependencies_[to].push_back(TimingDependency{.from = from, .delay = 0});
 	}
 
 	// Now perform the topo sort
-	std::vector<char> visited(dependencies_.size(), false);
+	std::vector<int> count(nodeInd, 0);
 	for (int i = 0; i < nodeInd; ++i) {
-		if (visited[i]) {
+		for (TimingDependency dep : dependencies_[i]) {
+			++count[dep.from];
+		}
+	}
+
+	std::vector<char> done(nodeInd, false);
+	std::vector<int> toVisit;
+	for (int i = 0; i < nodeInd; ++i) {
+		toVisit.push_back(i);
+	}
+
+	while (!toVisit.empty()) {
+		int node = toVisit.back();
+		toVisit.pop_back();
+		if (done[node]) {
 			continue;
 		}
-		std::vector<int> visit;
-		std::vector<int> stack;
-		stack.push_back(i);
-		while (!stack.empty()) {
-			int node = stack.back();
-			stack.pop_back();
-			if (!visited[node]) {
-				for (auto dep : dependencies_[node]) {
-					if (!visited[dep.from]) {
-						stack.push_back(dep.from);
-					}
-				}
-			}
-			visit.push_back(node);
-			visited[node] = true;
+		if (count[node] != 0) {
+			continue;
 		}
-		std::reverse(visit.begin(), visit.end());
-		nodeOrder_.insert(nodeOrder_.end(), visit.begin(), visit.end());
+		done[node] = true;
+		nodeOrder_.push_back(node);
+		for (TimingDependency dep : dependencies_[node]) {
+			--count[dep.from];
+			toVisit.push_back(dep.from);
+		}
 	}
+	std::reverse(nodeOrder_.begin(), nodeOrder_.end());
 	assert(GetSize(nodeOrder_) == nodeInd);
 
 	// Check the topo sort
