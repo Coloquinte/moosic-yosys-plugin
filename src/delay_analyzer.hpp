@@ -29,15 +29,37 @@ class DelayAnalyzer
 	/**
 	 * @brief Return the total number of insertion positions
 	 */
-	int nbNodes() const { return nbNodes_; }
+	int nbNodes() const { return dependencies_.size(); }
 
 	/**
 	 * @brief Compute the delay associated with a locking solution
 	 */
 	int delay(const Solution &sol) const;
 
+	/**
+	 * @brief Check the datastructure
+	 */
+	void check() const;
+
       private:
-	int nbNodes_;
+	/**
+	 * @brief Representation of a timing dependency
+	 */
+	struct TimingDependency {
+		int from;
+		int delay;
+	};
+
+	// Delay parameters
+	int cellDelay_;
+	int lockDelay_;
+	int wireDelay_;
+
+	// Topological sort for timing computation
+	std::vector<int> nodeOrder_;
+
+	// Timing dependencies between nodes
+	std::vector<std::vector<TimingDependency>> dependencies_;
 };
 
 #endif
