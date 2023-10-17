@@ -220,10 +220,8 @@ void LogicLockingAnalyzer::init_aig()
 			// Handle direct connections by adding the connected wires to the dirty list
 			if (wire_to_wires_.count(b)) {
 				for (SigBit c : wire_to_wires_[b]) {
-					if (!state_.count(c)) {
-						wire_to_aig_[c] = aig_.addBuffer(wire_to_aig_[b]);
-						next_dirty.emplace(c);
-					}
+					wire_to_aig_[c] = aig_.addBuffer(wire_to_aig_[b]);
+					next_dirty.emplace(c);
 				}
 			}
 		}
