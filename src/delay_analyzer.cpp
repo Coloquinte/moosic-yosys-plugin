@@ -11,13 +11,19 @@
 USING_YOSYS_NAMESPACE
 
 DelayAnalyzer::DelayAnalyzer(Module *module, const std::vector<Cell *> &cells)
+
+    : module_(module)
 {
-	cellDelay_ = 1;
-	lockDelay_ = 1;
-	wireDelay_ = 1;
+	initGraph(cells);
+}
+
+void DelayAnalyzer::initGraph(const std::vector<Cell *> &cells)
+{
+	nodeOrder_.clear();
+	dependencies_.clear();
 
 	// Get the dependency graph
-	LogicLockingAnalyzer pw(module);
+	LogicLockingAnalyzer pw(module_);
 	auto deps = pw.compute_dependency_graph();
 
 	// Now analyze this graph to get a topological sort
@@ -39,7 +45,7 @@ DelayAnalyzer::DelayAnalyzer(Module *module, const std::vector<Cell *> &cells)
 	for (auto p : deps) {
 		int from = cellToNode.at(p.first);
 		int to = cellToNode.at(p.second);
-		dependencies_[to].push_back(TimingDependency{.from = from, .delay = wireDelay_});
+		dependencies_[to].push_back(TimingDependency{.from = from, .delay = 0});
 	}
 
 	// Now perform the topo sort
@@ -84,9 +90,9 @@ DelayAnalyzer::DelayAnalyzer(Module *module, const std::vector<Cell *> &cells)
 int DelayAnalyzer::delay(const Solution &sol) const
 {
 	std::vector<int> delays(nbNodes(), 0);
-	std::vector<int> additionalDelay(nbNodes(), cellDelay_);
+	std::vector<int> additionalDelay(nbNodes(), CELL_DELAY);
 	for (int n : sol) {
-		additionalDelay[n] += lockDelay_;
+		additionalDelay[n] += CELL_DELAY;
 	}
 	for (int n : nodeOrder_) {
 		int delay = 0;

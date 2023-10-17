@@ -32,6 +32,14 @@ class DelayAnalyzer
 	int nbNodes() const { return dependencies_.size(); }
 
 	/**
+	 * @brief Set the fixed per-cell delay
+	 */
+
+	/**
+	 * @brief Set the fixed per-wire delay
+	 */
+
+	/**
 	 * @brief Compute the delay associated with a locking solution
 	 */
 	int delay(const Solution &sol) const;
@@ -49,11 +57,13 @@ class DelayAnalyzer
 		int from;
 		int delay;
 	};
+	void initGraph(const std::vector<Cell *> &cells);
 
-	// Delay parameters
-	int cellDelay_;
-	int lockDelay_;
-	int wireDelay_;
+      private:
+	static constexpr int CELL_DELAY = 1;
+
+	// Module
+	Module *module_;
 
 	// Topological sort for timing computation
 	std::vector<int> nodeOrder_;
