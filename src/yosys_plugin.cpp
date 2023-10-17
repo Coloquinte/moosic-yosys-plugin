@@ -9,6 +9,7 @@
 
 #include <boost/filesystem.hpp>
 
+#include "delay_analyzer.hpp"
 #include "gate_insertion.hpp"
 #include "logic_locking_analyzer.hpp"
 #include "logic_locking_optimizer.hpp"
@@ -227,6 +228,26 @@ std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors
 		locked_gates = optimize_hybrid(lockable_cells, pairwise_security, corruption_data, nb_locked);
 	}
 	return locked_gates;
+}
+
+/**
+ * @brief Report on the effect of logic locking on the delay
+ */
+void report_timing(RTLIL::Module *module, const std::vector<Cell *> &cells)
+{
+	DelayAnalyzer delay(module, cells);
+	std::vector<int> sol;
+	for (int i = 0; i < GetSize(cells); ++i) {
+		sol.push_back(i);
+	}
+	int delayWithout = delay.delay({});
+	int delayWith = delay.delay(sol);
+	if (delayWith == delayWithout) {
+		log("Critical path after locking is %d gate delays (unchanged)\n", delayWith);
+	} else {
+		double increase = 100.0 * (delayWith - delayWithout) / delayWithout;
+		log("Critical path after locking is %d gate delays vs %d before (+%.1f%%)\n", delayWith, delayWithout, increase);
+	}
 }
 
 /**
@@ -510,6 +531,7 @@ struct LogicLockingPass : public Pass {
 			    GetSize(mod->cells_), key_check.c_str());
 			auto locked_gates = run_logic_locking(mod, nb_test_vectors, nb_locked, target);
 			report_security(mod, locked_gates, nb_analysis_vectors, nb_analysis_keys);
+			report_timing(mod, locked_gates);
 			nb_locked = locked_gates.size();
 			RTLIL::Wire *w = add_key_input(mod, nb_locked);
 			key_values.erase(key_values.begin() + nb_locked, key_values.end());
