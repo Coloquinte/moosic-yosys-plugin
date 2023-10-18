@@ -34,7 +34,7 @@ Key handling (getting the key onto the chip) is left to the user.
 The plugin defines a new `logic_locking` command. To run Yosys with the plugin:
 
 ```sh
-yosys -m moosic-yosys-plugin
+yosys -m moosic
 ```
 
 And in Yosys, with a synthetized design:

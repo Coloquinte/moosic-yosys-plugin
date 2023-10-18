@@ -32,7 +32,7 @@ do
 			echo "read_blif ${benchmark}" > "${script_file}"
 			echo "flatten; synth" >> "${script_file}"
 			echo "logic_locking -key-percent ${key_percent} -target ${target}" >> "${script_file}"
-			cmd="yosys -m moosic-yosys-plugin -s ${script_file} > ${log_file}"
+			cmd="yosys -m moosic -s ${script_file} > ${log_file}"
 			eval "$cmd" || { echo "Failure on ${name} target ${target} key ${key_percent}%: ${cmd}"; exit 1; }
 		done
 	done

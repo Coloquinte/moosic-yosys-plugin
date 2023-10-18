@@ -8,7 +8,7 @@ OBJECTS = yosys_plugin.o \
 	  mini_aig.o \
 	  gate_insertion.o \
 
-LIBNAME = moosic-yosys-plugin.so
+LIBNAME = moosic.so
 # Default command substitution for yosys
 CXX_FLAGS ?= -O2
 LD_FLAGS ?=
