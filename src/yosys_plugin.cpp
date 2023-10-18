@@ -94,10 +94,10 @@ std::vector<Cell *> optimize_output_corruption(const std::vector<Cell *> &cells,
 
 	log("Running corruption optimization with %d unique nodes out of %d.\n", (int)opt.getUniqueNodes().size(), opt.nbNodes());
 	std::vector<int> sol = opt.solveGreedy(maxNumber, std::vector<int>());
-	float cover = 100.0 * opt.corruptionCover(sol);
-	float rate = 100.0 * opt.corruptionRate(sol);
+	float cover = 100.0 * opt.corruptibility(sol);
+	float rate = 100.0 * opt.corruptionSum(sol);
 
-	log("Locking solution with %d locked wires, %.2f%% corruption cover and %.2f%% corruption rate.\n", (int)sol.size(), cover, rate);
+	log("Locking solution with %d locked wires, %.2f%% estimated corruptibility and %.2f%% summed corruption.\n", (int)sol.size(), cover, rate);
 
 	std::vector<Cell *> ret;
 	for (int c : sol) {
@@ -125,8 +125,8 @@ std::vector<Cell *> optimize_hybrid(const std::vector<Cell *> &cells, const std:
 	}
 
 	std::vector<int> sol = corr.solveGreedy(maxNumber, largestClique);
-	float cover = 100.0 * corr.corruptionCover(sol);
-	float rate = 100.0 * corr.corruptionRate(sol);
+	float cover = 100.0 * corr.corruptibility(sol);
+	float rate = 100.0 * corr.corruptionSum(sol);
 
 	log("Locking solution with %d locked wires, largest clique of size %d, %.2f%% corruption cover and %.2f%% corruption rate.\n",
 	    (int)sol.size(), (int)largestClique.size(), cover, rate);
@@ -149,8 +149,8 @@ void report_output_corruption_tradeoff(const std::vector<Cell *> &cells, const d
 	for (int i = 1; i <= GetSize(order); ++i) {
 		std::vector<int> sol = order;
 		sol.resize(i);
-		double cover = 100.0 * opt.corruptionCover(sol);
-		double rate = 100.0 * opt.corruptionRate(sol);
+		double cover = 100.0 * opt.corruptibility(sol);
+		double rate = 100.0 * opt.corruptionSum(sol);
 		f << i << "\t" << cover << "\t" << rate << std::endl;
 	}
 }

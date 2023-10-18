@@ -42,7 +42,7 @@ int OutputCorruptionOptimizer::additionalCorruption(const CorruptionData &corr, 
 	return ret;
 }
 
-float OutputCorruptionOptimizer::corruptionCover(const Solution &solution) const
+float OutputCorruptionOptimizer::corruptibility(const Solution &solution) const
 {
 	CorruptionData corr(nbData());
 	for (int k : solution) {
@@ -54,7 +54,7 @@ float OutputCorruptionOptimizer::corruptionCover(const Solution &solution) const
 	return ((float)countSet(corr)) / (64 * nbData());
 }
 
-float OutputCorruptionOptimizer::corruptionRate(const Solution &solution) const
+float OutputCorruptionOptimizer::corruptionSum(const Solution &solution) const
 {
 	long long count = 0;
 	for (int k : solution) {

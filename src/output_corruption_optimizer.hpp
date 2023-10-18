@@ -46,12 +46,12 @@ class OutputCorruptionOptimizer
 	/**
 	 * @brief Obtain the proportion of signals corrupted at least once
 	 */
-	float corruptionCover(const Solution &solution) const;
+	float corruptibility(const Solution &solution) const;
 
 	/**
 	 * @brief Obtain the proportion of signals corrupted (one signal may be corrupted more than once)
 	 */
-	float corruptionRate(const Solution &solution) const;
+	float corruptionSum(const Solution &solution) const;
 
 	/**
 	 * @brief Maximize output corruption by picking one best gate to lock at a time
