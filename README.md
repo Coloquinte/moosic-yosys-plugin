@@ -52,7 +52,8 @@ logic_locking -explore -output-dir test_dir
 logic_locking -key-percent 5 -target corruption
 ```
 
-A new port is created on the selected module, named `lock_key`. The module will work as designed only when the correct key is provided as an input.
+A new port is created on the selected module, named `moosic_key` by default.
+The module will work as designed only when the correct key is provided as an input.
 
 ## Installation instructions
 

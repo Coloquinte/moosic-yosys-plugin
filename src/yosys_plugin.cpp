@@ -374,6 +374,7 @@ struct LogicLockingPass : public Pass {
 		int nb_test_vectors = 64;
 		int nb_analysis_keys = 128;
 		int nb_analysis_vectors = 1024;
+		std::string port_name = "moosic_key";
 		bool explore = false;
 		std::string key;
 		std::string output_dir = "logic_locking";
@@ -453,6 +454,12 @@ struct LogicLockingPass : public Pass {
 				output_dir = args[++argidx];
 				continue;
 			}
+			if (arg == "-port-name") {
+				if (argidx + 1 >= args.size())
+					break;
+				port_name = args[++argidx];
+				continue;
+			}
 			if (arg == "-nb-analysis-keys") {
 				if (argidx + 1 >= args.size())
 					break;
@@ -530,7 +537,7 @@ struct LogicLockingPass : public Pass {
 		if (explicit_locking) {
 			log("Explicit logic locking solution: %zu xor locks and %zu mux locks, key %s\n", gates_to_lock.size(), gates_to_mix.size(),
 			    key_check.c_str());
-			RTLIL::Wire *w = add_key_input(mod, nb_locked);
+			RTLIL::Wire *w = add_key_input(mod, nb_locked, port_name);
 			int nb_xor_gates = gates_to_lock.size();
 			std::vector<bool> lock_key(key_values.begin(), key_values.begin() + nb_xor_gates);
 			lock_gates(mod, gates_to_lock, SigSpec(w, 0, nb_xor_gates), lock_key);
@@ -548,7 +555,7 @@ struct LogicLockingPass : public Pass {
 			report_area(mod, locked_gates);
 			report_timing(mod, locked_gates);
 			nb_locked = locked_gates.size();
-			RTLIL::Wire *w = add_key_input(mod, nb_locked);
+			RTLIL::Wire *w = add_key_input(mod, nb_locked, port_name);
 			key_values.erase(key_values.begin() + nb_locked, key_values.end());
 			lock_gates(mod, locked_gates, SigSpec(w), key_values);
 		}
@@ -573,6 +580,11 @@ struct LogicLockingPass : public Pass {
 		log("    -key-percent <value>\n");
 		log("        size of the key as a percentage of the number of gates in the design (default=5)\n");
 		log("\n");
+		log("    -port-name <value>\n");
+		log("        name for the key input (default=moosic_key)\n");
+		log("\n");
+		log("\n");
+		log("The following options control the optimization algorithms.\n");
 		log("    -target {pairwise|corruption|hybrid}\n");
 		log("        optimization target for locking (default=pairwise)\n");
 		log("\n");

@@ -74,9 +74,9 @@ Cell *insert_mux_locking_gate(Module *module, Cell *locked_cell1, IdString locke
 	}
 }
 
-Wire *add_key_input(Module *module, int width)
+Wire *add_key_input(Module *module, int width, const std::string &port_name)
 {
-	IdString name = escape_id("lock_key");
+	IdString name = escape_id(port_name);
 	if (module->wire(name)) {
 		log_error("Wire %s is already present in the module. Did you run logic locking twice\n", log_id(name));
 	}

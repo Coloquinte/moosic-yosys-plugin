@@ -20,7 +20,7 @@ using Yosys::RTLIL::Wire;
 /**
  * @brief Add a new input port to the module to be used as a key
  */
-Wire *add_key_input(Module *module, int width);
+Wire *add_key_input(Module *module, int width, const std::string &port_name);
 
 /**
  * @brief Obtain the output signal of a gate
