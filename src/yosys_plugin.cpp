@@ -79,7 +79,7 @@ std::vector<Cell *> optimize_pairwise_security(const std::vector<Cell *> &cells,
 	}
 
 	double security = opt.value(sol);
-	log("Locking solution with %d cliques, %d locked wires and %.2f estimated security. Max clique was %d.\n", (int)sol.size(), (int)ret.size(),
+	log("Locking solution with %d cliques, %d locked wires and %.1f estimated security. Max clique was %d.\n", (int)sol.size(), (int)ret.size(),
 	    security, max_clique);
 	return ret;
 }
@@ -97,7 +97,7 @@ std::vector<Cell *> optimize_output_corruption(const std::vector<Cell *> &cells,
 	float cover = 100.0 * opt.corruptibility(sol);
 	float rate = 100.0 * opt.corruptionSum(sol);
 
-	log("Locking solution with %d locked wires, %.2f%% estimated corruptibility and %.2f%% summed corruption.\n", (int)sol.size(), cover, rate);
+	log("Locking solution with %d locked wires, %.1f%% estimated corruptibility and %.1f%% summed corruption.\n", (int)sol.size(), cover, rate);
 
 	std::vector<Cell *> ret;
 	for (int c : sol) {
@@ -128,7 +128,7 @@ std::vector<Cell *> optimize_hybrid(const std::vector<Cell *> &cells, const std:
 	float cover = 100.0 * corr.corruptibility(sol);
 	float rate = 100.0 * corr.corruptionSum(sol);
 
-	log("Locking solution with %d locked wires, largest clique of size %d, %.2f%% corruption cover and %.2f%% corruption rate.\n",
+	log("Locking solution with %d locked wires, largest clique of size %d, %.1f%% corruption cover and %.1f%% corruption rate.\n",
 	    (int)sol.size(), (int)largestClique.size(), cover, rate);
 
 	std::vector<Cell *> ret;
