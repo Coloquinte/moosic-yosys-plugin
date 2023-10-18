@@ -231,6 +231,17 @@ std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors
 }
 
 /**
+ * @brief Report on the effect of logic locking on the circuit area
+ */
+void report_area(RTLIL::Module *module, const std::vector<Cell *> &cells)
+{
+	int nbLocked = GetSize(cells);
+	int nbCells = module->cells().size();
+	double increase = 100.0 * nbLocked / nbCells;
+	log("Area after locking is %d cells vs %d before (+%d gates, or +%.1f%%)\n", nbCells + nbLocked, nbCells, nbLocked, increase);
+}
+
+/**
  * @brief Report on the effect of logic locking on the delay
  */
 void report_timing(RTLIL::Module *module, const std::vector<Cell *> &cells)
@@ -246,7 +257,8 @@ void report_timing(RTLIL::Module *module, const std::vector<Cell *> &cells)
 		log("Critical path after locking is %d gate delays (unchanged)\n", delayWith);
 	} else {
 		double increase = 100.0 * (delayWith - delayWithout) / delayWithout;
-		log("Critical path after locking is %d gate delays vs %d before (+%.1f%%)\n", delayWith, delayWithout, increase);
+		log("Critical path after locking is %d gate delays vs %d before (+%d gates, or +%.1f%%)\n", delayWith, delayWithout,
+		    delayWith - delayWithout, increase);
 	}
 }
 
@@ -282,9 +294,11 @@ void report_security(RTLIL::Module *module, const std::vector<Cell *> &cells, in
 	}
 	stats.check();
 
-	log("Reporting corruption results over %d random keys and %d test vectors:\n", nb_analysis_keys, nb_analysis_vectors);
-	log("\t%.1f%% corruption (±%.1f%%, %.1f%% to %.1f%%); ideal results are close to 50.0%%\n", stats.corruption(), stats.corruptionStd(),
-	    stats.corruptionMin(), stats.corruptionMax());
+	log("Reporting corruption results over %d outputs, %d random keys and %d test vectors:\n", pw.nb_outputs(), nb_analysis_keys,
+	    nb_analysis_vectors);
+	log("\t%.1f%% corruption (per-key dev. ±%.1f%%, %.1f%% to %.1f%%); ideal results are close to 50.0%%\n", stats.corruption(),
+	    stats.corruptionStd(), stats.corruptionMin(), stats.corruptionMax());
+	// TODO: report output corruptibility per key, as ideally a wrong key should impact all outputs
 	log("\t%.1f%% output corruptibility, %.1f%% corruptibility; ideal result is 100.0%%\n", stats.outputCorruptibility(), stats.corruptibility());
 }
 
@@ -531,6 +545,7 @@ struct LogicLockingPass : public Pass {
 			    GetSize(mod->cells_), key_check.c_str());
 			auto locked_gates = run_logic_locking(mod, nb_test_vectors, nb_locked, target);
 			report_security(mod, locked_gates, nb_analysis_vectors, nb_analysis_keys);
+			report_area(mod, locked_gates);
 			report_timing(mod, locked_gates);
 			nb_locked = locked_gates.size();
 			RTLIL::Wire *w = add_key_input(mod, nb_locked);
