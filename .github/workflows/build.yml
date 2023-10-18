@@ -28,6 +28,9 @@ jobs:
     - name: Download benchmarks
       run: bash test/download_benchmarks.sh
 
+    - name: Test
+      run: bash test/test_commands.sh
+
     - name: Run
       run: bash test/run_benchmarks.sh
 
