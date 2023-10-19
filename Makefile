@@ -11,7 +11,7 @@ OBJECTS = yosys_plugin.o \
 LIBNAME = moosic.so
 # Default command substitution for yosys
 CXX_FLAGS ?= -O2
-LD_FLAGS ?=
+LD_FLAGS ?= -lboost_system -lboost_filesystem
 DESTDIR ?= $(shell yosys-config --datdir)
 YOSYS_LD_FLAGS := $(shell yosys-config --ldflags --ldlibs)
 YOSYS_CXX_FLAGS := $(shell yosys-config --cxxflags)
