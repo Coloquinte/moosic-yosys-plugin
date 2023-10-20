@@ -2,7 +2,7 @@
  * Copyright (c) 2023 Gabriel Gouvine
  */
 
-#include "logic_locking_optimizer.hpp"
+#include "pairwise_security_optimizer.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -11,7 +11,8 @@
 #include <stdexcept>
 #include <unordered_set>
 
-LogicLockingOptimizer::LogicLockingOptimizer(const std::vector<std::vector<int>> &pairwiseInterference) : pairwiseInterference_(pairwiseInterference)
+PairwiseSecurityOptimizer::PairwiseSecurityOptimizer(const std::vector<std::vector<int>> &pairwiseInterference)
+    : pairwiseInterference_(pairwiseInterference)
 {
 	sortNeighbours();
 	removeSelfLoops();
@@ -21,7 +22,7 @@ LogicLockingOptimizer::LogicLockingOptimizer(const std::vector<std::vector<int>>
 	check();
 }
 
-void LogicLockingOptimizer::sortNeighbours()
+void PairwiseSecurityOptimizer::sortNeighbours()
 {
 	for (std::vector<int> &v : pairwiseInterference_) {
 		// Sort
@@ -31,7 +32,7 @@ void LogicLockingOptimizer::sortNeighbours()
 	}
 }
 
-void LogicLockingOptimizer::removeSelfLoops()
+void PairwiseSecurityOptimizer::removeSelfLoops()
 {
 	for (size_t i = 0; i < pairwiseInterference_.size(); ++i) {
 		std::vector<int> &v = pairwiseInterference_[i];
@@ -42,7 +43,7 @@ void LogicLockingOptimizer::removeSelfLoops()
 	}
 }
 
-void LogicLockingOptimizer::removeDirectedEdges()
+void PairwiseSecurityOptimizer::removeDirectedEdges()
 {
 	for (size_t i = 0; i < pairwiseInterference_.size(); ++i) {
 		const std::vector<int> &v = pairwiseInterference_[i];
@@ -56,7 +57,7 @@ void LogicLockingOptimizer::removeDirectedEdges()
 	}
 }
 
-void LogicLockingOptimizer::removeExclusiveEquivalentNodes()
+void PairwiseSecurityOptimizer::removeExclusiveEquivalentNodes()
 {
 	for (int i = 0; i < nbNodes(); ++i) {
 		const std::vector<int> &v = pairwiseInterference_[i];
@@ -82,7 +83,7 @@ void LogicLockingOptimizer::removeExclusiveEquivalentNodes()
 	}
 }
 
-double LogicLockingOptimizer::value(const ExplicitSolution &sol) const
+double PairwiseSecurityOptimizer::value(const ExplicitSolution &sol) const
 {
 	check(sol);
 	// Compute the maximum cardinality
@@ -99,7 +100,7 @@ double LogicLockingOptimizer::value(const ExplicitSolution &sol) const
 	return maxCard + std::log2(sumPow);
 }
 
-void LogicLockingOptimizer::check(const ExplicitSolution &sol) const
+void PairwiseSecurityOptimizer::check(const ExplicitSolution &sol) const
 {
 	std::unordered_set<int> present;
 	for (const auto &c : sol) {
@@ -118,7 +119,7 @@ void LogicLockingOptimizer::check(const ExplicitSolution &sol) const
 	}
 }
 
-void LogicLockingOptimizer::check() const
+void PairwiseSecurityOptimizer::check() const
 {
 	for (int i = 0; i < (int)pairwiseInterference_.size(); ++i) {
 		const std::vector<int> &v = pairwiseInterference_[i];
@@ -142,7 +143,7 @@ void LogicLockingOptimizer::check() const
 	}
 }
 
-int LogicLockingOptimizer::nbConnectedNodes() const
+int PairwiseSecurityOptimizer::nbConnectedNodes() const
 {
 	int ret = 0;
 	for (int i = 0; i + 1 < nbNodes(); ++i) {
@@ -153,7 +154,7 @@ int LogicLockingOptimizer::nbConnectedNodes() const
 	return ret;
 }
 
-int LogicLockingOptimizer::nbEdges() const
+int PairwiseSecurityOptimizer::nbEdges() const
 {
 	int ret = 0;
 	for (int i = 0; i + 1 < nbNodes(); ++i) {
@@ -162,7 +163,7 @@ int LogicLockingOptimizer::nbEdges() const
 	return ret / 2;
 }
 
-bool LogicLockingOptimizer::hasEdge(int from, int to) const
+bool PairwiseSecurityOptimizer::hasEdge(int from, int to) const
 {
 	assert(from >= 0 && from < nbNodes());
 	assert(to >= 0 && to < nbNodes());
@@ -170,7 +171,7 @@ bool LogicLockingOptimizer::hasEdge(int from, int to) const
 	return std::binary_search(v.begin(), v.end(), to);
 }
 
-bool LogicLockingOptimizer::isClique(const std::vector<int> &nodes) const
+bool PairwiseSecurityOptimizer::isClique(const std::vector<int> &nodes) const
 {
 	for (size_t i = 0; i + 1 < nodes.size(); ++i) {
 		for (size_t j = i + 1; j < nodes.size(); ++j) {
@@ -182,7 +183,7 @@ bool LogicLockingOptimizer::isClique(const std::vector<int> &nodes) const
 	return true;
 }
 
-std::vector<std::vector<int>> LogicLockingOptimizer::listMaximalCliques() const
+std::vector<std::vector<int>> PairwiseSecurityOptimizer::listMaximalCliques() const
 {
 	std::vector<int> P;
 	for (int i = 0; i < nbNodes(); ++i) {
@@ -197,7 +198,7 @@ std::vector<std::vector<int>> LogicLockingOptimizer::listMaximalCliques() const
 	return ret;
 }
 
-void LogicLockingOptimizer::bronKerbosch(std::vector<int> R, std::vector<int> P, std::vector<int> X, std::vector<std::vector<int>> &ret) const
+void PairwiseSecurityOptimizer::bronKerbosch(std::vector<int> R, std::vector<int> P, std::vector<int> X, std::vector<std::vector<int>> &ret) const
 {
 	if (X.empty() && P.empty()) {
 		ret.push_back(R);
@@ -237,7 +238,7 @@ void LogicLockingOptimizer::bronKerbosch(std::vector<int> R, std::vector<int> P,
 	}
 }
 
-LogicLockingOptimizer::ExplicitSolution LogicLockingOptimizer::solveGreedy(int maxNumber) const
+PairwiseSecurityOptimizer::ExplicitSolution PairwiseSecurityOptimizer::solveGreedy(int maxNumber) const
 {
 	int currentNumber = 0;
 	auto cliques = cliques_;
@@ -274,7 +275,7 @@ LogicLockingOptimizer::ExplicitSolution LogicLockingOptimizer::solveGreedy(int m
 	return ret;
 }
 
-LogicLockingOptimizer::Solution LogicLockingOptimizer::flattenSolution(const ExplicitSolution &sol)
+PairwiseSecurityOptimizer::Solution PairwiseSecurityOptimizer::flattenSolution(const ExplicitSolution &sol)
 {
 	std::vector<int> ret;
 	for (const auto &c : sol) {
@@ -285,7 +286,7 @@ LogicLockingOptimizer::Solution LogicLockingOptimizer::flattenSolution(const Exp
 	return ret;
 }
 
-LogicLockingOptimizer LogicLockingOptimizer::fromFile(std::istream &s)
+PairwiseSecurityOptimizer PairwiseSecurityOptimizer::fromFile(std::istream &s)
 {
 	int n;
 	s >> n;
@@ -299,5 +300,5 @@ LogicLockingOptimizer LogicLockingOptimizer::fromFile(std::istream &s)
 		ret[f].push_back(t);
 		ret[t].push_back(f);
 	}
-	return LogicLockingOptimizer(ret);
+	return PairwiseSecurityOptimizer(ret);
 }

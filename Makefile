@@ -1,6 +1,6 @@
 
 OBJECTS = yosys_plugin.o \
-	  logic_locking_optimizer.o \
+	  pairwise_security_optimizer.o \
 	  output_corruption_optimizer.o \
 	  delay_analyzer.o \
 	  logic_locking_analyzer.o \

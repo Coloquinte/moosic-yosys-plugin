@@ -2,8 +2,8 @@
  * Copyright (c) 2023 Gabriel Gouvine
  */
 
-#ifndef MOOSIC_LOGIC_ANALYZER_H
-#define MOOSIC_LOGIC_ANALYZER_H
+#ifndef MOOSIC_LOGIC_LOCKING_ANALYZER_H
+#define MOOSIC_LOGIC_LOCKING_ANALYZER_H
 
 #include "kernel/rtlil.h"
 #include "kernel/sigtools.h"

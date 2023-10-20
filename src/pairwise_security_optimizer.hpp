@@ -2,8 +2,8 @@
  * Copyright (c) 2023 Gabriel Gouvine
  */
 
-#ifndef MOOSIC_LOGIC_OPTIMIZER_H
-#define MOOSIC_LOGIC_OPTIMIZER_H
+#ifndef MOOSIC_PAIRWISE_SECURITY_OPTIMIZER_H
+#define MOOSIC_PAIRWISE_SECURITY_OPTIMIZER_H
 
 #include <iosfwd>
 #include <vector>
@@ -12,7 +12,7 @@
  * @brief A class to optimize logic locking solution given pairwise interference
  * data
  */
-class LogicLockingOptimizer
+class PairwiseSecurityOptimizer
 {
       public:
 	/**
@@ -30,12 +30,12 @@ class LogicLockingOptimizer
 	 * @brief Read the problem from a simple file format (number of nodes then all
 	 * edges)
 	 */
-	static LogicLockingOptimizer fromFile(std::istream &s);
+	static PairwiseSecurityOptimizer fromFile(std::istream &s);
 
 	/**
 	 * @brief Build the optimization problem
 	 */
-	explicit LogicLockingOptimizer(const std::vector<std::vector<int>> &pairwiseInterference);
+	explicit PairwiseSecurityOptimizer(const std::vector<std::vector<int>> &pairwiseInterference);
 
 	/**
 	 * @brief Number of nodes in the interference graph
@@ -94,12 +94,6 @@ class LogicLockingOptimizer
 	 * cliques first
 	 */
 	ExplicitSolution solveGreedy(int maxNumber) const;
-
-	/**
-	 * @brief Obtain a logic locking with a simple heuristic, adding new nodes one
-	 * after the other
-	 */
-	ExplicitSolution solveHeuristic(int maxNumber) const;
 
 	/**
 	 * @brief Check that the internal datastructures are well-formed

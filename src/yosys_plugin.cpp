@@ -12,10 +12,10 @@
 #include "delay_analyzer.hpp"
 #include "gate_insertion.hpp"
 #include "logic_locking_analyzer.hpp"
-#include "logic_locking_optimizer.hpp"
 #include "logic_locking_statistics.hpp"
 #include "mini_aig.hpp"
 #include "output_corruption_optimizer.hpp"
+#include "pairwise_security_optimizer.hpp"
 
 #include <cstdlib>
 #include <random>
@@ -25,7 +25,7 @@ PRIVATE_NAMESPACE_BEGIN
 
 enum OptimizationTarget { PAIRWISE_SECURITY, PAIRWISE_SECURITY_NO_DEDUP, OUTPUT_CORRUPTION, HYBRID };
 
-LogicLockingOptimizer make_optimizer(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security)
+PairwiseSecurityOptimizer make_optimizer(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security)
 {
 	pool<Cell *> cell_set(cells.begin(), cells.end());
 	for (auto p : pairwise_security) {
@@ -45,7 +45,7 @@ LogicLockingOptimizer make_optimizer(const std::vector<Cell *> &cells, const std
 		gr[j].push_back(i);
 	}
 
-	return LogicLockingOptimizer(gr);
+	return PairwiseSecurityOptimizer(gr);
 }
 
 OutputCorruptionOptimizer make_optimizer(const std::vector<Cell *> &cells, const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data)
