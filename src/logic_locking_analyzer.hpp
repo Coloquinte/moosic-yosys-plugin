@@ -107,7 +107,7 @@ class LogicLockingAnalyzer
 	/**
 	 * @brief Returns the impact of locking each cell (per output per test vector)
 	 */
-	dict<Cell *, std::vector<std::vector<std::uint64_t>>> compute_output_corruption_data();
+	dict<Cell *, std::vector<std::vector<std::uint64_t>>> compute_output_corruption_data_per_signal();
 
 	/**
 	 * @brief Returns whether the two bits are pairwise secure with the given test vectors
@@ -212,7 +212,7 @@ class LogicLockingAnalyzer
 	dict<SigBit, pool<SigBit>> wire_to_wires_;
 
 	/// @brief Map a wire back to its driver cell
-	dict<SigBit, Cell*> wire_to_driver_;
+	dict<SigBit, Cell *> wire_to_driver_;
 
 	/// @brief Wires that need to be examined during traversal
 	pool<SigBit> dirty_bits_;

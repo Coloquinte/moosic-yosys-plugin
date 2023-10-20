@@ -699,7 +699,7 @@ std::vector<std::vector<std::uint64_t>> LogicLockingAnalyzer::compute_output_cor
 	return ret;
 }
 
-dict<Cell *, std::vector<std::vector<std::uint64_t>>> LogicLockingAnalyzer::compute_output_corruption_data()
+dict<Cell *, std::vector<std::vector<std::uint64_t>>> LogicLockingAnalyzer::compute_output_corruption_data_per_signal()
 {
 	std::vector<SigBit> signals = get_lockable_signals();
 	std::vector<Cell *> cells = get_lockable_cells();

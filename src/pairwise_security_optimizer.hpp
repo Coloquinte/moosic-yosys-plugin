@@ -60,6 +60,13 @@ class PairwiseSecurityOptimizer
 	double value(const ExplicitSolution &sol) const;
 
 	/**
+	 * @brief Obtain the objective value associated with a solution; requires recreating the explicit solution from scratch
+	 *
+	 * log2(sum(2^|C| for C independent clique of pairwise interference))
+	 */
+	double value(const Solution &sol) const { return value(reconstructSolution(sol)); }
+
+	/**
 	 * @brief Check that a list of disjoint cliques is valid
 	 */
 	void check(const ExplicitSolution &sol) const;
@@ -90,6 +97,11 @@ class PairwiseSecurityOptimizer
 	static Solution flattenSolution(const ExplicitSolution &sol);
 
 	/**
+	 * @brief Recronstruct a list of cliques from a single list of nodes
+	 */
+	ExplicitSolution reconstructSolution(const Solution &sol) const;
+
+	/**
 	 * @brief Obtain a logic locking by explicit enumeration, adding larger
 	 * cliques first
 	 */
@@ -101,6 +113,8 @@ class PairwiseSecurityOptimizer
 	void check() const;
 
       private:
+	static ExplicitSolution solveHelper(std::vector<std::vector<int>> cliques, int maxNumber);
+
 	/**
 	 * @brief Cleanup at construction time: ensure that all neighbour lists are
 	 * sorted

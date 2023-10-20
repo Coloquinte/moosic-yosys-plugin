@@ -238,10 +238,9 @@ void PairwiseSecurityOptimizer::bronKerbosch(std::vector<int> R, std::vector<int
 	}
 }
 
-PairwiseSecurityOptimizer::ExplicitSolution PairwiseSecurityOptimizer::solveGreedy(int maxNumber) const
+PairwiseSecurityOptimizer::ExplicitSolution PairwiseSecurityOptimizer::solveHelper(std::vector<std::vector<int>> cliques, int maxNumber)
 {
 	int currentNumber = 0;
-	auto cliques = cliques_;
 	ExplicitSolution ret;
 	while (!cliques.empty() && currentNumber < maxNumber) {
 		// Pick the largest remaining clique
@@ -273,6 +272,27 @@ PairwiseSecurityOptimizer::ExplicitSolution PairwiseSecurityOptimizer::solveGree
 			      cliques.end());
 	}
 	return ret;
+}
+
+PairwiseSecurityOptimizer::ExplicitSolution PairwiseSecurityOptimizer::solveGreedy(int maxNumber) const { return solveHelper(cliques_, maxNumber); }
+
+PairwiseSecurityOptimizer::ExplicitSolution PairwiseSecurityOptimizer::reconstructSolution(const Solution &sol) const
+{
+	Solution sortedSol = sol;
+	std::sort(sortedSol.begin(), sortedSol.end());
+	auto cliques = cliques_;
+	for (auto &c : cliques) {
+		std::vector<int> cleaned;
+		for (int i : c) {
+			if (std::binary_search(sortedSol.begin(), sortedSol.end(), i)) {
+				cleaned.push_back(i);
+			}
+		}
+		c = cleaned;
+	}
+	// Remove now empty cliques
+	cliques.erase(std::remove_if(cliques.begin(), cliques.end(), [](const std::vector<int> &c) -> bool { return c.empty(); }), cliques.end());
+	return solveHelper(cliques, sol.size());
 }
 
 PairwiseSecurityOptimizer::Solution PairwiseSecurityOptimizer::flattenSolution(const ExplicitSolution &sol)

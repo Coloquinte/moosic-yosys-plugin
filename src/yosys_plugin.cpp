@@ -193,7 +193,7 @@ void explore_logic_locking(RTLIL::Module *module, int nb_test_vectors, const std
 	pw.gen_test_vectors(nb_test_vectors / 64, 1);
 
 	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
-	auto corruption_data = pw.compute_output_corruption_data();
+	auto corruption_data = pw.compute_output_corruption_data_per_signal();
 	report_output_corruption_tradeoff(lockable_cells, corruption_data, output_dir + "/corruption.csv");
 
 	auto pairwise = pw.compute_pairwise_secure_graph();
@@ -220,11 +220,11 @@ std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors
 		auto pairwise_security = pw.compute_pairwise_secure_graph(false);
 		locked_gates = optimize_pairwise_security(lockable_cells, pairwise_security, nb_locked);
 	} else if (target == OUTPUT_CORRUPTION) {
-		auto corruption_data = pw.compute_output_corruption_data();
+		auto corruption_data = pw.compute_output_corruption_data_per_signal();
 		locked_gates = optimize_output_corruption(lockable_cells, corruption_data, nb_locked);
 	} else if (target == HYBRID) {
 		auto pairwise_security = pw.compute_pairwise_secure_graph();
-		auto corruption_data = pw.compute_output_corruption_data();
+		auto corruption_data = pw.compute_output_corruption_data_per_signal();
 		locked_gates = optimize_hybrid(lockable_cells, pairwise_security, corruption_data, nb_locked);
 	}
 	return locked_gates;
