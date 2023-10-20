@@ -24,7 +24,7 @@ jobs:
       uses: hendrikmuhs/ccache-action@v1.2
 
     - name: Install yosys
-      run: git clone https://github.com/YosysHQ/yosys; cd yosys; make -j2 ENABLE_CCACHE=1; sudo make install; cd ..
+      run: git clone https://github.com/YosysHQ/yosys; cd yosys; make -j2 ENABLE_CCACHE=1 ENABLE_NDEBUG=1; sudo make install; cd ..
 
     - name: Build
       run: sudo make install
