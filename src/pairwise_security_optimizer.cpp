@@ -238,6 +238,21 @@ void PairwiseSecurityOptimizer::bronKerbosch(std::vector<int> R, std::vector<int
 	}
 }
 
+void filterCliques(std::vector<std::vector<int>> &cliques, const std::vector<int> &filter, bool filterOut)
+{
+	for (auto &c : cliques) {
+		std::vector<int> cleaned;
+		for (int i : c) {
+			if (filterOut ^ std::binary_search(filter.begin(), filter.end(), i)) {
+				cleaned.push_back(i);
+			}
+		}
+		c = cleaned;
+	}
+	// Remove now empty cliques
+	cliques.erase(std::remove_if(cliques.begin(), cliques.end(), [](const std::vector<int> &c) -> bool { return c.empty(); }), cliques.end());
+}
+
 PairwiseSecurityOptimizer::ExplicitSolution PairwiseSecurityOptimizer::solveHelper(std::vector<std::vector<int>> cliques, int maxNumber)
 {
 	int currentNumber = 0;
@@ -258,18 +273,7 @@ PairwiseSecurityOptimizer::ExplicitSolution PairwiseSecurityOptimizer::solveHelp
 		// Add it to the solution
 		ret.push_back(bestClique);
 		// Remove its nodes from other cliques
-		for (auto &c : cliques) {
-			std::vector<int> cleaned;
-			for (int i : c) {
-				if (!std::binary_search(bestClique.begin(), bestClique.end(), i)) {
-					cleaned.push_back(i);
-				}
-			}
-			c = cleaned;
-		}
-		// Remove now empty cliques
-		cliques.erase(std::remove_if(cliques.begin(), cliques.end(), [](const std::vector<int> &c) -> bool { return c.empty(); }),
-			      cliques.end());
+		filterCliques(cliques, bestClique, true);
 	}
 	return ret;
 }
@@ -281,17 +285,7 @@ PairwiseSecurityOptimizer::ExplicitSolution PairwiseSecurityOptimizer::reconstru
 	Solution sortedSol = sol;
 	std::sort(sortedSol.begin(), sortedSol.end());
 	auto cliques = cliques_;
-	for (auto &c : cliques) {
-		std::vector<int> cleaned;
-		for (int i : c) {
-			if (std::binary_search(sortedSol.begin(), sortedSol.end(), i)) {
-				cleaned.push_back(i);
-			}
-		}
-		c = cleaned;
-	}
-	// Remove now empty cliques
-	cliques.erase(std::remove_if(cliques.begin(), cliques.end(), [](const std::vector<int> &c) -> bool { return c.empty(); }), cliques.end());
+	filterCliques(cliques, sortedSol, false);
 	return solveHelper(cliques, sol.size());
 }
 
