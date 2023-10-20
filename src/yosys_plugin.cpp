@@ -78,6 +78,27 @@ std::vector<Cell *> optimize_pairwise_security(const std::vector<Cell *> &cells,
 		}
 	}
 
+	auto recreated = opt.reconstructSolution(opt.flattenSolution(sol));
+
+	if (opt.value(recreated) != opt.value(sol)) {
+		std::cout << "Didn't manage to reconstruct solution with the same value" << std::endl;
+		std::cout << "Solution:" << std::endl;
+		for (const auto &c : sol) {
+			std::cout << "\t";
+			for (int i : c) {
+				std::cout << i << " ";
+			}
+			std::cout << std::endl;
+		}
+		std::cout << "Recreated solution:" << std::endl;
+		for (const auto &c : recreated) {
+			std::cout << "\t";
+			for (int i : c) {
+				std::cout << i << " ";
+			}
+			std::cout << std::endl;
+		}
+	}
 	double security = opt.value(sol);
 	log("Locking solution with %d cliques, %d locked wires and %.1f estimated security. Max clique was %d.\n", (int)sol.size(), (int)ret.size(),
 	    security, max_clique);
