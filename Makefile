@@ -13,6 +13,7 @@ LIBNAME = moosic.so
 CXX_FLAGS ?= -O2
 LD_FLAGS ?= -lboost_system -lboost_filesystem
 DESTDIR ?= $(shell yosys-config --datdir)
+CXX := $(shell yosys-config --cxx)
 YOSYS_LD_FLAGS := $(shell yosys-config --ldflags --ldlibs)
 YOSYS_CXX_FLAGS := $(shell yosys-config --cxxflags)
 
