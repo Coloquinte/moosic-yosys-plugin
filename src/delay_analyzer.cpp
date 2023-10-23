@@ -10,6 +10,8 @@
 
 USING_YOSYS_NAMESPACE
 
+constexpr int DelayAnalyzer::CELL_DELAY;
+
 DelayAnalyzer::DelayAnalyzer(Module *module, const std::vector<Cell *> &cells)
 
     : module_(module)

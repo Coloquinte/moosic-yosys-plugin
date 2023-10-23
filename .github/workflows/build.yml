@@ -9,6 +9,10 @@ on:
 
 jobs:
   build:
+    strategy:
+      matrix:
+        mode: ["Release", "Debug"]
+
     runs-on: ubuntu-latest
 
     steps:
@@ -24,7 +28,7 @@ jobs:
       uses: hendrikmuhs/ccache-action@v1.2
 
     - name: Install yosys
-      run: git clone https://github.com/YosysHQ/yosys; cd yosys; make -j2 ENABLE_CCACHE=1 ENABLE_NDEBUG=1; sudo make install; cd ..
+      run: git clone https://github.com/YosysHQ/yosys; cd yosys; make -j2 ENABLE_CCACHE=1 ${{ matrix.mode == 'Release' && 'ENABLE_NDEBUG=1' || '' }}; sudo make install; cd ..
 
     - name: Build
       run: make -j2 ENABLE_WERROR=1; sudo make install
@@ -36,9 +40,11 @@ jobs:
       run: bash test/test_commands.sh
 
     - name: Run
+      if: ${{ matrix.mode == 'Release' }}
       run: bash test/run_benchmarks.sh
 
     - name: Archive
+      if: ${{ matrix.mode == 'Release' }}
       uses: actions/upload-artifact@v3
       with:
         name: benchmark-results
