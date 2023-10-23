@@ -28,7 +28,7 @@ enum OptimizationTarget { PAIRWISE_SECURITY, PAIRWISE_SECURITY_NO_DEDUP, OUTPUT_
 PairwiseSecurityOptimizer make_optimizer(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security)
 {
 	pool<Cell *> cell_set(cells.begin(), cells.end());
-	for (auto p : pairwise_security) {
+	for ([[maybe_unused]] auto p : pairwise_security) {
 		assert(cell_set.count(p.first));
 		assert(cell_set.count(p.second));
 	}

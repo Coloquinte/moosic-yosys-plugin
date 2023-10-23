@@ -124,7 +124,7 @@ class MiniAIG
 	void check() const
 	{
 		assert(state_.size() == nodes_.size() + nbInputs_ + 1);
-		for (AIGNode n : nodes_) {
+		for ([[maybe_unused]] AIGNode n : nodes_) {
 			assert(n.a.variable() < state_.size());
 			assert(n.b.variable() < state_.size());
 		}

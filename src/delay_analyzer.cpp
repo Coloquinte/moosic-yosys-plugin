@@ -88,7 +88,7 @@ void DelayAnalyzer::initGraph(const std::vector<Cell *> &cells)
 		nodeToOrder[nodeOrder_[i]] = i;
 	}
 	for (int i = 0; i < nodeInd; ++i) {
-		for (TimingDependency dep : dependencies_[i]) {
+		for ([[maybe_unused]] TimingDependency dep : dependencies_[i]) {
 			assert(nodeToOrder[dep.from] < nodeToOrder[i]);
 		}
 	}
