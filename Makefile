@@ -9,14 +9,21 @@ OBJECTS = yosys_plugin.o \
 	  gate_insertion.o \
 
 LIBNAME = moosic.so
+
+CXX_FLAGS ?=
+LD_FLAGS ?=
+
 # Default command substitution for yosys
-CXX_FLAGS ?= -O2
-LD_FLAGS ?= -lboost_system -lboost_filesystem
 DESTDIR ?= $(shell yosys-config --datdir)
 CXX := $(shell yosys-config --cxx)
-YOSYS_LD_FLAGS := $(shell yosys-config --ldflags --ldlibs)
+YOSYS_LD_FLAGS := $(shell yosys-config --ldflags --ldlibs) -lboost_system -lboost_filesystem
 YOSYS_CXX_FLAGS := $(shell yosys-config --cxxflags)
 
+# Features
+ENABLE_WERROR := 0
+ifeq ($(ENABLE_WERROR),1)
+CXXFLAGS := -Werror $(CXXFLAGS)
+endif
 
 all: $(LIBNAME)
 
