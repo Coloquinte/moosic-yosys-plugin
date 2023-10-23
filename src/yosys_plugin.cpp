@@ -25,45 +25,13 @@ PRIVATE_NAMESPACE_BEGIN
 
 enum OptimizationTarget { PAIRWISE_SECURITY, PAIRWISE_SECURITY_NO_DEDUP, OUTPUT_CORRUPTION, HYBRID };
 
-PairwiseSecurityOptimizer make_optimizer(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security)
-{
-	pool<Cell *> cell_set(cells.begin(), cells.end());
-	for ([[maybe_unused]] auto p : pairwise_security) {
-		assert(cell_set.count(p.first));
-		assert(cell_set.count(p.second));
-	}
-	dict<Cell *, int> cell_to_ind;
-	for (int i = 0; i < GetSize(cells); ++i) {
-		cell_to_ind[cells[i]] = i;
-	}
-
-	std::vector<std::vector<int>> gr(cells.size());
-	for (auto p : pairwise_security) {
-		int i = cell_to_ind[p.first];
-		int j = cell_to_ind[p.second];
-		gr[i].push_back(j);
-		gr[j].push_back(i);
-	}
-
-	return PairwiseSecurityOptimizer(gr);
-}
-
-OutputCorruptionOptimizer make_optimizer(const std::vector<Cell *> &cells, const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data)
-{
-	std::vector<std::vector<std::uint64_t>> corruptionData;
-	for (Cell *c : cells) {
-		corruptionData.push_back(LogicLockingAnalyzer::flattenCorruptionData(data.at(c)));
-	}
-	return OutputCorruptionOptimizer(corruptionData);
-}
-
 /**
  * @brief Run the optimization algorithm to maximize pairwise security
  */
-std::vector<Cell *> optimize_pairwise_security(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security,
-					       int maxNumber)
+std::vector<Cell *> optimize_pairwise_security(LogicLockingAnalyzer &pw, bool ignore_duplicates, int maxNumber)
 {
-	auto opt = make_optimizer(cells, pairwise_security);
+	std::vector<Cell *> cells = pw.get_lockable_cells();
+	auto opt = pw.analyze_pairwise_security(cells, ignore_duplicates);
 
 	log("Running optimization on the interference graph with %d non-trivial nodes out of %d and %d edges.\n", opt.nbConnectedNodes(),
 	    opt.nbNodes(), opt.nbEdges());
@@ -87,10 +55,10 @@ std::vector<Cell *> optimize_pairwise_security(const std::vector<Cell *> &cells,
 /**
  * @brief Run the optimization algorithm to maximize output corruption
  */
-std::vector<Cell *> optimize_output_corruption(const std::vector<Cell *> &cells, const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data,
-					       int maxNumber)
+std::vector<Cell *> optimize_output_corruption(LogicLockingAnalyzer &pw, int maxNumber)
 {
-	auto opt = make_optimizer(cells, data);
+	std::vector<Cell *> cells = pw.get_lockable_cells();
+	auto opt = pw.analyze_output_corruption(cells);
 
 	log("Running corruption optimization with %d unique nodes out of %d.\n", (int)opt.getUniqueNodes().size(), opt.nbNodes());
 	std::vector<int> sol = opt.solveGreedy(maxNumber, std::vector<int>());
@@ -109,11 +77,11 @@ std::vector<Cell *> optimize_output_corruption(const std::vector<Cell *> &cells,
 /**
  * @brief Run the optimization algorithm to obtain a tradeoff between pairwise security and output corruption
  */
-std::vector<Cell *> optimize_hybrid(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security,
-				    const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data, int maxNumber)
+std::vector<Cell *> optimize_hybrid(LogicLockingAnalyzer &pw, int maxNumber)
 {
-	auto pairw = make_optimizer(cells, pairwise_security);
-	auto corr = make_optimizer(cells, data);
+	std::vector<Cell *> cells = pw.get_lockable_cells();
+	auto corr = pw.analyze_output_corruption(cells);
+	auto pairw = pw.analyze_pairwise_security(cells, true);
 
 	log("Running hybrid optimization\n");
 	log("Interference graph with %d non-trivial nodes out of %d and %d edges.\n", pairw.nbConnectedNodes(), pairw.nbNodes(), pairw.nbEdges());
@@ -138,11 +106,11 @@ std::vector<Cell *> optimize_hybrid(const std::vector<Cell *> &cells, const std:
 	return ret;
 }
 
-void report_output_corruption_tradeoff(const std::vector<Cell *> &cells, const dict<Cell *, std::vector<std::vector<std::uint64_t>>> &data,
-				       const std::string &fname)
+void report_output_corruption_tradeoff(LogicLockingAnalyzer &pw, const std::string &fname)
 {
 	log("Reporting output corruption by number of cells locked (%s)\n", fname.c_str());
-	auto opt = make_optimizer(cells, data);
+	std::vector<Cell *> cells = pw.get_lockable_cells();
+	auto opt = pw.analyze_output_corruption(cells);
 	auto order = opt.solveGreedy(opt.nbNodes(), std::vector<int>());
 	std::ofstream f(fname);
 	f << "CellsLocked\tCorruptionCover\tCorruptionRate" << std::endl;
@@ -155,11 +123,12 @@ void report_output_corruption_tradeoff(const std::vector<Cell *> &cells, const d
 	}
 }
 
-void report_pairwise_security_tradeoff(const std::vector<Cell *> &cells, const std::vector<std::pair<Cell *, Cell *>> &pairwise_security,
-				       const std::string &fname)
+void report_pairwise_security_tradeoff(LogicLockingAnalyzer &pw, bool ignore_duplicates, const std::string &fname)
 {
 	log("Reporting pairwise security by number of cells locked (%s)\n", fname.c_str());
-	auto opt = make_optimizer(cells, pairwise_security);
+
+	std::vector<Cell *> cells = pw.get_lockable_cells();
+	auto opt = pw.analyze_pairwise_security(cells, ignore_duplicates);
 	auto all_cliques = opt.solveGreedy(opt.nbNodes());
 	std::ofstream f(fname);
 	f << "CellsLocked\tMaxClique\tPairwiseSecurity" << std::endl;
@@ -192,15 +161,9 @@ void explore_logic_locking(RTLIL::Module *module, int nb_test_vectors, const std
 	LogicLockingAnalyzer pw(module);
 	pw.gen_test_vectors(nb_test_vectors / 64, 1);
 
-	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
-	auto corruption_data = pw.compute_output_corruption_data_per_signal();
-	report_output_corruption_tradeoff(lockable_cells, corruption_data, output_dir + "/corruption.csv");
-
-	auto pairwise = pw.compute_pairwise_secure_graph();
-	report_pairwise_security_tradeoff(lockable_cells, pairwise, output_dir + "/pairwise.csv");
-
-	auto pairwise_no_dedup = pw.compute_pairwise_secure_graph(false);
-	report_pairwise_security_tradeoff(lockable_cells, pairwise_no_dedup, output_dir + "/pairwise_no_dedup.csv");
+	report_output_corruption_tradeoff(pw, output_dir + "/corruption.csv");
+	report_pairwise_security_tradeoff(pw, true, output_dir + "/pairwise.csv");
+	report_pairwise_security_tradeoff(pw, false, output_dir + "/pairwise_no_dedup.csv");
 }
 
 /**
@@ -214,18 +177,13 @@ std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors
 	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
 	std::vector<Cell *> locked_gates;
 	if (target == PAIRWISE_SECURITY) {
-		auto pairwise_security = pw.compute_pairwise_secure_graph();
-		locked_gates = optimize_pairwise_security(lockable_cells, pairwise_security, nb_locked);
+		locked_gates = optimize_pairwise_security(pw, true, nb_locked);
 	} else if (target == PAIRWISE_SECURITY_NO_DEDUP) {
-		auto pairwise_security = pw.compute_pairwise_secure_graph(false);
-		locked_gates = optimize_pairwise_security(lockable_cells, pairwise_security, nb_locked);
+		locked_gates = optimize_pairwise_security(pw, false, nb_locked);
 	} else if (target == OUTPUT_CORRUPTION) {
-		auto corruption_data = pw.compute_output_corruption_data_per_signal();
-		locked_gates = optimize_output_corruption(lockable_cells, corruption_data, nb_locked);
+		locked_gates = optimize_output_corruption(pw, nb_locked);
 	} else if (target == HYBRID) {
-		auto pairwise_security = pw.compute_pairwise_secure_graph();
-		auto corruption_data = pw.compute_output_corruption_data_per_signal();
-		locked_gates = optimize_hybrid(lockable_cells, pairwise_security, corruption_data, nb_locked);
+		locked_gates = optimize_hybrid(pw, nb_locked);
 	}
 	return locked_gates;
 }
