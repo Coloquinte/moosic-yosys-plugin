@@ -32,14 +32,6 @@ class DelayAnalyzer
 	int nbNodes() const { return dependencies_.size(); }
 
 	/**
-	 * @brief Set the fixed per-cell delay
-	 */
-
-	/**
-	 * @brief Set the fixed per-wire delay
-	 */
-
-	/**
 	 * @brief Compute the delay associated with a locking solution
 	 */
 	int delay(const Solution &sol) const;

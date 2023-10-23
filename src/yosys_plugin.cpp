@@ -427,7 +427,7 @@ struct LogicLockingPass : public Pass {
 				auto t = args[++argidx];
 				if (t == "pairwise") {
 					target = PAIRWISE_SECURITY;
-				} else if (t == "pairwise_no_dedup") {
+				} else if (t == "pairwise-no-dedup") {
 					target = PAIRWISE_SECURITY_NO_DEDUP;
 				} else if (t == "corruption") {
 					target = OUTPUT_CORRUPTION;
