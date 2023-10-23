@@ -10,6 +10,8 @@
 #include "kernel/yosys.h"
 
 #include "mini_aig.hpp"
+#include "output_corruption_optimizer.hpp"
+#include "pairwise_security_optimizer.hpp"
 
 using Yosys::dict;
 using Yosys::pool;
@@ -158,6 +160,16 @@ class LogicLockingAnalyzer
 	 * @brief Simulate on a bitset of test vectors and return the module's outputs
 	 */
 	std::vector<std::uint64_t> simulate_aig(int tv, const pool<SigBit> &toggled_bits);
+
+	/**
+	 * @brief Create the output corruption analysis
+	 */
+	OutputCorruptionOptimizer analyze_output_corruption(const std::vector<Cell *> cells);
+
+	/**
+	 * @brief Create the pairwise security analysis
+	 */
+	PairwiseSecurityOptimizer analyze_pairwise_security(const std::vector<Cell *> cells, bool ignore_duplicates = true);
 
       private:
 	/**

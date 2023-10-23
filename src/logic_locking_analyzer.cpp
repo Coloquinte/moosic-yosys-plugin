@@ -789,3 +789,37 @@ std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_dependency_
 	}
 	return ret;
 }
+
+OutputCorruptionOptimizer LogicLockingAnalyzer::analyze_output_corruption(const std::vector<Cell *> cells)
+{
+	auto data = compute_output_corruption_data_per_signal();
+	std::vector<std::vector<std::uint64_t>> corruptionData;
+	for (Cell *c : cells) {
+		corruptionData.push_back(LogicLockingAnalyzer::flattenCorruptionData(data.at(c)));
+	}
+	return OutputCorruptionOptimizer(corruptionData);
+}
+
+PairwiseSecurityOptimizer LogicLockingAnalyzer::analyze_pairwise_security(const std::vector<Cell *> cells, bool ignore_duplicates)
+{
+	auto pairwise_security = compute_pairwise_secure_graph(ignore_duplicates);
+	pool<Cell *> cell_set(cells.begin(), cells.end());
+	dict<Cell *, int> cell_to_ind;
+	for (int i = 0; i < GetSize(cells); ++i) {
+		cell_to_ind[cells[i]] = i;
+	}
+
+	std::vector<std::vector<int>> gr(cells.size());
+	for (auto p : pairwise_security) {
+		if (!cell_set.count(p.first))
+			continue;
+		if (!cell_set.count(p.second))
+			continue;
+		int i = cell_to_ind[p.first];
+		int j = cell_to_ind[p.second];
+		gr[i].push_back(j);
+		gr[j].push_back(i);
+	}
+
+	return PairwiseSecurityOptimizer(gr);
+}
