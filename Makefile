@@ -7,6 +7,7 @@ OBJECTS = yosys_plugin.o \
 	  logic_locking_statistics.o \
 	  mini_aig.o \
 	  gate_insertion.o \
+	  optimization_objectives.o \
 
 LIBNAME = moosic.so
 

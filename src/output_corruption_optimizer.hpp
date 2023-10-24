@@ -22,6 +22,11 @@ class OutputCorruptionOptimizer
 	using CorruptionData = std::vector<std::uint64_t>;
 
 	/**
+	 * @brief Default constructor
+	 */
+	OutputCorruptionOptimizer() {}
+
+	/**
 	 * @brief Initialize the data structure given output corruption data for all signals
 	 */
 	explicit OutputCorruptionOptimizer(const std::vector<CorruptionData> &data);

@@ -33,6 +33,11 @@ class PairwiseSecurityOptimizer
 	static PairwiseSecurityOptimizer fromFile(std::istream &s);
 
 	/**
+	 * @brief Default constructor
+	 */
+	PairwiseSecurityOptimizer() {}
+
+	/**
 	 * @brief Build the optimization problem
 	 */
 	explicit PairwiseSecurityOptimizer(const std::vector<std::vector<int>> &pairwiseInterference);
