@@ -1,3 +1,6 @@
+/*
+ * Copyright (c) 2023 Gabriel Gouvine
+ */
 
 #include "output_corruption_optimizer.hpp"
 
