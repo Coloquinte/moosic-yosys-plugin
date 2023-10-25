@@ -12,6 +12,7 @@ jobs:
     strategy:
       matrix:
         mode: ["Release", "Debug"]
+        compiler: ["gcc"]
 
     runs-on: ubuntu-latest
 
@@ -22,13 +23,17 @@ jobs:
         submodules: recursive
 
     - name: Install dependencies
-      run: sudo apt-get install tcl-dev libreadline-dev libffi-dev pkg-config python3 libboost-system-dev libboost-python-dev libboost-filesystem-dev zlib1g-dev xz-utils
+      run: sudo apt-get install tcl-dev libreadline-dev libffi-dev pkg-config python3 libboost-system-dev libboost-python-dev libboost-filesystem-dev zlib1g-dev xz-utils valgrind
 
     - name: ccache
       uses: hendrikmuhs/ccache-action@v1.2
 
     - name: Install yosys
-      run: git clone https://github.com/YosysHQ/yosys; cd yosys; make -j2 ENABLE_CCACHE=1 ${{ matrix.mode == 'Release' && 'ENABLE_NDEBUG=1' || '' }}; sudo make install; cd ..
+      run: |
+        git clone https://github.com/YosysHQ/yosys; \
+        cd yosys; make config-${{ matrix.compiler }}; \
+        make -j2 ENABLE_CCACHE=1 ${{ matrix.mode == 'Release' && 'ENABLE_NDEBUG=1' || '' }}; \
+        sudo make install; cd ..
 
     - name: Build
       run: make -j2 ENABLE_WERROR=1; sudo make install
@@ -37,7 +42,7 @@ jobs:
       run: bash test/download_benchmarks.sh
 
     - name: Test
-      run: bash test/test_commands.sh
+      run: ${{ matrix.compiler == 'gcc' && 'ENABLE_VALGRIND=1' || '' }} bash test/test_commands.sh
 
     - name: Run
       if: ${{ matrix.mode == 'Release' }}
