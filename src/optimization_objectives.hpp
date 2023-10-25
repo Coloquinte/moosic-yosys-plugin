@@ -47,7 +47,7 @@ class OptimizationObjectives
 
 	/**
 	 * @brief Number of nodes available for locking
-	*/
+	 */
 	int nbNodes() const { return nbNodes_; }
 
 	/**
@@ -93,6 +93,9 @@ class OptimizationObjectives
 	 * @brief Return the pairwise security metrics (in bits, higher is better)
 	 */
 	double pairwiseSecurity(const Solution &);
+
+	OutputCorruptionOptimizer &outputCorruptionOptimizer() { return outputCorruptionOptimizer_; }
+	PairwiseSecurityOptimizer &pairwiseSecurityOptimizer() { return pairwiseSecurityOptimizer_; }
 
       private:
 	int nbNodes_;

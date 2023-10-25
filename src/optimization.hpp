@@ -75,11 +75,26 @@ class Optimizer
 	Optimizer(Module *module, const std::vector<Cell *> &cells);
 
 	/**
+	 * @brief Number of ndoes available for locking
+	 */
+	int nbNodes() const { return obj_.nbNodes(); }
+
+	/**
 	 * @brief Execute a single move
 	 */
 	bool tryMove();
 
-  private:
+	/**
+	 * @brief Add solutions from the greedy corruption optimization
+	 */
+	void runGreedyCorruption();
+
+	/**
+	 * @brief Add solutions from the greedy pairwise security optimization
+	 */
+	void runGreedyPairwise();
+
+      private:
 	/**
 	 * @brief Evaluate a new solution and add it to the pareto front
 	 */

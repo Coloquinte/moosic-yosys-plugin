@@ -81,6 +81,30 @@ bool Optimizer::tryMove()
 	return tryAddSolution(ret);
 }
 
+void Optimizer::runGreedyCorruption()
+{
+	std::vector<int> tot = obj_.outputCorruptionOptimizer().solveGreedy(nbNodes(), std::vector<int>());
+	for (size_t i = 1; i <= tot.size(); ++i) {
+		std::vector<int> sol(tot.begin(), tot.begin() + i);
+		tryAddSolution(sol);
+	}
+}
+
+void Optimizer::runGreedyPairwise()
+{
+	std::vector<std::vector<int>> cliques = obj_.pairwiseSecurityOptimizer().solveGreedy(nbNodes());
+	std::vector<int> tot;
+	for (const auto &c : cliques) {
+		for (int n : c) {
+			tot.push_back(n);
+		}
+	}
+	for (size_t i = 1; i <= tot.size(); ++i) {
+		std::vector<int> sol(tot.begin(), tot.begin() + i);
+		tryAddSolution(sol);
+	}
+}
+
 bool Optimizer::tryAddSolution(const Solution &sol)
 {
 	if (sol.empty())

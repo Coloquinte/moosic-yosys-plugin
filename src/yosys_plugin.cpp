@@ -200,6 +200,10 @@ void run_optimization(RTLIL::Module *module, int nb_test_vectors)
 	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
 	Optimizer opt(module, lockable_cells);
 	log("Running optimization algorithm\n");
+	opt.runGreedyCorruption();
+	log("\tCorruption analysis: Pareto front size %d\n", (int)opt.paretoFront().size());
+	opt.runGreedyPairwise();
+	log("\tPairwise analysis: Pareto front size %d\n", (int)opt.paretoFront().size());
 	for (int i = 0; i < 10000; ++i) {
 		opt.tryMove();
 		log("\tMove %d: Pareto front size %d\n", i + 1, (int)opt.paretoFront().size());
