@@ -220,12 +220,12 @@ void LogicLockingAnalyzer::init_aig()
 			}
 			// Handle direct connections by adding the connected wires to the dirty list
 			if (wire_to_wires_.count(b)) {
-				for (SigBit c : wire_to_wires_[b]) {
-					Lit syn = aig_.addBuffer(wire_to_aig_[b]);
+				for (SigBit c : wire_to_wires_.at(b)) {
+					Lit syn = aig_.addBuffer(wire_to_aig_.at(b));
 					wire_to_aig_[c] = syn;
 					next_dirty.emplace(c);
 					if (wire_to_driver_.count(b)) {
-						Cell *dr = wire_to_driver_[b];
+						Cell *dr = wire_to_driver_.at(b);
 						wire_to_driver_[c] = dr;
 					}
 				}
@@ -313,15 +313,15 @@ void LogicLockingAnalyzer::cell_to_aig(Cell *cell)
 	has_y = has_valid_port(cell, ID::Y);
 
 	if (has_a)
-		sig_a = wire_to_aig_[cell->getPort(ID::A)];
+		sig_a = wire_to_aig_.at(cell->getPort(ID::A));
 	if (has_b)
-		sig_b = wire_to_aig_[cell->getPort(ID::B)];
+		sig_b = wire_to_aig_.at(cell->getPort(ID::B));
 	if (has_c)
-		sig_c = wire_to_aig_[cell->getPort(ID::C)];
+		sig_c = wire_to_aig_.at(cell->getPort(ID::C));
 	if (has_d)
-		sig_d = wire_to_aig_[cell->getPort(ID::D)];
+		sig_d = wire_to_aig_.at(cell->getPort(ID::D));
 	if (has_s)
-		sig_s = wire_to_aig_[cell->getPort(ID::S)];
+		sig_s = wire_to_aig_.at(cell->getPort(ID::S));
 
 	if (has_y) {
 		return;
@@ -780,7 +780,7 @@ std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_dependency_
 		for (auto conn : cell->connections()) {
 			SigBit b = conn.second;
 			if (wire_to_driver_.count(b)) {
-				Cell *dep = wire_to_driver_[b];
+				Cell *dep = wire_to_driver_.at(b);
 				if (dep != cell) {
 					ret.emplace_back(dep, cell);
 				}
