@@ -221,10 +221,12 @@ void LogicLockingAnalyzer::init_aig()
 			// Handle direct connections by adding the connected wires to the dirty list
 			if (wire_to_wires_.count(b)) {
 				for (SigBit c : wire_to_wires_[b]) {
-					wire_to_aig_[c] = aig_.addBuffer(wire_to_aig_[b]);
+					Lit syn = aig_.addBuffer(wire_to_aig_[b]);
+					wire_to_aig_[c] = syn;
 					next_dirty.emplace(c);
 					if (wire_to_driver_.count(b)) {
-						wire_to_driver_[c] = wire_to_driver_[b];
+						Cell *dr = wire_to_driver_[b];
+						wire_to_driver_[c] = dr;
 					}
 				}
 			}
