@@ -14,6 +14,7 @@
 #include "logic_locking_analyzer.hpp"
 #include "logic_locking_statistics.hpp"
 #include "mini_aig.hpp"
+#include "optimization.hpp"
 #include "output_corruption_optimizer.hpp"
 #include "pairwise_security_optimizer.hpp"
 
@@ -186,6 +187,32 @@ std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors
 		locked_gates = optimize_hybrid(pw, nb_locked);
 	}
 	return locked_gates;
+}
+
+/**
+ * @brief Run the optimization algorithm
+ */
+void run_optimization(RTLIL::Module *module, int nb_test_vectors)
+{
+	LogicLockingAnalyzer pw(module);
+	pw.gen_test_vectors(nb_test_vectors / 64, 1);
+
+	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
+	Optimizer opt(module, lockable_cells);
+	log("Running optimization algorithm\n");
+	for (int i = 0; i < 10000; ++i) {
+		opt.tryMove();
+		log("\tMove %d: Pareto front size %d\n", i + 1, (int)opt.paretoFront().size());
+	}
+
+	log("Objectives:\n");
+	for (std::vector<double> obj : opt.paretoObjectives()) {
+		log("\t");
+		for (double d : obj) {
+			log("%.2f ", d);
+		}
+		log("\n");
+	}
 }
 
 /**
@@ -506,6 +533,7 @@ struct LogicLockingPass : public Pass {
 			    GetSize(mod->cells_));
 			explore_logic_locking(mod, nb_test_vectors, output_dir);
 		} else {
+			run_optimization(mod, nb_test_vectors);
 			log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,
 			    GetSize(mod->cells_), key_check.c_str());
 			auto locked_gates = run_logic_locking(mod, nb_test_vectors, nb_locked, target);

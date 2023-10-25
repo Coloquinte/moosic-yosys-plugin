@@ -8,6 +8,7 @@ OBJECTS = yosys_plugin.o \
 	  mini_aig.o \
 	  gate_insertion.o \
 	  optimization_objectives.o \
+	  optimization.o \
 
 LIBNAME = moosic.so
 
