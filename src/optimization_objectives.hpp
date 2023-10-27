@@ -99,8 +99,8 @@ class OptimizationObjectives
 
       private:
 	int nbNodes_;
-	double areaFactor_;
-	double delayFactor_;
+	int baseArea_;
+	int baseDelay_;
 	LogicLockingAnalyzer logicLockingAnalyzer_;
 	DelayAnalyzer delayAnalyzer_;
 	OutputCorruptionOptimizer outputCorruptionOptimizer_;

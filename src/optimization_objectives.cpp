@@ -10,8 +10,8 @@ OptimizationObjectives::OptimizationObjectives(Module *module, const std::vector
 	// TODO: pass test vector options there
 	logicLockingAnalyzer_.gen_test_vectors(1, 1);
 	nbNodes_ = cells.size();
-	areaFactor_ = 1.0 / std::max((int)module->cells().size(), 1);
-	delayFactor_ = 1.0 / std::max(delayAnalyzer_.delay(std::vector<int>()), 1);
+	baseArea_ = module->cells().size();
+	baseDelay_ = delayAnalyzer_.delay(std::vector<int>());
 	outputCorruptionOptimizer_ = logicLockingAnalyzer_.analyze_output_corruption(cells);
 	pairwiseSecurityOptimizer_ = logicLockingAnalyzer_.analyze_pairwise_security(cells);
 }
@@ -28,9 +28,9 @@ std::vector<double> OptimizationObjectives::objective(const Solution &sol)
 	return ret;
 }
 
-double OptimizationObjectives::area(const Solution &sol) { return areaFactor_ * sol.size(); }
+double OptimizationObjectives::area(const Solution &sol) { return 100.0 * sol.size() / std::max(baseArea_, 1); }
 
-double OptimizationObjectives::delay(const Solution &sol) { return delayFactor_ * delayAnalyzer_.delay(sol); }
+double OptimizationObjectives::delay(const Solution &sol) { return 100.0 * (delayAnalyzer_.delay(sol) - baseDelay_) / std::max(baseDelay_, 1); }
 
 double OptimizationObjectives::pairwiseSecurity(const Solution &sol) { return pairwiseSecurityOptimizer_.value(sol); }
 
