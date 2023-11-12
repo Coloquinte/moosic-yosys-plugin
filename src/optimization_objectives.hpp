@@ -17,6 +17,8 @@
 using Yosys::RTLIL::Cell;
 using Yosys::RTLIL::Module;
 
+enum class ObjectiveType { Area, Delay, PairwiseSecurity, Corruption, Corruptibility, OutputCorruptibility, CorruptionEstimate, CorruptibilityEstimate };
+
 /**
  * @brief A class to centralize all objectives related to logic locking for optimization.
  *
@@ -44,6 +46,11 @@ class OptimizationObjectives
 	 * @brief Return the objective vector (higher is better)
 	 */
 	std::vector<double> objective(const Solution &);
+
+	/**
+	 * @brief Return a single objective (higher is better)
+	 */
+	double objective(const Solution &, ObjectiveType obj);
 
 	/**
 	 * @brief Number of nodes available for locking

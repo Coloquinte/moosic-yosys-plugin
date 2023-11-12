@@ -9,6 +9,7 @@
 
 #include <boost/filesystem.hpp>
 
+#include "command_utils.hpp"
 #include "delay_analyzer.hpp"
 #include "gate_insertion.hpp"
 #include "logic_locking_analyzer.hpp"
@@ -187,36 +188,6 @@ std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors
 		locked_gates = optimize_hybrid(pw, nb_locked);
 	}
 	return locked_gates;
-}
-
-/**
- * @brief Run the optimization algorithm
- */
-void run_optimization(RTLIL::Module *module, int nb_test_vectors)
-{
-	LogicLockingAnalyzer pw(module);
-	pw.gen_test_vectors(nb_test_vectors / 64, 1);
-
-	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
-	Optimizer opt(module, lockable_cells);
-	log("Running optimization algorithm\n");
-	opt.runGreedyCorruption();
-	log("\tCorruption analysis: Pareto front size %d\n", (int)opt.paretoFront().size());
-	opt.runGreedyPairwise();
-	log("\tPairwise analysis: Pareto front size %d\n", (int)opt.paretoFront().size());
-	for (int i = 0; i < 10000; ++i) {
-		opt.tryMove();
-		log("\tMove %d: Pareto front size %d\n", i + 1, (int)opt.paretoFront().size());
-	}
-
-	log("Objectives:\n");
-	for (std::vector<double> obj : opt.paretoObjectives()) {
-		log("\t");
-		for (double d : obj) {
-			log("%.2f ", d);
-		}
-		log("\n");
-	}
 }
 
 /**
@@ -476,20 +447,8 @@ struct LogicLockingPass : public Pass {
 		// handle extra options (e.g. selection)
 		extra_args(args, argidx, design);
 
-		std::vector<RTLIL::Module *> modules_to_run;
-		for (auto &it : design->modules_) {
-			if (design->selected_module(it.first)) {
-				modules_to_run.push_back(it.second);
-			}
-		}
-		if (modules_to_run.size() >= 2) {
-			log_error("Multiple modules are selected. Please run logic locking on a single module to avoid duplicate keys.\n");
-		}
-		if (modules_to_run.empty()) {
-			return;
-		}
-
-		RTLIL::Module *mod = modules_to_run.front();
+		RTLIL::Module *mod = single_selected_module(design);
+		if (mod == NULL) return;
 
 		bool explicit_locking = !gates_to_lock.empty() || !gates_to_mix.empty();
 		int nb_locked;
@@ -537,7 +496,6 @@ struct LogicLockingPass : public Pass {
 			    GetSize(mod->cells_));
 			explore_logic_locking(mod, nb_test_vectors, output_dir);
 		} else {
-			run_optimization(mod, nb_test_vectors);
 			log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,
 			    GetSize(mod->cells_), key_check.c_str());
 			auto locked_gates = run_logic_locking(mod, nb_test_vectors, nb_locked, target);
