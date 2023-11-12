@@ -276,53 +276,6 @@ static std::vector<bool> create_key(int nb_locked)
 	return key_values;
 }
 
-/**
- * @brief Parse an hexadecimal string
- */
-static std::vector<bool> parse_hex_string(const std::string &str)
-{
-	std::vector<bool> ret;
-	for (auto it = str.rbegin(); it != str.rend(); ++it) {
-		char cur = *it;
-		char c = std::tolower(cur);
-		int v = 0;
-		if (c >= '0' && c <= '9') {
-			v = c - '0';
-		} else if (c >= 'a' && c <= 'f') {
-			v = (c - 'a') + 10;
-		} else {
-			log_error("<%c> is not a proper hexadecimal character\n", cur);
-		}
-		for (int i = 0; i < 4; ++i) {
-			ret.push_back(v % 2);
-			v /= 2;
-		}
-	}
-	return ret;
-}
-
-static std::string create_hex_string(std::vector<bool> &key)
-{
-	std::string ret;
-	for (int i = 0; i < GetSize(key); i += 4) {
-		int v = 0;
-		int c = 1;
-		for (int j = i; j < i + 4 && j < GetSize(key); ++j) {
-			if (key[j]) {
-				v += c;
-			}
-			c *= 2;
-		}
-		if (v < 10) {
-			ret.push_back('0' + v);
-		} else {
-			ret.push_back('a' + (v - 10));
-		}
-	}
-	std::reverse(ret.begin(), ret.end());
-	return ret;
-}
-
 struct LogicLockingPass : public Pass {
 	LogicLockingPass() : Pass("logic_locking") {}
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
@@ -448,7 +401,8 @@ struct LogicLockingPass : public Pass {
 		extra_args(args, argidx, design);
 
 		RTLIL::Module *mod = single_selected_module(design);
-		if (mod == NULL) return;
+		if (mod == NULL)
+			return;
 
 		bool explicit_locking = !gates_to_lock.empty() || !gates_to_mix.empty();
 		int nb_locked;

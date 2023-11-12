@@ -5,8 +5,8 @@
 #include "kernel/yosys.h"
 
 #include "command_utils.hpp"
-#include "optimization_objectives.hpp"
 #include "optimization.hpp"
+#include "optimization_objectives.hpp"
 
 #include <limits>
 
@@ -16,7 +16,7 @@ PRIVATE_NAMESPACE_BEGIN
 /**
  * @brief Run the optimization algorithm
  */
-void run_optimization(RTLIL::Module *module, int nb_test_vectors, int nb_iter)
+void run_optimization(RTLIL::Module *module, int nb_test_vectors, int nb_iter, const std::vector<ObjectiveType> &objectives)
 {
 	LogicLockingAnalyzer pw(module);
 	pw.gen_test_vectors(nb_test_vectors / 64, 1);
@@ -138,10 +138,14 @@ struct LogicLockingExplorePass : public Pass {
 		// handle extra options (e.g. selection)
 		extra_args(args, argidx, design);
 
-        RTLIL::Module *mod = single_selected_module(design);
+		if (objectives.size() < 2) {
+			log_error("There should be at last two objectives for multiobjective exploration.");
+		}
+
+		RTLIL::Module *mod = single_selected_module(design);
 
 		// Now execute the optimization itself
-		run_optimization(mod, nbAnalysisVectors, nbIter);
+		run_optimization(mod, nbAnalysisVectors, nbIter, objectives);
 	}
 
 	void help() override
