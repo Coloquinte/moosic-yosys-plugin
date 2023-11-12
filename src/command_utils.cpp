@@ -27,7 +27,7 @@ Yosys::RTLIL::Module *single_selected_module(Yosys::RTLIL::Design *design)
 	return modules_to_run.front();
 }
 
-std::vector<bool> parse_hex_string(const std::string &str)
+std::vector<bool> parse_hex_string_to_bool(const std::string &str)
 {
 	std::vector<bool> ret;
 	for (auto it = str.rbegin(); it != str.rend(); ++it) {
@@ -49,7 +49,19 @@ std::vector<bool> parse_hex_string(const std::string &str)
 	return ret;
 }
 
-std::string create_hex_string(std::vector<bool> &vec)
+std::vector<int> parse_hex_string_to_sol(const std::string &str)
+{
+	std::vector<bool> b = parse_hex_string_to_bool(str);
+	std::vector<int> ret;
+	for (int i = 0; i < Yosys::GetSize(b); ++i) {
+		if (b[i]) {
+			ret.push_back(i);
+		}
+	}
+	return ret;
+}
+
+std::string create_hex_string(const std::vector<bool> &vec)
 {
 	std::string ret;
 	for (int i = 0; i < Yosys::GetSize(vec); i += 4) {
@@ -69,4 +81,17 @@ std::string create_hex_string(std::vector<bool> &vec)
 	}
 	std::reverse(ret.begin(), ret.end());
 	return ret;
+}
+
+std::string create_hex_string(const std::vector<int> &vec, int nbNodes)
+{
+	int vecSize = nbNodes;
+	if (!vec.empty()) {
+		vecSize = std::max(*std::max_element(vec.begin(), vec.end()), vecSize);
+	}
+	std::vector<bool> b(vecSize, false);
+	for (int n : vec) {
+		b[n] = true;
+	}
+	return create_hex_string(b);
 }

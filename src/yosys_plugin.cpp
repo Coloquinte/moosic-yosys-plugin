@@ -418,7 +418,7 @@ struct LogicLockingPass : public Pass {
 		if (key.empty()) {
 			key_values = create_key(nb_locked);
 		} else {
-			key_values = parse_hex_string(key);
+			key_values = parse_hex_string_to_bool(key);
 		}
 		if (nb_locked > GetSize(key_values)) {
 			log_error("Key size is %d bits, which is not enough to lock %d gates\n", GetSize(key_values), nb_locked);
