@@ -9,7 +9,8 @@ OBJECTS = yosys_plugin.o \
 	  gate_insertion.o \
 	  optimization_objectives.o \
 	  optimization.o \
-	  exploration_command.o \
+	  cmd_apply.o \
+	  cmd_explore.o \
 	  command_utils.o \
 
 LIBNAME = moosic.so

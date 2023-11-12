@@ -44,14 +44,14 @@ void run_optimization(RTLIL::Module *module, int nb_test_vectors, int nb_iter, c
 }
 
 struct LogicLockingExplorePass : public Pass {
-	LogicLockingExplorePass() : Pass("logic_locking_explore") {}
+	LogicLockingExplorePass() : Pass("ll_explore") {}
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
-		log_header(design, "Executing LOGIC_LOCKING_EXPLORATION pass.\n");
+		log_header(design, "Executing LOGIC_LOCKING_EXPLORE pass.\n");
 		long long nbIter = 1000;
 		double timeLimit = std::numeric_limits<double>::infinity();
 		std::vector<ObjectiveType> objectives;
-		int nbAnalysisKeys = 1024;
+		int nbAnalysisKeys = 128;
 		int nbAnalysisVectors = 1024;
 		int nbPairwiseVectors = 64;
 
