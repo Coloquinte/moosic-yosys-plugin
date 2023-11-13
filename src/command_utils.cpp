@@ -6,6 +6,7 @@
 
 #include "kernel/yosys.h"
 
+#include <random>
 #include <vector>
 
 Yosys::RTLIL::Module *single_selected_module(Yosys::RTLIL::Design *design)
@@ -94,4 +95,18 @@ std::string create_hex_string(const std::vector<int> &vec, int nbNodes)
 		b[n] = true;
 	}
 	return create_hex_string(b);
+}
+
+/**
+ * @brief Create a locking key
+ */
+std::vector<bool> create_key(int nb_locked)
+{
+	std::vector<bool> key_values;
+	std::random_device rgen;
+	std::bernoulli_distribution dist;
+	for (int i = 0; i < nb_locked; ++i) {
+		key_values.push_back(dist(rgen));
+	}
+	return key_values;
 }

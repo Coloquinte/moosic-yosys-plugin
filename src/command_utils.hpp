@@ -30,3 +30,8 @@ std::vector<bool> parse_hex_string_to_bool(const std::string &str);
  * @brief Obtain a solution vector from an hexadecimal string
  */
 std::vector<int> parse_hex_string_to_sol(const std::string &str);
+
+/**
+ * @brief Create a locking key of the given size
+ */
+std::vector<bool> create_key(int nb_locked);

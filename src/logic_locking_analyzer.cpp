@@ -78,10 +78,12 @@ pool<SigBit> LogicLockingAnalyzer::get_comb_outputs() const
 	return ret;
 }
 
-std::vector<SigBit> LogicLockingAnalyzer::get_lockable_signals() const
+std::vector<SigBit> LogicLockingAnalyzer::get_lockable_signals() const { return get_lockable_signals(module_); }
+
+std::vector<SigBit> LogicLockingAnalyzer::get_lockable_signals(Module *mod)
 {
 	std::vector<SigBit> signals;
-	for (auto it : module_->cells_) {
+	for (auto it : mod->cells_) {
 		Cell *cell = it.second;
 		for (auto conn : cell->connections()) {
 			if (cell->output(conn.first) && conn.second.size() == 1) {
@@ -93,10 +95,12 @@ std::vector<SigBit> LogicLockingAnalyzer::get_lockable_signals() const
 	return signals;
 }
 
-std::vector<Cell *> LogicLockingAnalyzer::get_lockable_cells() const
+std::vector<Cell *> LogicLockingAnalyzer::get_lockable_cells() const { return get_lockable_cells(module_); }
+
+std::vector<Cell *> LogicLockingAnalyzer::get_lockable_cells(Module *mod)
 {
 	std::vector<Cell *> cells;
-	for (auto it : module_->cells_) {
+	for (auto it : mod->cells_) {
 		Cell *cell = it.second;
 		for (auto conn : cell->connections()) {
 			if (cell->output(conn.first) && conn.second.size() == 1) {

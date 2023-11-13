@@ -262,20 +262,6 @@ void report_security(RTLIL::Module *module, const std::vector<Cell *> &cells, in
 	log("\t%.1f%% output corruptibility, %.1f%% corruptibility; ideal result is 100.0%%\n", stats.outputCorruptibility(), stats.corruptibility());
 }
 
-/**
- * @brief Create a locking key
- */
-static std::vector<bool> create_key(int nb_locked)
-{
-	std::vector<bool> key_values;
-	std::random_device rgen;
-	std::bernoulli_distribution dist;
-	for (int i = 0; i < nb_locked; ++i) {
-		key_values.push_back(dist(rgen));
-	}
-	return key_values;
-}
-
 struct LogicLockingPass : public Pass {
 	LogicLockingPass() : Pass("logic_locking") {}
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override

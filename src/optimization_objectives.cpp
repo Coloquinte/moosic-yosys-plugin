@@ -28,6 +28,23 @@ std::vector<double> OptimizationObjectives::objective(const Solution &sol)
 	return ret;
 }
 
+double OptimizationObjectives::objective(const Solution &sol, ObjectiveType obj) {
+	switch (obj) {
+		case ObjectiveType::Area:
+			return -area(sol);
+		case ObjectiveType::Delay:
+			return -delay(sol);
+		case ObjectiveType::PairwiseSecurity:
+			return pairwiseSecurity(sol);
+		case ObjectiveType::CorruptionEstimate:
+			return corruptionEstimate(sol);
+		case ObjectiveType::CorruptibilityEstimate:
+			return corruptibilityEstimate(sol);
+		default:
+			assert(false);
+	}
+}
+
 double OptimizationObjectives::area(const Solution &sol) { return 100.0 * sol.size() / std::max(baseArea_, 1); }
 
 double OptimizationObjectives::delay(const Solution &sol) { return 100.0 * (delayAnalyzer_.delay(sol) - baseDelay_) / std::max(baseDelay_, 1); }

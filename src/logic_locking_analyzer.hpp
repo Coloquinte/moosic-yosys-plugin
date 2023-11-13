@@ -142,9 +142,19 @@ class LogicLockingAnalyzer
 	pool<SigBit> get_comb_outputs() const;
 
 	/**
+	 * @brief Obtain the lockable signals of a module (outputs of lockable cells)
+	 */
+	static std::vector<SigBit> get_lockable_signals(Module *mod);
+
+	/**
 	 * @brief Obtain the lockable signals (outputs of lockable cells)
 	 */
 	std::vector<SigBit> get_lockable_signals() const;
+
+	/**
+	 * @brief Obtain the lockable cells of a module (each output is a lockable signal)
+	 */
+	static std::vector<Cell *> get_lockable_cells(Module *mod);
 
 	/**
 	 * @brief Obtain the lockable cells (each output is a lockable signal)
