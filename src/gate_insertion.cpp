@@ -3,6 +3,7 @@
  */
 
 #include "gate_insertion.hpp"
+#include "command_utils.hpp"
 
 USING_YOSYS_NAMESPACE
 
@@ -84,28 +85,6 @@ Wire *add_key_input(Module *module, int width, const std::string &port_name)
 	wire->port_input = true;
 	module->fixup_ports();
 	return wire;
-}
-
-/**
- * @brief Get the output port name of a cell
- */
-static IdString get_output_portname(Cell *cell)
-{
-	for (auto it : cell->connections()) {
-		if (cell->output(it.first)) {
-			return it.first;
-		}
-	}
-	log_error("No output port found on the cell\n");
-}
-
-/**
- * @brief Get the output port name of a cell
- */
-SigBit get_output_signal(Cell *cell)
-{
-	IdString name = get_output_portname(cell);
-	return cell->getPort(name);
 }
 
 /**

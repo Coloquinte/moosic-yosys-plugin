@@ -23,11 +23,6 @@ using Yosys::RTLIL::Wire;
 Wire *add_key_input(Module *module, int width, const std::string &port_name);
 
 /**
- * @brief Obtain the output signal of a gate
- */
-SigBit get_output_signal(Cell *cell);
-
-/**
  * @brief Lock the gates in the module by name and key bit value
  */
 void lock_gates(Module *module, const std::vector<IdString> &names, SigSpec key, const std::vector<bool> &key_values);

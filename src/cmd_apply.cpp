@@ -16,50 +16,41 @@ struct LogicLockingApplyPass : public Pass {
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
 		log_header(design, "Executing LOGIC_LOCKING_APPLY pass.\n");
-		int nbAnalysisKeys = 1024;
-		int nbAnalysisVectors = 1024;
 
         std::vector<int> solution;
+		std::vector<bool> key;
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
 			std::string arg = args[argidx];
-			if (arg == "-nb-analysis-keys") {
-				if (argidx + 1 >= args.size())
-					break;
-				nbAnalysisKeys = std::atoi(args[++argidx].c_str());
-				continue;
-			}
-			if (arg == "-nb-analysis-vectors") {
-				if (argidx + 1 >= args.size())
-					break;
-				nbAnalysisVectors = std::atoi(args[++argidx].c_str());
-				if (nbAnalysisVectors % 64 != 0) {
-					int rounded = ((nbAnalysisVectors + 63) / 64) * 64;
-					log("Rounding the specified number of analysis vectors to the next multiple of 64 (%d -> %d)\n",
-					    nbAnalysisVectors, rounded);
-					nbAnalysisVectors = rounded;
-				}
-				continue;
-			}
 			if (arg == "-locking") {
 				if (argidx + 1 >= args.size())
 					break;
                 std::string val = args[++argidx];
                 solution = parse_hex_string_to_sol(val);
             }
+			if (arg == "-key") {
+				if (argidx + 1 >= args.size())
+					break;
+				key = parse_hex_string_to_bool(args[++argidx]);
+				continue;
+			}
 			break;
 		}
 
 		// handle extra options (e.g. selection)
 		extra_args(args, argidx, design);
 
+		RTLIL::Module *mod = single_selected_module(design);
+
 		if (solution.empty()) {
 			log_warning("Locking solution is empty.");
             return;
 		}
 
-		RTLIL::Module *mod = single_selected_module(design);
+		if (key.empty()) {
+			key = create_key(solution.size());
+		}
 
         // TODO: modify the circuit
 	}
@@ -70,11 +61,11 @@ struct LogicLockingApplyPass : public Pass {
 		log("    ll_apply [options]\n");
 		log("\n");
 		log("This command applies the logic locking on a design. It is called with the a logic locking\n");
-		log("solution, for example obtained with the ll_explore command.\n");
-		log("\n");
-		log("These locking solution is provided as argument:\n");
+		log("solution, for example obtained with the ll_explore command, and a key:\n");
 		log("    -locking <solution>\n");
-		log("        apply the logic locking described by the string\n");
+		log("        locking solution (hexadecimal string)\n");
+		log("    -key <key>\n");
+		log("        key value (hexadecimal string)\n");
 		log("\n");
 		log("These options control analysis of the logic locking solution's security:\n");
 		log("    -nb-analysis-keys <value>\n");

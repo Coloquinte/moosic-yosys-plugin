@@ -110,3 +110,19 @@ std::vector<bool> create_key(int nb_locked)
 	}
 	return key_values;
 }
+
+Yosys::RTLIL::IdString get_output_portname(Yosys::RTLIL::Cell *cell)
+{
+	for (auto it : cell->connections()) {
+		if (cell->output(it.first)) {
+			return it.first;
+		}
+	}
+	Yosys::log_error("No output port found on the cell\n");
+}
+
+Yosys::RTLIL::SigBit get_output_signal(Yosys::RTLIL::Cell *cell)
+{
+	Yosys::RTLIL::IdString name = get_output_portname(cell);
+	return cell->getPort(name);
+}

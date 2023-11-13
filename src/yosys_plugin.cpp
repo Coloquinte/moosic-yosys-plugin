@@ -10,17 +10,13 @@
 #include <boost/filesystem.hpp>
 
 #include "command_utils.hpp"
-#include "delay_analyzer.hpp"
 #include "gate_insertion.hpp"
-#include "logic_locking_analyzer.hpp"
-#include "logic_locking_statistics.hpp"
 #include "mini_aig.hpp"
 #include "optimization.hpp"
 #include "output_corruption_optimizer.hpp"
 #include "pairwise_security_optimizer.hpp"
 
 #include <cstdlib>
-#include <random>
 
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
@@ -188,78 +184,6 @@ std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors
 		locked_gates = optimize_hybrid(pw, nb_locked);
 	}
 	return locked_gates;
-}
-
-/**
- * @brief Report on the effect of logic locking on the circuit area
- */
-void report_area(RTLIL::Module *module, const std::vector<Cell *> &cells)
-{
-	int nbLocked = GetSize(cells);
-	int nbCells = module->cells().size();
-	double increase = 100.0 * nbLocked / nbCells;
-	log("Area after locking is %d cells vs %d before (+%d gates, or +%.1f%%)\n", nbCells + nbLocked, nbCells, nbLocked, increase);
-}
-
-/**
- * @brief Report on the effect of logic locking on the delay
- */
-void report_timing(RTLIL::Module *module, const std::vector<Cell *> &cells)
-{
-	DelayAnalyzer delay(module, cells);
-	std::vector<int> sol;
-	for (int i = 0; i < GetSize(cells); ++i) {
-		sol.push_back(i);
-	}
-	int delayWithout = delay.delay({});
-	int delayWith = delay.delay(sol);
-	if (delayWith == delayWithout) {
-		log("Critical path after locking is %d gate delays (unchanged)\n", delayWith);
-	} else {
-		double increase = 100.0 * (delayWith - delayWithout) / delayWithout;
-		log("Critical path after locking is %d gate delays vs %d before (+%d gates, or +%.1f%%)\n", delayWith, delayWithout,
-		    delayWith - delayWithout, increase);
-	}
-}
-
-/**
- * @brief Report on the actual output corruption on random keys
- */
-void report_security(RTLIL::Module *module, const std::vector<Cell *> &cells, int nb_analysis_vectors, int nb_analysis_keys)
-{
-	if (nb_analysis_vectors < 64 || nb_analysis_keys == 0) {
-		return;
-	}
-	LogicLockingAnalyzer pw(module);
-	pw.gen_test_vectors(nb_analysis_vectors / 64, 1);
-	std::mt19937 rgen(1);
-	std::bernoulli_distribution dist;
-	pool<SigBit> signals;
-	for (Cell *c : cells) {
-		signals.insert(get_output_signal(c));
-	}
-
-	LogicLockingStatistics stats(pw.nb_outputs(), pw.nb_test_vectors());
-	for (int i = 0; i < nb_analysis_keys; ++i) {
-		// Generate a random locking (1/2 chance of being wrong for each bit)
-		pool<SigBit> locked_sigs;
-		for (SigBit s : signals) {
-			if (dist(rgen)) {
-				locked_sigs.insert(s);
-			}
-		}
-		// Now simulate
-		auto corruption = pw.compute_output_corruption_data(locked_sigs);
-		stats.update(corruption);
-	}
-	stats.check();
-
-	log("Reporting corruption results over %d outputs, %d random keys and %d test vectors:\n", pw.nb_outputs(), nb_analysis_keys,
-	    nb_analysis_vectors);
-	log("\t%.1f%% corruption (per-key dev. ±%.1f%%, %.1f%% to %.1f%%); ideal results are close to 50.0%%\n", stats.corruption(),
-	    stats.corruptionStd(), stats.corruptionMin(), stats.corruptionMax());
-	// TODO: report output corruptibility per key, as ideally a wrong key should impact all outputs
-	log("\t%.1f%% output corruptibility, %.1f%% corruptibility; ideal result is 100.0%%\n", stats.outputCorruptibility(), stats.corruptibility());
 }
 
 struct LogicLockingPass : public Pass {
@@ -439,9 +363,7 @@ struct LogicLockingPass : public Pass {
 			log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,
 			    GetSize(mod->cells_), key_check.c_str());
 			auto locked_gates = run_logic_locking(mod, nb_test_vectors, nb_locked, target);
-			report_security(mod, locked_gates, nb_analysis_vectors, nb_analysis_keys);
-			report_area(mod, locked_gates);
-			report_timing(mod, locked_gates);
+			report_locking(mod, locked_gates, nb_analysis_keys, nb_analysis_vectors);
 			nb_locked = locked_gates.size();
 			RTLIL::Wire *w = add_key_input(mod, nb_locked, port_name);
 			key_values.erase(key_values.begin() + nb_locked, key_values.end());
