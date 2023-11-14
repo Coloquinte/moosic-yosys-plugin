@@ -23,7 +23,7 @@ std::vector<double> OptimizationObjectives::objective(const Solution &sol)
 	ret.push_back(-delay(sol));
 	ret.push_back(corruptionEstimate(sol));
 	ret.push_back(corruptibilityEstimate(sol));
-	ret.push_back(pairwiseSecurity(sol));
+	//ret.push_back(pairwiseSecurity(sol));
 	// TODO: implement actual corruption objectives
 	return ret;
 }

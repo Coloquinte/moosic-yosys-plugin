@@ -26,20 +26,21 @@ void run_optimization(RTLIL::Module *module, int nb_test_vectors, int nb_iter, c
 	log("Running optimization algorithm\n");
 	opt.runGreedyCorruption();
 	log("\tCorruption analysis: Pareto front size %d\n", (int)opt.paretoFront().size());
-	opt.runGreedyPairwise();
-	log("\tPairwise analysis: Pareto front size %d\n", (int)opt.paretoFront().size());
 	for (int i = 0; i < nb_iter; ++i) {
-		opt.tryMove();
-		log("\tMove %d: Pareto front size %d\n", i + 1, (int)opt.paretoFront().size());
+		if (opt.tryMove()) {
+			log("\tMove %d: Pareto front size %d\n", i + 1, (int)opt.paretoFront().size());
+		}
 	}
 
-	log("Objectives:\n");
-	for (std::vector<double> obj : opt.paretoObjectives()) {
-		log("\t");
-		for (double d : obj) {
-			log("%.2f ", d);
+	log("Optimization solutions:\n");
+	auto solutions = opt.paretoFront();
+	auto values = opt.paretoObjectives();
+	log_assert(GetSize(solutions) == GetSize(values));
+	for (int i = 0; i < GetSize(solutions); ++i) {
+		for (double d : values[i]) {
+			log("\t%.2f", d);
 		}
-		log("\n");
+		log("\t%s\n", create_hex_string(solutions[i], opt.nbNodes()).c_str());
 	}
 }
 

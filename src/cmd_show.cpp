@@ -6,6 +6,8 @@
 
 #include "command_utils.hpp"
 
+#include <sstream>
+
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
@@ -45,15 +47,18 @@ struct LogicLockingShowPass : public Pass {
 		} else {
 			log("Showing lockable cells in module (%d gates)\n", GetSize(locked_gates));
 		}
-		log("\tIndex\tCell\tSignal");
+		log("\tIndex\tCell\tSignal\n");
 		for (int i = 0; i < GetSize(locked_gates); ++i) {
 			Cell *cell = locked_gates[i];
 			SigBit sig = locked_signals[i];
-			std::string sig_repr;
+			std::stringstream sig_repr;
 			if (sig.wire) {
-				sig_repr += log_id(sig.wire->name);
+				sig_repr << log_id(sig.wire->name);
+				if (sig.wire->width > 1) {
+					sig_repr << "[" << sig.offset << "]";
+				}
 			}
-			log("\t%d\t%s\t%s\n", i + 1, log_id(cell->name), sig_repr.c_str());
+			log("\t%d\t%s\t%s\n", i + 1, log_id(cell->name), sig_repr.str().c_str());
 		}
 	}
 
