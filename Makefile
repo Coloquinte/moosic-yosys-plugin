@@ -12,6 +12,7 @@ OBJECTS = yosys_plugin.o \
 	  cmd_analyze.o \
 	  cmd_apply.o \
 	  cmd_explore.o \
+	  cmd_show.o \
 	  command_utils.o \
 	  report_locking.o \
 

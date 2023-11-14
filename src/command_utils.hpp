@@ -12,14 +12,29 @@
 Yosys::RTLIL::Module *single_selected_module(Yosys::RTLIL::Design *design);
 
 /**
+ * @brief Obtain the lockable signals of a module (outputs of lockable cells)
+ */
+std::vector<Yosys::RTLIL::SigBit> get_lockable_signals(Yosys::RTLIL::Module *mod);
+
+/**
+ * @brief Obtain the lockable cells of a module (each output is a lockable signal)
+ */
+std::vector<Yosys::RTLIL::Cell *> get_lockable_cells(Yosys::RTLIL::Module *mod);
+
+/**
  * @brief Obtain the locked cells from a solution
  */
-std::vector<Yosys::RTLIL::Cell*> get_locked_cells(Yosys::RTLIL::Module *mod, const std::vector<int> &solution);
+std::vector<Yosys::RTLIL::Cell *> get_locked_cells(Yosys::RTLIL::Module *mod, const std::vector<int> &solution);
+
+/**
+ * @brief Obtain the locked signals from a solution
+ */
+std::vector<Yosys::RTLIL::SigBit> get_locked_signals(Yosys::RTLIL::Module *mod, const std::vector<int> &solution);
 
 /**
  * @brief Report on the locked cells
-*/
-void report_locking(Yosys::RTLIL::Module *mod, const std::vector<Yosys::RTLIL::Cell*> &cells, int nb_analysis_keys, int nb_analysis_vectors);
+ */
+void report_locking(Yosys::RTLIL::Module *mod, const std::vector<Yosys::RTLIL::Cell *> &cells, int nb_analysis_keys, int nb_analysis_vectors);
 
 /**
  * @brief Export a boolean vector as an hexadecimal string

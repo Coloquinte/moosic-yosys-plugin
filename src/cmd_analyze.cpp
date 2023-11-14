@@ -19,7 +19,7 @@ struct LogicLockingAnalyzePass : public Pass {
 		int nbAnalysisKeys = 1024;
 		int nbAnalysisVectors = 1024;
 
-        std::vector<int> solution;
+		std::vector<int> solution;
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
@@ -45,9 +45,10 @@ struct LogicLockingAnalyzePass : public Pass {
 			if (arg == "-locking") {
 				if (argidx + 1 >= args.size())
 					break;
-                std::string val = args[++argidx];
-                solution = parse_hex_string_to_sol(val);
-            }
+				std::string val = args[++argidx];
+				solution = parse_hex_string_to_sol(val);
+				continue;
+			}
 			break;
 		}
 
@@ -55,7 +56,7 @@ struct LogicLockingAnalyzePass : public Pass {
 		extra_args(args, argidx, design);
 
 		RTLIL::Module *mod = single_selected_module(design);
-		std::vector<Cell*> cells = get_locked_cells(mod, solution);
+		std::vector<Cell *> cells = get_locked_cells(mod, solution);
 		report_locking(mod, cells, nbAnalysisKeys, nbAnalysisVectors);
 	}
 
@@ -64,7 +65,7 @@ struct LogicLockingAnalyzePass : public Pass {
 		log("\n");
 		log("    ll_analyze  [options]\n");
 		log("\n");
-		log("This command analyzes the logic locking of a design. It is called with the a logic locking\n");
+		log("This command analyzes the logic locking of a design. It is called with a logic locking\n");
 		log("solution, for example obtained with the ll_explore command:\n");
 		log("    -locking <solution>\n");
 		log("        locking solution (hexadecimal string)\n");
