@@ -26,4 +26,4 @@ do
 done
 
 cd ..
-tar -c benchmarks/scripts/ benchmarks/logs | xz -9 - > benchmark_results.tar.xz
+tar -c benchmarks/scripts/ benchmarks/logs benchmarks/results/ | xz -9 - > benchmark_results.tar.xz
