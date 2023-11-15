@@ -73,7 +73,7 @@ class OptimizationObjectives
 	/**
 	 * @brief Number of nodes available for locking
 	 */
-	int nbNodes() const { return nbNodes_; }
+	int nbNodes() const { return cells_.size(); }
 
 	/**
 	 * @brief Return the area objective (0% to inf, lower is better)
@@ -126,18 +126,34 @@ class OptimizationObjectives
 	 */
 	double pairwiseSecurity(const Solution &);
 
-	OutputCorruptionOptimizer &outputCorruptionOptimizer() { return outputCorruptionOptimizer_; }
-	PairwiseSecurityOptimizer &pairwiseSecurityOptimizer() { return pairwiseSecurityOptimizer_; }
+	OutputCorruptionOptimizer &outputCorruptionOptimizer()
+	{
+		setupOutputCorruptionOptimizer();
+		return *outputCorruptionOptimizer_;
+	}
+	PairwiseSecurityOptimizer &pairwiseSecurityOptimizer()
+	{
+		setupPairwiseSecurityOptimizer();
+		return *pairwiseSecurityOptimizer_;
+	}
 
       private:
-	int nbNodes_;
+	/// @brief Setup the member on demand
+	void setupOutputCorruptionOptimizer();
+	/// @brief Setup the member on demand
+	void setupOutputCorruptibilityOptimizer();
+	/// @brief Setup the member on demand
+	void setupPairwiseSecurityOptimizer();
+
+      private:
+	std::vector<Cell *> cells_;
 	int baseArea_;
 	int baseDelay_;
 	LogicLockingAnalyzer logicLockingAnalyzer_;
 	DelayAnalyzer delayAnalyzer_;
-	OutputCorruptionOptimizer outputCorruptionOptimizer_;
-	OutputCorruptionOptimizer outputCorruptibilityOptimizer_;
-	PairwiseSecurityOptimizer pairwiseSecurityOptimizer_;
+	std::unique_ptr<OutputCorruptionOptimizer> outputCorruptionOptimizer_;
+	std::unique_ptr<OutputCorruptionOptimizer> outputCorruptibilityOptimizer_;
+	std::unique_ptr<PairwiseSecurityOptimizer> pairwiseSecurityOptimizer_;
 };
 
 #endif

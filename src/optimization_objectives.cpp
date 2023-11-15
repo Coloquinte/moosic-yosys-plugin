@@ -8,9 +8,9 @@ std::string toString(ObjectiveType obj)
 {
 	switch (obj) {
 	case ObjectiveType::Area:
-		return "Area";
+		return "AreaPenalty";
 	case ObjectiveType::Delay:
-		return "Delay";
+		return "DelayPenalty";
 	case ObjectiveType::PairwiseSecurity:
 		return "PairwiseSecurity";
 	case ObjectiveType::Corruption:
@@ -46,12 +46,30 @@ OptimizationObjectives::OptimizationObjectives(Module *module, const std::vector
 {
 	// TODO: only initialize optimizers when required
 	logicLockingAnalyzer_.gen_test_vectors(nbAnalysisVectors, 1);
-	nbNodes_ = cells.size();
+	cells_ = cells;
 	baseArea_ = module->cells().size();
 	baseDelay_ = delayAnalyzer_.delay(std::vector<int>());
-	outputCorruptionOptimizer_ = logicLockingAnalyzer_.analyze_output_corruption(cells);
-	outputCorruptibilityOptimizer_ = logicLockingAnalyzer_.analyze_output_corruptibility(cells);
-	pairwiseSecurityOptimizer_ = logicLockingAnalyzer_.analyze_pairwise_security(cells);
+}
+
+void OptimizationObjectives::setupOutputCorruptionOptimizer()
+{
+	if (outputCorruptionOptimizer_)
+		return;
+	outputCorruptionOptimizer_.reset(new OutputCorruptionOptimizer(logicLockingAnalyzer_.analyze_output_corruption(cells_)));
+}
+
+void OptimizationObjectives::setupOutputCorruptibilityOptimizer()
+{
+	if (outputCorruptibilityOptimizer_)
+		return;
+	outputCorruptibilityOptimizer_.reset(new OutputCorruptionOptimizer(logicLockingAnalyzer_.analyze_output_corruptibility(cells_)));
+}
+
+void OptimizationObjectives::setupPairwiseSecurityOptimizer()
+{
+	if (pairwiseSecurityOptimizer_)
+		return;
+	pairwiseSecurityOptimizer_.reset(new PairwiseSecurityOptimizer(logicLockingAnalyzer_.analyze_pairwise_security(cells_)));
 }
 
 double OptimizationObjectives::objectiveValue(const Solution &sol, ObjectiveType obj)
@@ -85,7 +103,11 @@ double OptimizationObjectives::area(const Solution &sol) { return 100.0 * sol.si
 
 double OptimizationObjectives::delay(const Solution &sol) { return 100.0 * (delayAnalyzer_.delay(sol) - baseDelay_) / std::max(baseDelay_, 1); }
 
-double OptimizationObjectives::pairwiseSecurity(const Solution &sol) { return pairwiseSecurityOptimizer_.value(sol); }
+double OptimizationObjectives::pairwiseSecurity(const Solution &sol)
+{
+	setupPairwiseSecurityOptimizer();
+	return pairwiseSecurityOptimizer_->value(sol);
+}
 
 double OptimizationObjectives::outputCorruptibility(const Solution &)
 {
@@ -98,9 +120,18 @@ double OptimizationObjectives::corruptibility(const Solution &) { throw std::run
 
 double OptimizationObjectives::outputCorruptibilityEstimate(const Solution &sol)
 {
-	return 100.0 * outputCorruptibilityOptimizer_.corruptibility(sol);
+	setupOutputCorruptibilityOptimizer();
+	return 100.0 * outputCorruptibilityOptimizer_->corruptibility(sol);
 }
 
-double OptimizationObjectives::corruptionEstimate(const Solution &sol) { return 50.0 * outputCorruptionOptimizer_.corruptionSum(sol); }
+double OptimizationObjectives::corruptionEstimate(const Solution &sol)
+{
+	setupOutputCorruptionOptimizer();
+	return 50.0 * outputCorruptionOptimizer_->corruptionSum(sol);
+}
 
-double OptimizationObjectives::corruptibilityEstimate(const Solution &sol) { return 100.0 * outputCorruptionOptimizer_.corruptibility(sol); }
+double OptimizationObjectives::corruptibilityEstimate(const Solution &sol)
+{
+	setupOutputCorruptionOptimizer();
+	return 100.0 * outputCorruptionOptimizer_->corruptibility(sol);
+}

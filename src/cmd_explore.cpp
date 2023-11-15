@@ -34,8 +34,9 @@ void run_optimization(Optimizer &opt, int iterLimit, double timeLimit)
 
 void report_optimization(Optimizer &opt, std::ostream &f)
 {
+	std::vector<ObjectiveType> objs = opt.objectives();
 	f << "Cells";
-	for (ObjectiveType obj : opt.objectives()) {
+	for (ObjectiveType obj : objs) {
 		f << "\t" << toString(obj);
 	}
 	f << "\tSolution";
@@ -45,7 +46,12 @@ void report_optimization(Optimizer &opt, std::ostream &f)
 	log_assert(GetSize(solutions) == GetSize(values));
 	for (int i = 0; i < GetSize(solutions); ++i) {
 		f << solutions[i].size();
-		for (double d : values[i]) {
+		log_assert(GetSize(objs) == GetSize(values[i]));
+		for (int j = 0; j < GetSize(values[i]); ++j) {
+			double d = values[i][j];
+			if (!isMaximization(objs[j])) {
+				d = -d;
+			}
 			f << "\t" << d;
 		}
 		f << "\t" << create_hex_string(solutions[i], opt.nbNodes()) << std::endl;
