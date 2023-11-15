@@ -8,6 +8,7 @@
 #include "optimization.hpp"
 #include "optimization_objectives.hpp"
 
+#include <chrono>
 #include <limits>
 
 USING_YOSYS_NAMESPACE
@@ -16,11 +17,17 @@ PRIVATE_NAMESPACE_BEGIN
 /**
  * @brief Run the optimization algorithm
  */
-void run_optimization(Optimizer &opt, int nb_iter)
+void run_optimization(Optimizer &opt, int iterLimit, double timeLimit)
 {
 	log("Running optimization algorithm\n");
+	auto startTime = std::chrono::steady_clock::now();
 	opt.runGreedyCorruption();
-	for (int i = 0; i < nb_iter; ++i) {
+	for (int i = 0; i < iterLimit; ++i) {
+		auto currentTime = std::chrono::steady_clock::now();
+		auto elapsed = std::chrono::duration<double>(currentTime - startTime);
+		if (elapsed.count() > timeLimit) {
+			break;
+		}
 		opt.tryMove();
 	}
 }
@@ -58,7 +65,8 @@ struct LogicLockingExplorePass : public Pass {
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
 		log_header(design, "Executing LOGIC_LOCKING_EXPLORE pass.\n");
-		long long nbIter = 1000;
+		long long iterLimit = 10000;
+		double timeLimit = std::numeric_limits<double>::infinity();
 		std::string output;
 		std::vector<ObjectiveType> objectives;
 		int nbAnalysisKeys = 128;
@@ -68,10 +76,16 @@ struct LogicLockingExplorePass : public Pass {
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
 			std::string arg = args[argidx];
-			if (arg == "-nb-iter") {
+			if (arg == "-iter-limit") {
 				if (argidx + 1 >= args.size())
 					break;
-				nbIter = std::atoi(args[++argidx].c_str());
+				iterLimit = std::atoi(args[++argidx].c_str());
+				continue;
+			}
+			if (arg == "-time-limit") {
+				if (argidx + 1 >= args.size())
+					break;
+				timeLimit = std::atof(args[++argidx].c_str());
 				continue;
 			}
 			if (arg == "-output") {
@@ -171,7 +185,7 @@ struct LogicLockingExplorePass : public Pass {
 
 		// Now execute the optimization itself
 		Optimizer opt(mod, get_lockable_cells(mod), objectives);
-		run_optimization(opt, nbIter);
+		run_optimization(opt, iterLimit, timeLimit);
 		report_optimization(opt, std::cout);
 		if (output != "") {
 			std::ofstream f(output);
@@ -187,8 +201,10 @@ struct LogicLockingExplorePass : public Pass {
 		log("This command explores the impact of logic locking on a design.\n");
 		log("It will generate a set of Pareto-optimal solutions given the primary objectives.\n");
 		log("\n");
-		log("    -nb-iter <value> (default=1000)\n");
-		log("        set the number of iterations for the algorithm\n");
+		log("    -time-limit <value>\n");
+		log("        maximum time for optimization, in seconds\n");
+		log("    -iter-limit <value> (default=10000)\n");
+		log("        maximum number of iterations\n");
 		log("    -output <file>\n");
 		log("        csv file to report the results\n");
 		log("\n");
