@@ -78,6 +78,9 @@ std::vector<bool> parse_hex_string_to_bool(const std::string &str)
 	for (auto it = str.rbegin(); it != str.rend(); ++it) {
 		char cur = *it;
 		char c = std::tolower(cur);
+		if (c == '"' || c == '\'') {
+			continue;
+		}
 		int v = 0;
 		if (c >= '0' && c <= '9') {
 			v = c - '0';

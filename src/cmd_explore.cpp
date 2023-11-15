@@ -64,8 +64,9 @@ void report_optimization(Optimizer &opt, std::ostream &f, bool tty)
 			}
 			f << d;
 		}
-		f << (tty ? "\t" : ",");
-		f << create_hex_string(solutions[i], opt.nbNodes()) << std::endl;
+		f << (tty ? "\t" : ",'");
+		f << create_hex_string(solutions[i], opt.nbNodes());
+		f << (tty ? "" : "'") << std::endl;
 	}
 }
 
