@@ -38,15 +38,12 @@ yosys -m moosic
 ```
 
 And in Yosys, with a synthetized design:
-```
+```sh
 # Look at the command documentation
 help logic_locking
 
 # Add logic locking with a 16b key, with hexadecimal key 048c
 logic_locking -key-bits 16 -key 048c
-
-# Run design space exploration and export the result to test_dir; the design is not modified
-logic_locking -explore -output-dir test_dir
 
 # Add logic locking up to 5% of the module size, maximizing output corruption, with an auto-generated key
 logic_locking -key-percent 5 -target corruption
@@ -63,6 +60,29 @@ To install this plugin
 ```sh
 make
 sudo make install
+```
+
+
+## Design space exploration
+
+Moosic allows you to explore the tradeoffs between performance and security.
+This will suggest many possible solutions with different tradeoffs (a Pareto front).
+It is up to you to pick one that works best for your usecase.
+
+```sh
+# Run design space exploration on area, delay and corruption
+# Export solution identifiers and results to explore.csv
+ll_explore -area -delay -corruption -output explore.csv
+
+# Show the gates that will be locked by a solution
+ll_show -locking 38b0e
+
+# Compute more information (area, delay, security, ...) on a solution
+ll_analyze -locking 38b0e
+
+# Apply a locking solution returned by design space exploration
+# Modify the design, adding a key input port and key gates
+ll_apply -locking 38b0e -key 048
 ```
 
 
