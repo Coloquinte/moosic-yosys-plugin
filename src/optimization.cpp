@@ -45,8 +45,9 @@ std::vector<int> MoveSwap::modifySolution(int nbNodes, const std::vector<int> &s
 	return MoveDelete().modifySolution(nbNodes, inserted, rgen);
 }
 
-Optimizer::Optimizer(Module *module, const std::vector<Cell *> &cells, const std::vector<ObjectiveType> &objectives)
-    : objectiveComputation_(module, cells), objectives_(objectives)
+Optimizer::Optimizer(Module *module, const std::vector<Cell *> &cells, const std::vector<ObjectiveType> &objectives, int nbAnalysisVectors,
+		     int nbAnalysisKeys)
+    : objectiveComputation_(module, cells, nbAnalysisVectors, nbAnalysisKeys), objectives_(objectives)
 {
 	moves_.emplace_back(new MoveInsert());
 	moves_.emplace_back(new MoveDelete());

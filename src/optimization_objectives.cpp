@@ -41,12 +41,11 @@ bool isMaximization(ObjectiveType obj)
 	}
 }
 
-OptimizationObjectives::OptimizationObjectives(Module *module, const std::vector<Cell *> &cells)
+OptimizationObjectives::OptimizationObjectives(Module *module, const std::vector<Cell *> &cells, int nbAnalysisVectors, int nbAnalysisKeys)
     : logicLockingAnalyzer_(module), delayAnalyzer_(module, cells)
 {
-	// TODO: pass test vector options there
 	// TODO: only initialize optimizers when required
-	logicLockingAnalyzer_.gen_test_vectors(1, 1);
+	logicLockingAnalyzer_.gen_test_vectors(nbAnalysisVectors, 1);
 	nbNodes_ = cells.size();
 	baseArea_ = module->cells().size();
 	baseDelay_ = delayAnalyzer_.delay(std::vector<int>());

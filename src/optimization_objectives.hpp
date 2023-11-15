@@ -63,7 +63,7 @@ class OptimizationObjectives
 	/**
 	 * @brief Initialize the datastructure
 	 */
-	OptimizationObjectives(Module *module, const std::vector<Cell *> &cells);
+	OptimizationObjectives(Module *module, const std::vector<Cell *> &cells, int nbAnalysisVectors, int nbAnalysisKeys);
 
 	/**
 	 * @brief Return a single objective (higher is better)

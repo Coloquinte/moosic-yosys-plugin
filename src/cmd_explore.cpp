@@ -34,13 +34,9 @@ void run_optimization(Optimizer &opt, int iterLimit, double timeLimit)
 
 void report_optimization(Optimizer &opt, std::ostream &f)
 {
-	bool tab = false;
+	f << "Cells";
 	for (ObjectiveType obj : opt.objectives()) {
-		if (tab) {
-			f << "\t";
-		}
-		tab = true;
-		f << toString(obj);
+		f << "\t" << toString(obj);
 	}
 	f << "\tSolution";
 	f << std::endl;
@@ -48,13 +44,9 @@ void report_optimization(Optimizer &opt, std::ostream &f)
 	auto values = opt.paretoObjectives();
 	log_assert(GetSize(solutions) == GetSize(values));
 	for (int i = 0; i < GetSize(solutions); ++i) {
-		tab = false;
+		f << solutions[i].size();
 		for (double d : values[i]) {
-			if (tab) {
-				f << "\t";
-			}
-			tab = true;
-			f << d;
+			f << "\t" << d;
 		}
 		f << "\t" << create_hex_string(solutions[i], opt.nbNodes()) << std::endl;
 	}
@@ -71,7 +63,6 @@ struct LogicLockingExplorePass : public Pass {
 		std::vector<ObjectiveType> objectives;
 		int nbAnalysisKeys = 128;
 		int nbAnalysisVectors = 1024;
-		int nbPairwiseVectors = 64;
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
@@ -148,18 +139,6 @@ struct LogicLockingExplorePass : public Pass {
 				}
 				continue;
 			}
-			if (arg == "-nb-pairwise-vectors") {
-				if (argidx + 1 >= args.size())
-					break;
-				nbPairwiseVectors = std::atoi(args[++argidx].c_str());
-				if (nbPairwiseVectors % 64 != 0) {
-					int rounded = ((nbPairwiseVectors + 63) / 64) * 64;
-					log("Rounding the specified number of pairwise analysis vectors to the next multiple of 64 (%d -> %d)\n",
-					    nbPairwiseVectors, rounded);
-					nbPairwiseVectors = rounded;
-				}
-				continue;
-			}
 			break;
 		}
 
@@ -188,7 +167,7 @@ struct LogicLockingExplorePass : public Pass {
 		RTLIL::Module *mod = single_selected_module(design);
 
 		// Now execute the optimization itself
-		Optimizer opt(mod, get_lockable_cells(mod), objectives);
+		Optimizer opt(mod, get_lockable_cells(mod), objectives, nbAnalysisVectors / 64, nbAnalysisKeys);
 		run_optimization(opt, iterLimit, timeLimit);
 		report_optimization(opt, std::cout);
 		if (output != "") {
@@ -237,8 +216,6 @@ struct LogicLockingExplorePass : public Pass {
 		log("        number of random keys used (default=128)\n");
 		log("    -nb-analysis-vectors <value>\n");
 		log("        number of test vectors used (default=1024)\n");
-		log("    -nb-pairwise-vectors <value>\n");
-		log("        number of test vectors used for pairwise security (default=64)\n");
 		log("\n");
 		log("\n");
 		log("\n");

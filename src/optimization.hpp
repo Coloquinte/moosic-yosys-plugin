@@ -72,7 +72,7 @@ class Optimizer
 	/**
 	 * @brief Initialize the optimization
 	 */
-	Optimizer(Module *module, const std::vector<Cell *> &cells, const std::vector<ObjectiveType> &objectives);
+	Optimizer(Module *module, const std::vector<Cell *> &cells, const std::vector<ObjectiveType> &objectives, int nbAnalysisVectors=1, int nbAnalysisKeys=0);
 
 	/**
 	 * @brief Number of ndoes available for locking
