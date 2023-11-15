@@ -34,3 +34,15 @@ $cmd yosys -m moosic -p "read_blif benchmarks/blif/c1355.blif; flatten; synth; l
 
 # Change port name
 $cmd yosys -m moosic -p "read_blif benchmarks/blif/c1355.blif; flatten; synth; logic_locking -port-name test_port"
+
+# Run exploration
+$cmd yosys -m moosic -p "read_blif benchmarks/blif/c1355.blif; flatten; synth; ll_explore -area -delay -corruptibility-estimate -iter-limit 1000 -time-limit 60 -nb-analysis-keys 121 -nb-analysis-vectors 67"
+
+# Show exploration result
+$cmd yosys -m moosic -p "read_blif benchmarks/blif/c1355.blif; flatten; synth; ll_show -locking af53"
+
+# Analyze exploration result
+$cmd yosys -m moosic -p "read_blif benchmarks/blif/c1355.blif; flatten; synth; ll_analyze -locking af53 -nb-analysis-keys 121 -nb-analysis-vectors 67"
+
+# Apply exploration result
+$cmd yosys -m moosic -p "read_blif benchmarks/blif/c1355.blif; flatten; synth; ll_apply -locking af53 -port-name test_port"
