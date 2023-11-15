@@ -45,7 +45,8 @@ std::vector<int> MoveSwap::modifySolution(int nbNodes, const std::vector<int> &s
 	return MoveDelete().modifySolution(nbNodes, inserted, rgen);
 }
 
-Optimizer::Optimizer(Module *module, const std::vector<Cell *> &cells) : obj_(module, cells)
+Optimizer::Optimizer(Module *module, const std::vector<Cell *> &cells, const std::vector<ObjectiveType> &objectives)
+    : objectiveComputation_(module, cells), objectives_(objectives)
 {
 	moves_.emplace_back(new MoveInsert());
 	moves_.emplace_back(new MoveDelete());
@@ -77,13 +78,13 @@ bool Optimizer::tryMove()
 {
 	std::uniform_int_distribution<size_t> dist(0, moves_.size() - 1);
 	size_t mv = dist(rgen_);
-	std::vector<int> ret = moves_[mv]->createSolution(obj_.nbNodes(), paretoFront(), rgen_);
+	std::vector<int> ret = moves_[mv]->createSolution(objectiveComputation_.nbNodes(), paretoFront(), rgen_);
 	return tryAddSolution(ret);
 }
 
 void Optimizer::runGreedyCorruption()
 {
-	std::vector<int> tot = obj_.outputCorruptionOptimizer().solveGreedy(nbNodes(), std::vector<int>());
+	std::vector<int> tot = objectiveComputation_.outputCorruptionOptimizer().solveGreedy(nbNodes(), std::vector<int>());
 	for (size_t i = 1; i <= tot.size(); ++i) {
 		std::vector<int> sol(tot.begin(), tot.begin() + i);
 		tryAddSolution(sol);
@@ -92,7 +93,7 @@ void Optimizer::runGreedyCorruption()
 
 void Optimizer::runGreedyPairwise()
 {
-	std::vector<std::vector<int>> cliques = obj_.pairwiseSecurityOptimizer().solveGreedy(nbNodes());
+	std::vector<std::vector<int>> cliques = objectiveComputation_.pairwiseSecurityOptimizer().solveGreedy(nbNodes());
 	std::vector<int> tot;
 	for (const auto &c : cliques) {
 		for (int n : c) {
@@ -105,11 +106,21 @@ void Optimizer::runGreedyPairwise()
 	}
 }
 
+std::vector<double> Optimizer::objectiveValue(const Solution &sol)
+{
+	std::vector<double> ret;
+	for (ObjectiveType o : objectives_) {
+		double val = objectiveComputation_.objectiveValue(sol, o);
+		ret.push_back(isMaximization(o) ? val : -val);
+	}
+	return ret;
+}
+
 bool Optimizer::tryAddSolution(const Solution &sol)
 {
 	if (sol.empty())
 		return false;
-	std::vector<double> obj = obj_.objective(sol);
+	std::vector<double> obj = objectiveValue(sol);
 	return tryAddSolution(sol, obj);
 }
 
@@ -143,4 +154,17 @@ void Optimizer::cleanupParetoFront()
 		}
 		return a.first < b.first;
 	});
+}
+
+bool paretoDominates(const std::vector<double> &a, const std::vector<double> &b)
+{
+	if (a.size() != b.size()) {
+		return false;
+	}
+	for (size_t i = 0; i < a.size(); ++i) {
+		if (a[i] < b[i]) {
+			return false;
+		}
+	}
+	return true;
 }

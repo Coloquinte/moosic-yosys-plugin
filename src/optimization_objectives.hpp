@@ -17,10 +17,33 @@
 using Yosys::RTLIL::Cell;
 using Yosys::RTLIL::Module;
 
-enum class ObjectiveType { Area, Delay, PairwiseSecurity, Corruption, Corruptibility, OutputCorruptibility, CorruptionEstimate, CorruptibilityEstimate };
+/**
+ * @brief Objective options in a multi-objective setting
+ */
+enum class ObjectiveType {
+	Area,
+	Delay,
+	PairwiseSecurity,
+	Corruption,
+	Corruptibility,
+	OutputCorruptibility,
+	CorruptionEstimate,
+	CorruptibilityEstimate,
+	OutputCorruptibilityEstimate
+};
 
 /**
- * @brief A class to centralize all objectives related to logic locking for optimization.
+ * @brief Return a string representation of an objective type
+ */
+std::string toString(ObjectiveType obj);
+
+/**
+ * @brief Return the direction of an objective type
+ */
+bool isMaximization(ObjectiveType obj);
+
+/**
+ * @brief A class to centralize the computation of all objective values related to logic locking optimization.
  *
  * Such objectives include:
  *   * area, delay
@@ -43,14 +66,9 @@ class OptimizationObjectives
 	OptimizationObjectives(Module *module, const std::vector<Cell *> &cells);
 
 	/**
-	 * @brief Return the objective vector (higher is better)
-	 */
-	std::vector<double> objective(const Solution &);
-
-	/**
 	 * @brief Return a single objective (higher is better)
 	 */
-	double objective(const Solution &, ObjectiveType obj);
+	double objectiveValue(const Solution &, ObjectiveType obj);
 
 	/**
 	 * @brief Number of nodes available for locking
@@ -113,10 +131,5 @@ class OptimizationObjectives
 	OutputCorruptionOptimizer outputCorruptionOptimizer_;
 	PairwiseSecurityOptimizer pairwiseSecurityOptimizer_;
 };
-
-/**
- * Returns whether the first vector is better than the second in the Pareto sense (better on every objective, higher is better)
- */
-bool paretoDominates(const std::vector<double> &a, const std::vector<double> &b);
 
 #endif

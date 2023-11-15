@@ -72,12 +72,12 @@ class Optimizer
 	/**
 	 * @brief Initialize the optimization
 	 */
-	Optimizer(Module *module, const std::vector<Cell *> &cells);
+	Optimizer(Module *module, const std::vector<Cell *> &cells, const std::vector<ObjectiveType> &objectives);
 
 	/**
 	 * @brief Number of ndoes available for locking
 	 */
-	int nbNodes() const { return obj_.nbNodes(); }
+	int nbNodes() const { return objectiveComputation_.nbNodes(); }
 
 	/**
 	 * @brief Execute a single move
@@ -93,6 +93,16 @@ class Optimizer
 	 * @brief Add solutions from the greedy pairwise security optimization
 	 */
 	void runGreedyPairwise();
+
+	/**
+	 * @brief Compute the N-dimensional objective value
+	*/
+	std::vector<double> objectiveValue(const Solution &sol);
+
+	/**
+	 * @brief Return the objectives used
+	*/
+	const std::vector<ObjectiveType> objectives() const { return objectives_; }
 
       private:
 	/**
@@ -112,9 +122,15 @@ class Optimizer
 
       private:
 	std::mt19937 rgen_;
-	OptimizationObjectives obj_;
+	OptimizationObjectives objectiveComputation_;
 	std::vector<ParetoElement> paretoFront_;
 	std::vector<std::unique_ptr<OptimizationMove>> moves_;
+	std::vector<ObjectiveType> objectives_;
 };
+
+/**
+ * Returns whether the first vector is better than the second in the Pareto sense (better on every objective, higher is better)
+ */
+bool paretoDominates(const std::vector<double> &a, const std::vector<double> &b);
 
 #endif

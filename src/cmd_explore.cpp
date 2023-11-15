@@ -16,31 +16,40 @@ PRIVATE_NAMESPACE_BEGIN
 /**
  * @brief Run the optimization algorithm
  */
-void run_optimization(RTLIL::Module *module, int nb_test_vectors, int nb_iter, const std::vector<ObjectiveType> &objectives)
+void run_optimization(Optimizer &opt, int nb_iter)
 {
-	LogicLockingAnalyzer pw(module);
-	pw.gen_test_vectors(nb_test_vectors / 64, 1);
-
-	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
-	Optimizer opt(module, lockable_cells);
 	log("Running optimization algorithm\n");
 	opt.runGreedyCorruption();
-	log("\tCorruption analysis: Pareto front size %d\n", (int)opt.paretoFront().size());
 	for (int i = 0; i < nb_iter; ++i) {
-		if (opt.tryMove()) {
-			log("\tMove %d: Pareto front size %d\n", i + 1, (int)opt.paretoFront().size());
-		}
+		opt.tryMove();
 	}
+}
 
-	log("Optimization solutions:\n");
+void report_optimization(Optimizer &opt, std::ostream &f)
+{
+	bool tab = false;
+	for (ObjectiveType obj : opt.objectives()) {
+		if (tab) {
+			f << "\t";
+		}
+		tab = true;
+		f << toString(obj);
+	}
+	f << "\tSolution";
+	f << std::endl;
 	auto solutions = opt.paretoFront();
 	auto values = opt.paretoObjectives();
 	log_assert(GetSize(solutions) == GetSize(values));
 	for (int i = 0; i < GetSize(solutions); ++i) {
+		tab = false;
 		for (double d : values[i]) {
-			log("\t%.2f", d);
+			if (tab) {
+				f << "\t";
+			}
+			tab = true;
+			f << d;
 		}
-		log("\t%s\n", create_hex_string(solutions[i], opt.nbNodes()).c_str());
+		f << "\t" << create_hex_string(solutions[i], opt.nbNodes()) << std::endl;
 	}
 }
 
@@ -50,7 +59,7 @@ struct LogicLockingExplorePass : public Pass {
 	{
 		log_header(design, "Executing LOGIC_LOCKING_EXPLORE pass.\n");
 		long long nbIter = 1000;
-		double timeLimit = std::numeric_limits<double>::infinity();
+		std::string output;
 		std::vector<ObjectiveType> objectives;
 		int nbAnalysisKeys = 128;
 		int nbAnalysisVectors = 1024;
@@ -59,16 +68,16 @@ struct LogicLockingExplorePass : public Pass {
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
 			std::string arg = args[argidx];
-			if (arg == "-time-limit") {
-				if (argidx + 1 >= args.size())
-					break;
-				timeLimit = std::atof(args[++argidx].c_str());
-				continue;
-			}
 			if (arg == "-nb-iter") {
 				if (argidx + 1 >= args.size())
 					break;
 				nbIter = std::atoi(args[++argidx].c_str());
+				continue;
+			}
+			if (arg == "-output") {
+				if (argidx + 1 >= args.size())
+					break;
+				output = args[++argidx];
 				continue;
 			}
 			if (arg == "-area") {
@@ -139,14 +148,35 @@ struct LogicLockingExplorePass : public Pass {
 		// handle extra options (e.g. selection)
 		extra_args(args, argidx, design);
 
+		// Uniquify objectives
+		for (int i = 1; i < GetSize(objectives);) {
+			bool duplicate = false;
+			for (int j = 0; j < i; ++j) {
+				if (objectives[i] == objectives[j]) {
+					duplicate = true;
+				}
+			}
+			if (duplicate) {
+				objectives.erase(objectives.begin() + i);
+			} else {
+				++i;
+			}
+		}
+
 		if (objectives.size() < 2) {
-			log_error("There should be at last two objectives for multiobjective exploration.");
+			log_error("There should be at last two different objectives for multiobjective exploration.\n");
 		}
 
 		RTLIL::Module *mod = single_selected_module(design);
 
 		// Now execute the optimization itself
-		run_optimization(mod, nbAnalysisVectors, nbIter, objectives);
+		Optimizer opt(mod, get_lockable_cells(mod), objectives);
+		run_optimization(opt, nbIter);
+		report_optimization(opt, std::cout);
+		if (output != "") {
+			std::ofstream f(output);
+			report_optimization(opt, f);
+		}
 	}
 
 	void help() override
@@ -157,11 +187,10 @@ struct LogicLockingExplorePass : public Pass {
 		log("This command explores the impact of logic locking on a design.\n");
 		log("It will generate a set of Pareto-optimal solutions given the primary objectives.\n");
 		log("\n");
-		log("These options control optimization algorithms:\n");
 		log("    -nb-iter <value> (default=1000)\n");
 		log("        set the number of iterations for the algorithm\n");
-		log("    -time-limit <value>\n");
-		log("        set a time limit for optimization\n");
+		log("    -output <file>\n");
+		log("        csv file to report the results\n");
 		log("\n");
 		log("These options control the optimization objectives that are enabled:\n");
 		log("    -area\n");

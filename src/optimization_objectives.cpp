@@ -4,10 +4,48 @@
 
 #include "optimization_objectives.hpp"
 
+std::string toString(ObjectiveType obj)
+{
+	switch (obj) {
+	case ObjectiveType::Area:
+		return "Area";
+	case ObjectiveType::Delay:
+		return "Delay";
+	case ObjectiveType::PairwiseSecurity:
+		return "PairwiseSecurity";
+	case ObjectiveType::Corruption:
+		return "Corruption";
+	case ObjectiveType::Corruptibility:
+		return "Corruptibility";
+	case ObjectiveType::OutputCorruptibility:
+		return "OutputCorruptibility";
+	case ObjectiveType::CorruptionEstimate:
+		return "CorruptionEstimate";
+	case ObjectiveType::CorruptibilityEstimate:
+		return "CorruptibilityEstimate";
+	case ObjectiveType::OutputCorruptibilityEstimate:
+		return "OutputCorruptibilityEstimate";
+	default:
+		return "UnknownObjectiveType";
+	}
+}
+
+bool isMaximization(ObjectiveType obj)
+{
+	switch (obj) {
+	case ObjectiveType::Area:
+	case ObjectiveType::Delay:
+		return false;
+	default:
+		return true;
+	}
+}
+
 OptimizationObjectives::OptimizationObjectives(Module *module, const std::vector<Cell *> &cells)
     : logicLockingAnalyzer_(module), delayAnalyzer_(module, cells)
 {
 	// TODO: pass test vector options there
+	// TODO: only initialize optimizers when required
 	logicLockingAnalyzer_.gen_test_vectors(1, 1);
 	nbNodes_ = cells.size();
 	baseArea_ = module->cells().size();
@@ -16,32 +54,21 @@ OptimizationObjectives::OptimizationObjectives(Module *module, const std::vector
 	pairwiseSecurityOptimizer_ = logicLockingAnalyzer_.analyze_pairwise_security(cells);
 }
 
-std::vector<double> OptimizationObjectives::objective(const Solution &sol)
+double OptimizationObjectives::objectiveValue(const Solution &sol, ObjectiveType obj)
 {
-	std::vector<double> ret;
-	ret.push_back(-area(sol));
-	ret.push_back(-delay(sol));
-	ret.push_back(corruptionEstimate(sol));
-	ret.push_back(corruptibilityEstimate(sol));
-	//ret.push_back(pairwiseSecurity(sol));
-	// TODO: implement actual corruption objectives
-	return ret;
-}
-
-double OptimizationObjectives::objective(const Solution &sol, ObjectiveType obj) {
 	switch (obj) {
-		case ObjectiveType::Area:
-			return -area(sol);
-		case ObjectiveType::Delay:
-			return -delay(sol);
-		case ObjectiveType::PairwiseSecurity:
-			return pairwiseSecurity(sol);
-		case ObjectiveType::CorruptionEstimate:
-			return corruptionEstimate(sol);
-		case ObjectiveType::CorruptibilityEstimate:
-			return corruptibilityEstimate(sol);
-		default:
-			assert(false);
+	case ObjectiveType::Area:
+		return area(sol);
+	case ObjectiveType::Delay:
+		return delay(sol);
+	case ObjectiveType::PairwiseSecurity:
+		return pairwiseSecurity(sol);
+	case ObjectiveType::CorruptionEstimate:
+		return corruptionEstimate(sol);
+	case ObjectiveType::CorruptibilityEstimate:
+		return corruptibilityEstimate(sol);
+	default:
+		assert(false);
 	}
 }
 
@@ -54,16 +81,3 @@ double OptimizationObjectives::pairwiseSecurity(const Solution &sol) { return pa
 double OptimizationObjectives::corruptionEstimate(const Solution &sol) { return 50.0 * outputCorruptionOptimizer_.corruptionSum(sol); }
 
 double OptimizationObjectives::corruptibilityEstimate(const Solution &sol) { return 100.0 * outputCorruptionOptimizer_.corruptibility(sol); }
-
-bool paretoDominates(const std::vector<double> &a, const std::vector<double> &b)
-{
-	if (a.size() != b.size()) {
-		return false;
-	}
-	for (size_t i = 0; i < a.size(); ++i) {
-		if (a[i] < b[i]) {
-			return false;
-		}
-	}
-	return true;
-}
