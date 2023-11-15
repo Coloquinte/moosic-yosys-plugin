@@ -29,9 +29,6 @@ $cmd yosys -m moosic -p "read_blif benchmarks/blif/c1355.blif; flatten; synth; l
 # Set number of test vectors and keys
 $cmd yosys -m moosic -p "read_blif benchmarks/blif/c1355.blif; flatten; synth; logic_locking -nb-test-vectors 99 -nb-analysis-keys 95 -nb-analysis-vectors 1079"
 
-# Explore
-$cmd yosys -m moosic -p "read_blif benchmarks/blif/c1355.blif; flatten; synth; logic_locking -explore -output-dir logs"
-
 # No analysis
 $cmd yosys -m moosic -p "read_blif benchmarks/blif/c1355.blif; flatten; synth; logic_locking -nb-analysis-keys 0"
 

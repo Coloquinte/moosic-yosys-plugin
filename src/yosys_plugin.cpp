@@ -104,66 +104,6 @@ std::vector<Cell *> optimize_hybrid(LogicLockingAnalyzer &pw, int maxNumber)
 	return ret;
 }
 
-void report_output_corruption_tradeoff(LogicLockingAnalyzer &pw, const std::string &fname)
-{
-	log("Reporting output corruption by number of cells locked (%s)\n", fname.c_str());
-	std::vector<Cell *> cells = pw.get_lockable_cells();
-	auto opt = pw.analyze_output_corruption(cells);
-	auto order = opt.solveGreedy(opt.nbNodes(), std::vector<int>());
-	std::ofstream f(fname);
-	f << "CellsLocked\tCorruptionCover\tCorruptionRate" << std::endl;
-	for (int i = 1; i <= GetSize(order); ++i) {
-		std::vector<int> sol = order;
-		sol.resize(i);
-		double cover = 100.0 * opt.corruptibility(sol);
-		double rate = 100.0 * opt.corruptionSum(sol);
-		f << i << "\t" << cover << "\t" << rate << std::endl;
-	}
-}
-
-void report_pairwise_security_tradeoff(LogicLockingAnalyzer &pw, bool ignore_duplicates, const std::string &fname)
-{
-	log("Reporting pairwise security by number of cells locked (%s)\n", fname.c_str());
-
-	std::vector<Cell *> cells = pw.get_lockable_cells();
-	auto opt = pw.analyze_pairwise_security(cells, ignore_duplicates);
-	auto all_cliques = opt.solveGreedy(opt.nbNodes());
-	std::ofstream f(fname);
-	f << "CellsLocked\tMaxClique\tPairwiseSecurity" << std::endl;
-	int nbLocked = 0;
-	for (int i = 0; i < GetSize(all_cliques); ++i) {
-		std::vector<int> clique = all_cliques[i];
-		for (int j = 1; j <= GetSize(clique); ++j) {
-			std::vector<std::vector<int>> sol = all_cliques;
-			sol.resize(i + 1);
-			sol.back().resize(j);
-			double security = opt.value(sol);
-			f << nbLocked + j << "\t" << sol.front().size() << "\t" << security << std::endl;
-		}
-		nbLocked += GetSize(clique);
-	}
-}
-
-/**
- * @brief Perform design space exploration for logic locking, showing size/security tradeoffs in CSV files
- */
-void explore_logic_locking(RTLIL::Module *module, int nb_test_vectors, const std::string &output_dir)
-{
-	if (!boost::filesystem::exists(output_dir)) {
-		boost::filesystem::create_directory(output_dir);
-	}
-	if (!boost::filesystem::is_directory(output_dir)) {
-		log_error("Path %s is not a directory\n", output_dir.c_str());
-	}
-
-	LogicLockingAnalyzer pw(module);
-	pw.gen_test_vectors(nb_test_vectors / 64, 1);
-
-	report_output_corruption_tradeoff(pw, output_dir + "/corruption.csv");
-	report_pairwise_security_tradeoff(pw, true, output_dir + "/pairwise.csv");
-	report_pairwise_security_tradeoff(pw, false, output_dir + "/pairwise_no_dedup.csv");
-}
-
 /**
  * @brief Run the logic locking algorithm and return the cells to be locked
  */
@@ -198,9 +138,7 @@ struct LogicLockingPass : public Pass {
 		int nb_analysis_keys = 128;
 		int nb_analysis_vectors = 1024;
 		std::string port_name = "moosic_key";
-		bool explore = false;
 		std::string key;
-		std::string output_dir = "logic_locking";
 		std::vector<IdString> gates_to_lock;
 		std::vector<std::pair<IdString, IdString>> gates_to_mix;
 		size_t argidx;
@@ -265,16 +203,6 @@ struct LogicLockingPass : public Pass {
 				if (argidx + 1 >= args.size())
 					break;
 				key = args[++argidx];
-				continue;
-			}
-			if (arg == "-explore") {
-				explore = true;
-				continue;
-			}
-			if (arg == "-output-dir") {
-				if (argidx + 1 >= args.size())
-					break;
-				output_dir = args[++argidx];
 				continue;
 			}
 			if (arg == "-port-name") {
@@ -355,10 +283,6 @@ struct LogicLockingPass : public Pass {
 			lock_gates(mod, gates_to_lock, SigSpec(w, 0, nb_xor_gates), lock_key);
 			std::vector<bool> mix_key(key_values.begin() + gates_to_lock.size(), key_values.begin() + nb_locked);
 			mix_gates(mod, gates_to_mix, SigSpec(w, nb_xor_gates, nb_locked), mix_key);
-		} else if (explore) {
-			log("Running design space exploration with %d test vectors on a module with %d cells\n", nb_test_vectors,
-			    GetSize(mod->cells_));
-			explore_logic_locking(mod, nb_test_vectors, output_dir);
 		} else {
 			log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,
 			    GetSize(mod->cells_), key_check.c_str());
@@ -400,14 +324,6 @@ struct LogicLockingPass : public Pass {
 		log("\n");
 		log("    -nb-test-vectors <value>\n");
 		log("        number of test vectors used for analysis during optimization (default=64)\n");
-		log("\n");
-		log("\n");
-		log("The following options provide design-space exploration features.\n");
-		log("The tool exports .csv files with data on security metrics and area tradeoffs.\n");
-		log("    -explore\n");
-		log("        enable design space exploration. Export statistics without modifying the circuit\n");
-		log("    -output-dir <dirname>\n");
-		log("        set the output directory (default=logic_locking)\n");
 		log("\n");
 		log("\n");
 		log("These options analyze the logic locking solution's security.\n");
