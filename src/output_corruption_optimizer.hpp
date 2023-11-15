@@ -68,6 +68,11 @@ class OutputCorruptionOptimizer
 	 */
 	void check() const;
 
+	/**
+	 * @brief Check solution consistency
+	 */
+	void check(const Solution &sol) const;
+
       private:
 	static int countSet(const CorruptionData &data);
 	static int additionalCorruption(const CorruptionData &corr, const CorruptionData &data);

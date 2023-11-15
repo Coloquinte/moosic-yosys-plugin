@@ -101,6 +101,13 @@ class OptimizationObjectives
 	double corruption(const Solution &);
 
 	/**
+	 * @brief Return an estimation of the output corruptibility objective (0% to 100%, higher is better)
+	 *
+	 * This is computed quickly from single-bit corruption results.
+	 */
+	double outputCorruptibilityEstimate(const Solution &);
+
+	/**
 	 * @brief Return an estimation of the total corruptibility objective (0% to 100%, higher is better)
 	 *
 	 * This is computed quickly from single-bit corruption results.
@@ -129,6 +136,7 @@ class OptimizationObjectives
 	LogicLockingAnalyzer logicLockingAnalyzer_;
 	DelayAnalyzer delayAnalyzer_;
 	OutputCorruptionOptimizer outputCorruptionOptimizer_;
+	OutputCorruptionOptimizer outputCorruptibilityOptimizer_;
 	PairwiseSecurityOptimizer pairwiseSecurityOptimizer_;
 };
 

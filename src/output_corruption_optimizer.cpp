@@ -25,6 +25,15 @@ void OutputCorruptionOptimizer::check() const
 	}
 }
 
+void OutputCorruptionOptimizer::check(const Solution &sol) const
+{
+	for (int s : sol) {
+		if (s < 0 || s >= nbNodes()) {
+			throw std::runtime_error("Solution inconsistent with number of nodes");
+		}
+	}
+}
+
 int OutputCorruptionOptimizer::countSet(const CorruptionData &data)
 {
 	int ret = 0;
@@ -47,6 +56,7 @@ int OutputCorruptionOptimizer::additionalCorruption(const CorruptionData &corr, 
 
 float OutputCorruptionOptimizer::corruptibility(const Solution &solution) const
 {
+	check(solution);
 	CorruptionData corr(nbData());
 	for (int k : solution) {
 		const CorruptionData &data = outputCorruption_[k];
@@ -59,6 +69,7 @@ float OutputCorruptionOptimizer::corruptibility(const Solution &solution) const
 
 float OutputCorruptionOptimizer::corruptionSum(const Solution &solution) const
 {
+	check(solution);
 	long long count = 0;
 	for (int k : solution) {
 		count += corruptionRate_[k];
@@ -90,6 +101,7 @@ std::vector<int> OutputCorruptionOptimizer::getUniqueNodes(const std::vector<int
 
 OutputCorruptionOptimizer::Solution OutputCorruptionOptimizer::solveGreedy(int maxNumber, const Solution &preLocked) const
 {
+	check(preLocked);
 	std::vector<int> remaining = getUniqueNodes(preLocked);
 
 	std::vector<int> sol = preLocked;

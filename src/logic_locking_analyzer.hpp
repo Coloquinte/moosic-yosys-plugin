@@ -177,6 +177,11 @@ class LogicLockingAnalyzer
 	OutputCorruptionOptimizer analyze_output_corruption(const std::vector<Cell *> cells);
 
 	/**
+	 * @brief Create a special analysis for output corruptibility
+	 */
+	OutputCorruptionOptimizer analyze_output_corruptibility(const std::vector<Cell *> cells);
+
+	/**
 	 * @brief Create the pairwise security analysis
 	 */
 	PairwiseSecurityOptimizer analyze_pairwise_security(const std::vector<Cell *> cells, bool ignore_duplicates = true);
