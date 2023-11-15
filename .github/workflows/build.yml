@@ -53,4 +53,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: benchmark-results
-        path: benchmark_results.tar.xz
+        path: |
+          benchmarks/results
+          benchmarks/logs
+          benchmarks/scripts
