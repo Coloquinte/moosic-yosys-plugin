@@ -9,6 +9,7 @@
 #include "optimization_objectives.hpp"
 
 #include <chrono>
+#include <iomanip>
 #include <limits>
 
 USING_YOSYS_NAMESPACE
@@ -32,12 +33,13 @@ void run_optimization(Optimizer &opt, int iterLimit, double timeLimit)
 	}
 }
 
-void report_optimization(Optimizer &opt, std::ostream &f)
+void report_optimization(Optimizer &opt, std::ostream &f, bool tty)
 {
 	std::vector<ObjectiveType> objs = opt.objectives();
 	f << "Cells";
 	for (ObjectiveType obj : objs) {
-		f << "\t" << toString(obj);
+		f << (tty ? "\t" : ",");
+		f << toString(obj);
 	}
 	f << "\tSolution";
 	f << std::endl;
@@ -45,6 +47,9 @@ void report_optimization(Optimizer &opt, std::ostream &f)
 	auto values = opt.paretoObjectives();
 	log_assert(GetSize(solutions) == GetSize(values));
 	for (int i = 0; i < GetSize(solutions); ++i) {
+		if (tty) {
+			f << std::setfill(' ') << std::setw(5);
+		}
 		f << solutions[i].size();
 		log_assert(GetSize(objs) == GetSize(values[i]));
 		for (int j = 0; j < GetSize(values[i]); ++j) {
@@ -52,9 +57,15 @@ void report_optimization(Optimizer &opt, std::ostream &f)
 			if (!isMaximization(objs[j])) {
 				d = -d;
 			}
-			f << "\t" << d;
+			f << (tty ? "\t" : ",");
+			if (tty) {
+				// Output with the same width as the header
+				f << std::setfill(' ') << std::setw(toString(objs[j]).size()) << std::fixed << std::setprecision(2);
+			}
+			f << d;
 		}
-		f << "\t" << create_hex_string(solutions[i], opt.nbNodes()) << std::endl;
+		f << (tty ? "\t" : ",");
+		f << create_hex_string(solutions[i], opt.nbNodes()) << std::endl;
 	}
 }
 
@@ -175,10 +186,10 @@ struct LogicLockingExplorePass : public Pass {
 		// Now execute the optimization itself
 		Optimizer opt(mod, get_lockable_cells(mod), objectives, nbAnalysisVectors / 64, nbAnalysisKeys);
 		run_optimization(opt, iterLimit, timeLimit);
-		report_optimization(opt, std::cout);
+		report_optimization(opt, std::cout, true);
 		if (output != "") {
 			std::ofstream f(output);
-			report_optimization(opt, f);
+			report_optimization(opt, f, false);
 		}
 	}
 
