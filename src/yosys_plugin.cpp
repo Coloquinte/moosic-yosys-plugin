@@ -56,7 +56,7 @@ std::vector<Cell *> optimize_pairwise_security(LogicLockingAnalyzer &pw, bool ig
 std::vector<Cell *> optimize_output_corruption(LogicLockingAnalyzer &pw, int maxNumber)
 {
 	std::vector<Cell *> cells = pw.get_lockable_cells();
-	auto opt = pw.analyze_output_corruption(cells);
+	auto opt = pw.analyze_corruptibility(cells);
 
 	log("Running corruption optimization with %d unique nodes out of %d.\n", (int)opt.getUniqueNodes().size(), opt.nbNodes());
 	std::vector<int> sol = opt.solveGreedy(maxNumber, std::vector<int>());
@@ -78,7 +78,7 @@ std::vector<Cell *> optimize_output_corruption(LogicLockingAnalyzer &pw, int max
 std::vector<Cell *> optimize_hybrid(LogicLockingAnalyzer &pw, int maxNumber)
 {
 	std::vector<Cell *> cells = pw.get_lockable_cells();
-	auto corr = pw.analyze_output_corruption(cells);
+	auto corr = pw.analyze_corruptibility(cells);
 	auto pairw = pw.analyze_pairwise_security(cells, true);
 
 	log("Running hybrid optimization\n");

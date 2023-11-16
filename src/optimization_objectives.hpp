@@ -30,7 +30,8 @@ enum class ObjectiveType {
 	OutputCorruptibility,
 	TestCorruptibility,
 	CorruptibilityEstimate,
-	OutputCorruptibilityEstimate
+	OutputCorruptibilityEstimate,
+	TestCorruptibilityEstimate
 };
 
 /**
@@ -114,6 +115,13 @@ class OptimizationObjectives
 	double outputCorruptibilityEstimate(const Solution &);
 
 	/**
+	 * @brief Return an estimation of the test corruptibility objective (0% to 100%, higher is better)
+	 *
+	 * This is computed quickly from single-bit corruption results.
+	 */
+	double testCorruptibilityEstimate(const Solution &);
+
+	/**
 	 * @brief Return an estimation of the total corruptibility objective (0% to 100%, higher is better)
 	 *
 	 * This is computed quickly from single-bit corruption results.
@@ -121,21 +129,24 @@ class OptimizationObjectives
 	double corruptibilityEstimate(const Solution &);
 
 	/**
-	 * @brief Return an estimation of the corruption objective (0% to 50%, higher is better)
-	 *
-	 * This is computed quickly from single-bit corruption results.
-	 */
-	double corruptionEstimate(const Solution &);
-
-	/**
 	 * @brief Return the pairwise security metrics (in bits, higher is better)
 	 */
 	double pairwiseSecurity(const Solution &);
 
-	OutputCorruptionOptimizer &outputCorruptionOptimizer()
+	OutputCorruptionOptimizer &corruptibilityOptimizer()
 	{
-		setupOutputCorruptionOptimizer();
-		return *outputCorruptionOptimizer_;
+		setupCorruptibilityOptimizer();
+		return *corruptibilityOptimizer_;
+	}
+	OutputCorruptionOptimizer &outputCorruptibilityOptimizer()
+	{
+		setupOutputCorruptibilityOptimizer();
+		return *outputCorruptibilityOptimizer_;
+	}
+	OutputCorruptionOptimizer &testCorruptibilityOptimizer()
+	{
+		setupTestCorruptibilityOptimizer();
+		return *testCorruptibilityOptimizer_;
 	}
 	PairwiseSecurityOptimizer &pairwiseSecurityOptimizer()
 	{
@@ -145,9 +156,11 @@ class OptimizationObjectives
 
       private:
 	/// @brief Setup the member on demand
-	void setupOutputCorruptionOptimizer();
+	void setupCorruptibilityOptimizer();
 	/// @brief Setup the member on demand
 	void setupOutputCorruptibilityOptimizer();
+	/// @brief Setup the member on demand
+	void setupTestCorruptibilityOptimizer();
 	/// @brief Setup the member on demand
 	void setupPairwiseSecurityOptimizer();
 
@@ -158,8 +171,9 @@ class OptimizationObjectives
 	LogicLockingAnalyzer logicLockingAnalyzer_;
 	LogicLockingKeyStatistics logicLockingStats_;
 	DelayAnalyzer delayAnalyzer_;
-	std::unique_ptr<OutputCorruptionOptimizer> outputCorruptionOptimizer_;
+	std::unique_ptr<OutputCorruptionOptimizer> corruptibilityOptimizer_;
 	std::unique_ptr<OutputCorruptionOptimizer> outputCorruptibilityOptimizer_;
+	std::unique_ptr<OutputCorruptionOptimizer> testCorruptibilityOptimizer_;
 	std::unique_ptr<PairwiseSecurityOptimizer> pairwiseSecurityOptimizer_;
 };
 

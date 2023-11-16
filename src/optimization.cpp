@@ -85,7 +85,7 @@ bool Optimizer::tryMove()
 
 void Optimizer::runGreedyCorruption()
 {
-	std::vector<int> tot = objectiveComputation_.outputCorruptionOptimizer().solveGreedy(nbNodes(), std::vector<int>());
+	std::vector<int> tot = objectiveComputation_.corruptibilityOptimizer().solveGreedy(nbNodes(), std::vector<int>());
 	for (size_t i = 1; i <= tot.size(); ++i) {
 		std::vector<int> sol(tot.begin(), tot.begin() + i);
 		tryAddSolution(sol);

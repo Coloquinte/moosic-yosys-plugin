@@ -683,6 +683,18 @@ std::vector<std::uint64_t> LogicLockingAnalyzer::mergeTestCorruptionData(const s
 	return ret;
 }
 
+std::vector<std::uint64_t> LogicLockingAnalyzer::mergeOutputCorruptionData(const std::vector<std::vector<std::uint64_t>> &data)
+{
+	std::vector<std::uint64_t> ret;
+	for (const auto &v : data) {
+		ret.resize(v.size(), 0);
+		for (size_t i = 0; i < v.size(); ++i) {
+			ret[i] |= v[i];
+		}
+	}
+	return ret;
+}
+
 std::vector<std::vector<std::uint64_t>> LogicLockingAnalyzer::compute_output_corruption_data(SigBit a)
 {
 	pool<SigBit> toggled_bits;
@@ -794,7 +806,7 @@ std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_dependency_
 	return ret;
 }
 
-OutputCorruptionOptimizer LogicLockingAnalyzer::analyze_output_corruption(const std::vector<Cell *> cells)
+OutputCorruptionOptimizer LogicLockingAnalyzer::analyze_corruptibility(const std::vector<Cell *> cells)
 {
 	auto data = compute_output_corruption_data_per_signal();
 	std::vector<std::vector<std::uint64_t>> corruptionData;
@@ -804,13 +816,22 @@ OutputCorruptionOptimizer LogicLockingAnalyzer::analyze_output_corruption(const 
 	return OutputCorruptionOptimizer(corruptionData);
 }
 
-
 OutputCorruptionOptimizer LogicLockingAnalyzer::analyze_output_corruptibility(const std::vector<Cell *> cells)
 {
 	auto data = compute_output_corruption_data_per_signal();
 	std::vector<std::vector<std::uint64_t>> corruptionData;
 	for (Cell *c : cells) {
 		corruptionData.push_back(LogicLockingAnalyzer::mergeTestCorruptionData(data.at(c)));
+	}
+	return OutputCorruptionOptimizer(corruptionData);
+}
+
+OutputCorruptionOptimizer LogicLockingAnalyzer::analyze_test_corruptibility(const std::vector<Cell *> cells)
+{
+	auto data = compute_output_corruption_data_per_signal();
+	std::vector<std::vector<std::uint64_t>> corruptionData;
+	for (Cell *c : cells) {
+		corruptionData.push_back(LogicLockingAnalyzer::mergeOutputCorruptionData(data.at(c)));
 	}
 	return OutputCorruptionOptimizer(corruptionData);
 }

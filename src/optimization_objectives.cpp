@@ -25,6 +25,8 @@ std::string toString(ObjectiveType obj)
 		return "CorruptibilityEstimate";
 	case ObjectiveType::OutputCorruptibilityEstimate:
 		return "OutputCorruptibilityEstimate";
+	case ObjectiveType::TestCorruptibilityEstimate:
+		return "TestCorruptibilityEstimate";
 	default:
 		return "UnknownObjectiveType";
 	}
@@ -50,11 +52,11 @@ OptimizationObjectives::OptimizationObjectives(Module *module, const std::vector
 	baseDelay_ = delayAnalyzer_.delay(std::vector<int>());
 }
 
-void OptimizationObjectives::setupOutputCorruptionOptimizer()
+void OptimizationObjectives::setupCorruptibilityOptimizer()
 {
-	if (outputCorruptionOptimizer_)
+	if (corruptibilityOptimizer_)
 		return;
-	outputCorruptionOptimizer_.reset(new OutputCorruptionOptimizer(logicLockingAnalyzer_.analyze_output_corruption(cells_)));
+	corruptibilityOptimizer_.reset(new OutputCorruptionOptimizer(logicLockingAnalyzer_.analyze_corruptibility(cells_)));
 }
 
 void OptimizationObjectives::setupOutputCorruptibilityOptimizer()
@@ -62,6 +64,13 @@ void OptimizationObjectives::setupOutputCorruptibilityOptimizer()
 	if (outputCorruptibilityOptimizer_)
 		return;
 	outputCorruptibilityOptimizer_.reset(new OutputCorruptionOptimizer(logicLockingAnalyzer_.analyze_output_corruptibility(cells_)));
+}
+
+void OptimizationObjectives::setupTestCorruptibilityOptimizer()
+{
+	if (testCorruptibilityOptimizer_)
+		return;
+	testCorruptibilityOptimizer_.reset(new OutputCorruptionOptimizer(logicLockingAnalyzer_.analyze_test_corruptibility(cells_)));
 }
 
 void OptimizationObjectives::setupPairwiseSecurityOptimizer()
@@ -82,16 +91,18 @@ double OptimizationObjectives::objectiveValue(const Solution &sol, ObjectiveType
 		return pairwiseSecurity(sol);
 	case ObjectiveType::OutputCorruptibilityEstimate:
 		return outputCorruptibilityEstimate(sol);
+	case ObjectiveType::TestCorruptibilityEstimate:
+		return testCorruptibilityEstimate(sol);
 	case ObjectiveType::CorruptibilityEstimate:
 		return corruptibilityEstimate(sol);
 	case ObjectiveType::OutputCorruptibility:
 		return outputCorruptibility(sol);
 	case ObjectiveType::TestCorruptibility:
 		return testCorruptibility(sol);
-	case ObjectiveType::Corruption:
-		return corruption(sol);
 	case ObjectiveType::Corruptibility:
 		return corruptibility(sol);
+	case ObjectiveType::Corruption:
+		return corruption(sol);
 	default:
 		assert(false);
 		return 0.0;
@@ -138,8 +149,14 @@ double OptimizationObjectives::outputCorruptibilityEstimate(const Solution &sol)
 	return 100.0 * outputCorruptibilityOptimizer_->corruptibility(sol);
 }
 
+double OptimizationObjectives::testCorruptibilityEstimate(const Solution &sol)
+{
+	setupTestCorruptibilityOptimizer();
+	return 100.0 * testCorruptibilityOptimizer_->corruptibility(sol);
+}
+
 double OptimizationObjectives::corruptibilityEstimate(const Solution &sol)
 {
-	setupOutputCorruptionOptimizer();
-	return 100.0 * outputCorruptionOptimizer_->corruptibility(sol);
+	setupCorruptibilityOptimizer();
+	return 100.0 * corruptibilityOptimizer_->corruptibility(sol);
 }

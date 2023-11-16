@@ -27,6 +27,7 @@ void run_optimization(Optimizer &opt, int iterLimit, double timeLimit)
 		auto currentTime = std::chrono::steady_clock::now();
 		auto elapsed = std::chrono::duration<double>(currentTime - startTime);
 		if (elapsed.count() > timeLimit) {
+			log("Stopped on time limit after %d iterations\n", i + 1);
 			break;
 		}
 		opt.tryMove();

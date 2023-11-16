@@ -97,6 +97,11 @@ class LogicLockingAnalyzer
 	static std::vector<std::uint64_t> mergeTestCorruptionData(const std::vector<std::vector<std::uint64_t>> &data);
 
 	/**
+	 * @brief Merge corruption information that is originally per-output per-test-vector to a simple per-test-vector view
+	 */
+	static std::vector<std::uint64_t> mergeOutputCorruptionData(const std::vector<std::vector<std::uint64_t>> &data);
+
+	/**
 	 * @brief Returns the impact of toggling this signal (per output per test vector)
 	 */
 	std::vector<std::vector<std::uint64_t>> compute_output_corruption_data(SigBit a);
@@ -174,12 +179,17 @@ class LogicLockingAnalyzer
 	/**
 	 * @brief Create the output corruption analysis
 	 */
-	OutputCorruptionOptimizer analyze_output_corruption(const std::vector<Cell *> cells);
+	OutputCorruptionOptimizer analyze_corruptibility(const std::vector<Cell *> cells);
 
 	/**
 	 * @brief Create a special analysis for output corruptibility
 	 */
 	OutputCorruptionOptimizer analyze_output_corruptibility(const std::vector<Cell *> cells);
+
+	/**
+	 * @brief Create a special analysis for test corruptibility
+	 */
+	OutputCorruptionOptimizer analyze_test_corruptibility(const std::vector<Cell *> cells);
 
 	/**
 	 * @brief Create the pairwise security analysis
