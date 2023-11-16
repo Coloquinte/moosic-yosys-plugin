@@ -2,6 +2,9 @@
  * Copyright (c) 2023 Gabriel Gouvine
  */
 
+#ifndef MOOSIC_COMMAND_UTILS_H
+#define MOOSIC_COMMAND_UTILS_H
+
 #include "kernel/rtlil.h"
 
 #include <string>
@@ -70,3 +73,5 @@ Yosys::RTLIL::SigBit get_output_signal(Yosys::RTLIL::Cell *cell);
  * @brief Get the output port name of a cell
  */
 Yosys::RTLIL::IdString get_output_portname(Yosys::RTLIL::Cell *cell);
+
+#endif
