@@ -136,6 +136,10 @@ struct LogicLockingExplorePass : public Pass {
 				objectives.push_back(ObjectiveType::OutputCorruptibilityEstimate);
 				continue;
 			}
+			if (arg == "-test-corruptibility-estimate") {
+				objectives.push_back(ObjectiveType::TestCorruptibilityEstimate);
+				continue;
+			}
 			if (arg == "-pairwise-security") {
 				objectives.push_back(ObjectiveType::PairwiseSecurity);
 				continue;
