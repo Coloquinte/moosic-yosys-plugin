@@ -7,6 +7,7 @@
 
 #include "delay_analyzer.hpp"
 #include "logic_locking_analyzer.hpp"
+#include "logic_locking_statistics.hpp"
 #include "output_corruption_optimizer.hpp"
 #include "pairwise_security_optimizer.hpp"
 
@@ -27,7 +28,7 @@ enum class ObjectiveType {
 	Corruption,
 	Corruptibility,
 	OutputCorruptibility,
-	CorruptionEstimate,
+	TestCorruptibility,
 	CorruptibilityEstimate,
 	OutputCorruptibilityEstimate
 };
@@ -91,6 +92,11 @@ class OptimizationObjectives
 	double outputCorruptibility(const Solution &);
 
 	/**
+	 * @brief Return the test corruptibility objective (0% to 100%, higher is better)
+	 */
+	double testCorruptibility(const Solution &);
+
+	/**
 	 * @brief Return the total corruptibility objective (0% to 100%, higher is better)
 	 */
 	double corruptibility(const Solution &);
@@ -150,6 +156,7 @@ class OptimizationObjectives
 	int baseArea_;
 	int baseDelay_;
 	LogicLockingAnalyzer logicLockingAnalyzer_;
+	LogicLockingKeyStatistics logicLockingStats_;
 	DelayAnalyzer delayAnalyzer_;
 	std::unique_ptr<OutputCorruptionOptimizer> outputCorruptionOptimizer_;
 	std::unique_ptr<OutputCorruptionOptimizer> outputCorruptibilityOptimizer_;

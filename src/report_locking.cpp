@@ -53,26 +53,9 @@ void report_security(RTLIL::Module *module, const std::vector<Cell *> &cells, in
 	}
 	LogicLockingAnalyzer pw(module);
 	pw.gen_test_vectors(nb_analysis_vectors / 64, 1);
-	std::mt19937 rgen(1);
-	std::bernoulli_distribution dist;
-	pool<SigBit> signals;
-	for (Cell *c : cells) {
-		signals.insert(get_output_signal(c));
-	}
 
-	LogicLockingStatistics stats(pw.nb_outputs(), pw.nb_test_vectors());
-	for (int i = 0; i < nb_analysis_keys; ++i) {
-		// Generate a random locking (1/2 chance of being wrong for each bit)
-		pool<SigBit> locked_sigs;
-		for (SigBit s : signals) {
-			if (dist(rgen)) {
-				locked_sigs.insert(s);
-			}
-		}
-		// Now simulate
-		auto corruption = pw.compute_output_corruption_data(locked_sigs);
-		stats.update(corruption);
-	}
+	LogicLockingKeyStatistics runner(cells, nb_analysis_keys);
+	auto stats = runner.runStats(pw);
 	stats.check();
 
 	log("Reporting corruption results over %d outputs, %d random keys and %d test vectors:\n", pw.nb_outputs(), nb_analysis_keys,

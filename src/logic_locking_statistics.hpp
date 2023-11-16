@@ -2,8 +2,10 @@
  * Copyright (c) 2023 Gabriel Gouvine
  */
 
-#ifndef MOOSIC_LOGIC_STATISTICS_H
-#define MOOSIC_LOGIC_STATISTICS_H
+#ifndef MOOSIC_LOGIC_LOCKING_STATISTICS_H
+#define MOOSIC_LOGIC_LOCKING_STATISTICS_H
+
+#include "logic_locking_analyzer.hpp"
 
 #include <cstdint>
 #include <vector>
@@ -114,6 +116,28 @@ class LogicLockingStatistics
 	std::vector<std::vector<std::uint64_t>> corruptibility_;
 	// Corruption obtained with each key (average over output x test vector)
 	std::vector<double> corruptionPerKey_;
+};
+
+/**
+ * @brief A class to actually run all statistics in a repeatable manner
+ */
+class LogicLockingKeyStatistics
+{
+      public:
+	LogicLockingKeyStatistics(const std::vector<Cell *> lockable_cells, int nbKeys);
+
+	int nbNodes() const { return signals_.size(); }
+	int nbKeys() const { return keys_.size(); }
+
+	LogicLockingStatistics runStats(LogicLockingAnalyzer &pw);
+	LogicLockingStatistics runStats(LogicLockingAnalyzer &pw, const std::vector<int> &solution);
+
+      private:
+	/// All the keys, so it's all reproducible
+	std::vector<std::vector<bool>> keys_;
+
+	// Signals used for locking
+	std::vector<SigBit> signals_;
 };
 
 #endif

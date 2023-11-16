@@ -3,9 +3,11 @@
  */
 
 #include "logic_locking_statistics.hpp"
+#include "command_utils.hpp"
 
 #include <bitset>
 #include <cmath>
+#include <random>
 #include <stdexcept>
 
 LogicLockingStatistics::LogicLockingStatistics(int nbOutputs, int nbTestVectors) { reset(nbOutputs, nbTestVectors); }
@@ -173,4 +175,45 @@ double LogicLockingStatistics::corruptionStd() const
 	}
 	res /= nbKeys();
 	return std::sqrt(res);
+}
+
+LogicLockingKeyStatistics::LogicLockingKeyStatistics(const std::vector<Cell *> lockable_cells, int nbKeys)
+{
+	std::mt19937 rgen(1);
+	std::bernoulli_distribution dist;
+	for (Cell *c : lockable_cells) {
+		signals_.push_back(get_output_signal(c));
+	}
+	for (int i = 0; i < nbKeys; ++i) {
+		std::vector<bool> key;
+		for (int j = 0; j < nbNodes(); ++j) {
+			key.push_back(dist(rgen));
+		}
+		keys_.push_back(key);
+	}
+}
+
+LogicLockingStatistics LogicLockingKeyStatistics::runStats(LogicLockingAnalyzer &pw)
+{
+	std::vector<int> sol;
+	for (int i = 0; i < nbNodes(); ++i) {
+		sol.push_back(i);
+	}
+	return runStats(pw, sol);
+}
+
+LogicLockingStatistics LogicLockingKeyStatistics::runStats(LogicLockingAnalyzer &pw, const std::vector<int> &solution)
+{
+	LogicLockingStatistics stats(pw.nb_outputs(), pw.nb_test_vectors());
+	for (int i = 0; i < nbKeys(); ++i) {
+		pool<SigBit> locked_sigs;
+		for (int s : solution) {
+			if (keys_[i][s]) {
+				locked_sigs.insert(signals_[s]);
+			}
+		}
+		auto corruption = pw.compute_output_corruption_data(locked_sigs);
+		stats.update(corruption);
+	}
+	return stats;
 }

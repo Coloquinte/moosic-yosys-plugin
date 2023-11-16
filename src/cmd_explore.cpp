@@ -123,8 +123,8 @@ struct LogicLockingExplorePass : public Pass {
 				objectives.push_back(ObjectiveType::OutputCorruptibility);
 				continue;
 			}
-			if (arg == "-corruption-estimate") {
-				objectives.push_back(ObjectiveType::CorruptionEstimate);
+			if (arg == "-test-corruptibility") {
+				objectives.push_back(ObjectiveType::TestCorruptibility);
 				continue;
 			}
 			if (arg == "-corruptibility-estimate") {
@@ -220,8 +220,8 @@ struct LogicLockingExplorePass : public Pass {
 		log("        enable corruptibility optimization\n");
 		log("    -output-corruptibility\n");
 		log("        enable output corruptibility optimization\n");
-		log("    -corruption-estimate\n");
-		log("        enable approximate corruption optimization\n");
+		log("    -test-corruptibility\n");
+		log("        enable test corruptibility optimization\n");
 		log("    -corruptibility-estimate\n");
 		log("        enable approximate corruptibility optimization\n");
 		log("    -output-corruptibility-estimate\n");

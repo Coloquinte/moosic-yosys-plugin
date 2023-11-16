@@ -19,8 +19,8 @@ std::string toString(ObjectiveType obj)
 		return "Corruptibility";
 	case ObjectiveType::OutputCorruptibility:
 		return "OutputCorruptibility";
-	case ObjectiveType::CorruptionEstimate:
-		return "CorruptionEstimate";
+	case ObjectiveType::TestCorruptibility:
+		return "TestCorruptibility";
 	case ObjectiveType::CorruptibilityEstimate:
 		return "CorruptibilityEstimate";
 	case ObjectiveType::OutputCorruptibilityEstimate:
@@ -42,9 +42,8 @@ bool isMaximization(ObjectiveType obj)
 }
 
 OptimizationObjectives::OptimizationObjectives(Module *module, const std::vector<Cell *> &cells, int nbAnalysisVectors, int nbAnalysisKeys)
-    : logicLockingAnalyzer_(module), delayAnalyzer_(module, cells)
+    : logicLockingAnalyzer_(module), logicLockingStats_(cells, nbAnalysisKeys), delayAnalyzer_(module, cells)
 {
-	// TODO: only initialize optimizers when required
 	logicLockingAnalyzer_.gen_test_vectors(nbAnalysisVectors, 1);
 	cells_ = cells;
 	baseArea_ = module->cells().size();
@@ -83,12 +82,12 @@ double OptimizationObjectives::objectiveValue(const Solution &sol, ObjectiveType
 		return pairwiseSecurity(sol);
 	case ObjectiveType::OutputCorruptibilityEstimate:
 		return outputCorruptibilityEstimate(sol);
-	case ObjectiveType::CorruptionEstimate:
-		return corruptionEstimate(sol);
 	case ObjectiveType::CorruptibilityEstimate:
 		return corruptibilityEstimate(sol);
 	case ObjectiveType::OutputCorruptibility:
 		return outputCorruptibility(sol);
+	case ObjectiveType::TestCorruptibility:
+		return testCorruptibility(sol);
 	case ObjectiveType::Corruption:
 		return corruption(sol);
 	case ObjectiveType::Corruptibility:
@@ -109,25 +108,34 @@ double OptimizationObjectives::pairwiseSecurity(const Solution &sol)
 	return pairwiseSecurityOptimizer_->value(sol);
 }
 
-double OptimizationObjectives::outputCorruptibility(const Solution &)
+double OptimizationObjectives::outputCorruptibility(const Solution &sol)
 {
-	throw std::runtime_error("Output corruptibility objective not implemented yet");
+	auto stats = logicLockingStats_.runStats(logicLockingAnalyzer_, sol);
+	return stats.outputCorruptibility();
 }
 
-double OptimizationObjectives::corruption(const Solution &) { throw std::runtime_error("Corruption objective not implemented yet"); }
+double OptimizationObjectives::testCorruptibility(const Solution &sol)
+{
+	auto stats = logicLockingStats_.runStats(logicLockingAnalyzer_, sol);
+	return stats.testCorruptibility();
+}
 
-double OptimizationObjectives::corruptibility(const Solution &) { throw std::runtime_error("Corruptibility objective not implemented yet"); }
+double OptimizationObjectives::corruptibility(const Solution &sol)
+{
+	auto stats = logicLockingStats_.runStats(logicLockingAnalyzer_, sol);
+	return stats.corruptibility();
+}
+
+double OptimizationObjectives::corruption(const Solution &sol)
+{
+	auto stats = logicLockingStats_.runStats(logicLockingAnalyzer_, sol);
+	return stats.corruption();
+}
 
 double OptimizationObjectives::outputCorruptibilityEstimate(const Solution &sol)
 {
 	setupOutputCorruptibilityOptimizer();
 	return 100.0 * outputCorruptibilityOptimizer_->corruptibility(sol);
-}
-
-double OptimizationObjectives::corruptionEstimate(const Solution &sol)
-{
-	setupOutputCorruptionOptimizer();
-	return 50.0 * outputCorruptionOptimizer_->corruptionSum(sol);
 }
 
 double OptimizationObjectives::corruptibilityEstimate(const Solution &sol)
