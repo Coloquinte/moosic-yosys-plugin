@@ -670,7 +670,7 @@ std::vector<std::uint64_t> LogicLockingAnalyzer::flattenCorruptionData(const std
 	return ret;
 }
 
-std::vector<std::uint64_t> LogicLockingAnalyzer::mergeCorruptionData(const std::vector<std::vector<std::uint64_t>> &data)
+std::vector<std::uint64_t> LogicLockingAnalyzer::mergeTestCorruptionData(const std::vector<std::vector<std::uint64_t>> &data)
 {
 	std::vector<std::uint64_t> ret;
 	for (const auto &v : data) {
@@ -810,7 +810,7 @@ OutputCorruptionOptimizer LogicLockingAnalyzer::analyze_output_corruptibility(co
 	auto data = compute_output_corruption_data_per_signal();
 	std::vector<std::vector<std::uint64_t>> corruptionData;
 	for (Cell *c : cells) {
-		corruptionData.push_back(LogicLockingAnalyzer::mergeCorruptionData(data.at(c)));
+		corruptionData.push_back(LogicLockingAnalyzer::mergeTestCorruptionData(data.at(c)));
 	}
 	return OutputCorruptionOptimizer(corruptionData);
 }

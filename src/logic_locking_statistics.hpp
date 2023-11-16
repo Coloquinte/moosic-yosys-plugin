@@ -20,6 +20,11 @@ class LogicLockingStatistics
 	LogicLockingStatistics(int nbOutputs, int nbTestVectors);
 
 	/**
+	 * @brief Reset all statistics
+	 */
+	void reset(int nbOutputs, int nbTestVectors);
+
+	/**
 	 * @brief Number of outputs
 	 */
 	int nbOutputs() const { return nbOutputs_; }
@@ -45,6 +50,13 @@ class LogicLockingStatistics
 	 * We expect it to be 100% for a good locking
 	 */
 	double outputCorruptibility() const;
+
+	/**
+	 * @brief Compute the test corruptibility (proportion of tests where an output can be corrupted by a wrong key), in percent
+	 *
+	 * We expect it to be 100% for a good locking
+	 */
+	double testCorruptibility() const;
 
 	/**
 	 * @brief Compute the corruptibility (proportion of outputs x test vectors that can be corrupted by any key), in percent
@@ -83,6 +95,7 @@ class LogicLockingStatistics
       private:
 	void checkUpdate(const std::vector<std::vector<std::uint64_t>> &corruptionData) const;
 	void updateOutputCorruptibility(const std::vector<std::vector<std::uint64_t>> &corruptionData);
+	void updateTestCorruptibility(const std::vector<std::vector<std::uint64_t>> &corruptionData);
 	void updateCorruptibility(const std::vector<std::vector<std::uint64_t>> &corruptionData);
 	void updateCorruption(const std::vector<std::vector<std::uint64_t>> &corruptionData);
 
@@ -95,6 +108,8 @@ class LogicLockingStatistics
 
 	// Whether an output has been corrupted yet
 	std::vector<bool> outputCorruptibility_;
+	// Whether a test has been corrupted yet
+	std::vector<std::uint64_t> testCorruptibility_;
 	// Whether an output x test vector combination has been corrupted yet
 	std::vector<std::vector<std::uint64_t>> corruptibility_;
 	// Corruption obtained with each key (average over output x test vector)

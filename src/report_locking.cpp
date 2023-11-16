@@ -80,7 +80,8 @@ void report_security(RTLIL::Module *module, const std::vector<Cell *> &cells, in
 	log("\t%.1f%% corruption (per-key dev. ±%.1f%%, %.1f%% to %.1f%%); ideal results are close to 50.0%%\n", stats.corruption(),
 	    stats.corruptionStd(), stats.corruptionMin(), stats.corruptionMax());
 	// TODO: report output corruptibility per key, as ideally a wrong key should impact all outputs
-	log("\t%.1f%% output corruptibility, %.1f%% corruptibility; ideal result is 100.0%%\n", stats.outputCorruptibility(), stats.corruptibility());
+	log("\t%.1f%% output corruptibility, %.1f%% test corruptibility, %.1f%% corruptibility; ideal result is 100.0%%\n",
+	    stats.outputCorruptibility(), stats.testCorruptibility(), stats.corruptibility());
 }
 
 void report_locking(Yosys::RTLIL::Module *mod, const std::vector<Yosys::RTLIL::Cell *> &cells, int nb_analysis_keys, int nb_analysis_vectors)

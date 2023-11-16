@@ -8,9 +8,15 @@
 #include <cmath>
 #include <stdexcept>
 
-LogicLockingStatistics::LogicLockingStatistics(int nbOutputs, int nbTestVectors) : nbOutputs_(nbOutputs), nbTestVectors_(nbTestVectors), nbKeys_(0)
+LogicLockingStatistics::LogicLockingStatistics(int nbOutputs, int nbTestVectors) { reset(nbOutputs, nbTestVectors); }
+
+void LogicLockingStatistics::reset(int nbOutputs, int nbTestVectors)
 {
+	nbOutputs_ = nbOutputs;
+	nbTestVectors_ = nbTestVectors;
+	nbKeys_ = 0;
 	outputCorruptibility_.assign(nbOutputs, false);
+	testCorruptibility_.assign(nbTestVectors, 0);
 	corruptibility_.assign(nbOutputs, std::vector<std::uint64_t>(nbTestVectors, 0));
 }
 
@@ -19,6 +25,7 @@ void LogicLockingStatistics::update(const std::vector<std::vector<std::uint64_t>
 	checkUpdate(corruptionData);
 	updateCorruption(corruptionData);
 	updateOutputCorruptibility(corruptionData);
+	updateTestCorruptibility(corruptionData);
 	updateCorruptibility(corruptionData);
 	++nbKeys_;
 }
@@ -53,6 +60,15 @@ void LogicLockingStatistics::updateOutputCorruptibility(const std::vector<std::v
 	}
 }
 
+void LogicLockingStatistics::updateTestCorruptibility(const std::vector<std::vector<std::uint64_t>> &corruptionData)
+{
+	for (int o = 0; o < nbOutputs(); ++o) {
+		for (int i = 0; i < nbTestVectors_; ++i) {
+			testCorruptibility_[i] |= corruptionData[o][i];
+		}
+	}
+}
+
 void LogicLockingStatistics::updateCorruptibility(const std::vector<std::vector<std::uint64_t>> &corruptionData)
 {
 	for (int o = 0; o < nbOutputs(); ++o) {
@@ -78,11 +94,12 @@ double LogicLockingStatistics::computeCorruption(const std::vector<std::vector<s
 	return 100.0 * countSet / countTot;
 }
 
-void LogicLockingStatistics::check() const { 
-	if ((int) outputCorruptibility_.size() != nbOutputs()) {
+void LogicLockingStatistics::check() const
+{
+	if ((int)outputCorruptibility_.size() != nbOutputs()) {
 		throw std::runtime_error("Inconsistent stats");
 	}
-	if ((int) corruptibility_.size() != nbOutputs()) {
+	if ((int)corruptibility_.size() != nbOutputs()) {
 		throw std::runtime_error("Inconsistent stats");
 	}
 	for (const auto &data : corruptibility_) {
@@ -90,11 +107,10 @@ void LogicLockingStatistics::check() const {
 			throw std::runtime_error("Inconsistent stats");
 		}
 	}
-	if ((int) corruptionPerKey_.size() !=nbKeys()) {
+	if ((int)corruptionPerKey_.size() != nbKeys()) {
 		throw std::runtime_error("Inconsistent stats");
 	}
 }
-
 
 double LogicLockingStatistics::corruptibility() const { return computeCorruption(corruptibility_); }
 
@@ -111,6 +127,8 @@ double LogicLockingStatistics::outputCorruptibility() const
 	}
 	return 100.0 * nb / nbOutputs();
 }
+
+double LogicLockingStatistics::testCorruptibility() const { return computeCorruption({testCorruptibility_}); }
 
 double LogicLockingStatistics::corruption() const
 {
