@@ -142,6 +142,7 @@ struct LogicLockingExplorePass : public Pass {
 		int nbAnalysisKeys = 128;
 		int nbAnalysisVectors = 1024;
 		bool noEstimate = false;
+		bool compareEstimate = false;
 		bool plot = false;
 
 		size_t argidx;
@@ -197,6 +198,11 @@ struct LogicLockingExplorePass : public Pass {
 				noEstimate = true;
 				continue;
 			}
+			if (arg == "-compare-estimate") {
+				// Hidden option to enable both estimate and original objective
+				compareEstimate = true;
+				continue;
+			}
 			if (arg == "-plot") {
 				plot = true;
 				continue;
@@ -245,7 +251,16 @@ struct LogicLockingExplorePass : public Pass {
 		}
 
 		// Use estimated objectives for optimization
-		if (!noEstimate) {
+		if (compareEstimate) {
+			int curSize = GetSize(objectives);
+			for (int i = 0; i < curSize; ++i) {
+				ObjectiveType est = estimation(objectives[i]);
+				if (est != objectives[i]) {
+					objectives.push_back(objectives[i]);
+					objectives[i] = est;
+				}
+			}
+		} else if (!noEstimate) {
 			for (int i = 0; i < GetSize(objectives); ++i) {
 				objectives[i] = estimation(objectives[i]);
 			}
