@@ -6,13 +6,10 @@
 
 std::vector<int> LocalMove::createSolution(int nbNodes, const std::vector<std::vector<int>> &solutionPool, std::mt19937 &rgen)
 {
-	if (solutionPool.empty()) {
-		return modifySolution(nbNodes, std::vector<int>(), rgen);
-	} else {
-		std::uniform_int_distribution<size_t> dist(0, solutionPool.size() - 1);
-		const std::vector<int> sol = solutionPool[dist(rgen)];
-		return modifySolution(nbNodes, sol, rgen);
-	}
+	std::uniform_int_distribution<size_t> dist(0, solutionPool.size());
+	size_t ind = dist(rgen);
+	const std::vector<int> sol = ind < solutionPool.size() ? solutionPool[ind] : std::vector<int>();
+	return modifySolution(nbNodes, sol, rgen);
 }
 
 std::vector<int> MoveInsert::modifySolution(int nbNodes, const std::vector<int> &solution, std::mt19937 &rgen)
