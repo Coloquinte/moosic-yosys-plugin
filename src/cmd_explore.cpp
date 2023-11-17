@@ -34,6 +34,9 @@ void run_optimization(Optimizer &opt, int iterLimit, double timeLimit)
 	}
 }
 
+/**
+ * @brief Report the optimization results as csv/tsv given the Pareto front
+ */
 void report_optimization(const std::vector<std::vector<int>> &solutions, const std::vector<std::vector<double>> &values,
 			 const std::vector<ObjectiveType> &objs, int nbNodes, std::ostream &f, bool tty)
 {
@@ -70,12 +73,61 @@ void report_optimization(const std::vector<std::vector<int>> &solutions, const s
 	}
 }
 
+/**
+ * @brief Report the optimization results as csv/tsv
+ */
 void report_optimization(Optimizer &opt, std::ostream &f, bool tty)
 {
 	auto solutions = opt.paretoFront();
 	auto values = opt.paretoObjectives();
 	std::vector<ObjectiveType> objs = opt.objectives();
 	report_optimization(solutions, values, objs, opt.nbNodes(), f, tty);
+}
+
+/**
+ * @brief Plot the optimization result
+ */
+void plot_optimization(Optimizer &opt)
+{
+	std::string prefix = std::string(getenv("HOME") ? getenv("HOME") : ".") + std::string("/.yosys_moosic");
+	std::string scriptFilename = prefix + ".gnuplot";
+	std::string dataFilename = prefix + ".csv";
+	std::ofstream data(dataFilename);
+	report_optimization(opt, data, false);
+	data.close();
+	std::ofstream script(scriptFilename);
+	script << "set datafile separator ','\n";
+	script << "set key off\n";
+	script << "datafile = '" << dataFilename << "'\n";
+	script << "firstrow = system('head -1 '.datafile.' | sed \"s/,/ /g\"')\n";
+	script << "nc = words(firstrow)\n";
+	script << "\n";
+	script << "\n";
+	script << "if (nc > 4) {\n";
+	script << "  set tics font \"Helvetica,6\"\n";
+	script << "  set label font \"Helvetica,6\"\n";
+	script << "  set xlabel font \"Helvetica,6\"\n";
+	script << "  set ylabel font \"Helvetica,6\"\n";
+	script << "\n";
+	script << "  set multiplot layout nc-2,nc-2\n";
+	script << "  do for [i=2:nc-1] {\n";
+	script << "    do for [j=2:nc-1] {\n";
+	script << "      set xlabel word(firstrow, i)\n";
+	script << "      set ylabel word(firstrow, j)\n";
+	script << "      plot datafile using i:j with points\n";
+	script << "    }\n";
+	script << "  }\n";
+	script << "}\n";
+	script << "else {\n";
+	script << "  set xlabel word(firstrow, 2)\n";
+	script << "  set ylabel word(firstrow, 3)\n";
+	script << "  plot datafile using 2:3 with points\n";
+	script << "}\n";
+	script.close();
+	std::string cmd = "gnuplot -p -s \"" + scriptFilename + "\"";
+	log("Exec: %s\n", cmd.c_str());
+	if (run_command(cmd) != 0)
+		log_cmd_error("Shell command failed!\n");
 }
 
 struct LogicLockingExplorePass : public Pass {
@@ -90,6 +142,7 @@ struct LogicLockingExplorePass : public Pass {
 		int nbAnalysisKeys = 128;
 		int nbAnalysisVectors = 1024;
 		bool noEstimate = false;
+		bool plot = false;
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
@@ -142,6 +195,10 @@ struct LogicLockingExplorePass : public Pass {
 			}
 			if (arg == "-no-estimate") {
 				noEstimate = true;
+				continue;
+			}
+			if (arg == "-plot") {
+				plot = true;
 				continue;
 			}
 			if (arg == "-nb-analysis-keys") {
@@ -208,6 +265,9 @@ struct LogicLockingExplorePass : public Pass {
 			std::ofstream f(output);
 			report_optimization(opt, f, false);
 		}
+		if (plot) {
+			plot_optimization(opt);
+		}
 	}
 
 	void help() override
@@ -224,6 +284,8 @@ struct LogicLockingExplorePass : public Pass {
 		log("        maximum number of iterations\n");
 		log("    -output <file>\n");
 		log("        csv file to report the results\n");
+		log("    -plot\n");
+		log("        plot the results (uses Gnuplot)\n");
 		log("\n");
 		log("These options control the optimization objectives that are enabled:\n");
 		log("    -area\n");
