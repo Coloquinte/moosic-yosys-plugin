@@ -22,7 +22,7 @@ void run_optimization(Optimizer &opt, int iterLimit, double timeLimit)
 {
 	log("Running optimization algorithm\n");
 	auto startTime = std::chrono::steady_clock::now();
-	opt.runGreedyCorruption();
+	opt.runGreedy();
 	for (int i = 0; i < iterLimit; ++i) {
 		auto currentTime = std::chrono::steady_clock::now();
 		auto elapsed = std::chrono::duration<double>(currentTime - startTime);

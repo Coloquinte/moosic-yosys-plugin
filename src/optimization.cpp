@@ -83,26 +83,57 @@ bool Optimizer::tryMove()
 	return tryAddSolution(ret);
 }
 
-void Optimizer::runGreedyCorruption()
+void Optimizer::runGreedy()
 {
-	std::vector<int> tot = objectiveComputation_.corruptibilityOptimizer().solveGreedy(nbNodes(), std::vector<int>());
-	for (size_t i = 1; i <= tot.size(); ++i) {
-		std::vector<int> sol(tot.begin(), tot.begin() + i);
-		tryAddSolution(sol);
+	if (hasObjective(ObjectiveType::PairwiseSecurity)) {
+		runGreedyPairwise();
 	}
+	if (hasObjective(ObjectiveType::Corruption)) {
+		runGreedyCorruptibility();
+		runGreedyOutputCorruptibility();
+		runGreedyTestCorruptibility();
+		return;
+	}
+	if (hasObjective(ObjectiveType::Corruptibility) || hasObjective(ObjectiveType::CorruptibilityEstimate)) {
+		runGreedyCorruptibility();
+	}
+	if (hasObjective(ObjectiveType::OutputCorruptibility) || hasObjective(ObjectiveType::OutputCorruptibilityEstimate)) {
+		runGreedyOutputCorruptibility();
+	}
+	if (hasObjective(ObjectiveType::TestCorruptibility) || hasObjective(ObjectiveType::TestCorruptibilityEstimate)) {
+		runGreedyTestCorruptibility();
+	}
+}
+
+void Optimizer::runGreedyCorruptibility()
+{
+	std::vector<int> tot = objectiveComputation_.corruptibilityOptimizer().solveGreedy(nbNodes());
+	addGreedySolutions(tot);
+}
+
+void Optimizer::runGreedyOutputCorruptibility()
+{
+	std::vector<int> tot = objectiveComputation_.outputCorruptibilityOptimizer().solveGreedy(nbNodes());
+	addGreedySolutions(tot);
+}
+
+void Optimizer::runGreedyTestCorruptibility()
+{
+	std::vector<int> tot = objectiveComputation_.testCorruptibilityOptimizer().solveGreedy(nbNodes());
+	addGreedySolutions(tot);
 }
 
 void Optimizer::runGreedyPairwise()
 {
 	std::vector<std::vector<int>> cliques = objectiveComputation_.pairwiseSecurityOptimizer().solveGreedy(nbNodes());
-	std::vector<int> tot;
-	for (const auto &c : cliques) {
-		for (int n : c) {
-			tot.push_back(n);
-		}
-	}
-	for (size_t i = 1; i <= tot.size(); ++i) {
-		std::vector<int> sol(tot.begin(), tot.begin() + i);
+	std::vector<int> tot = PairwiseSecurityOptimizer::flattenSolution(cliques);
+	addGreedySolutions(tot);
+}
+
+void Optimizer::addGreedySolutions(const std::vector<int> &order)
+{
+	for (size_t i = 1; i <= order.size(); ++i) {
+		std::vector<int> sol(order.begin(), order.begin() + i);
 		tryAddSolution(sol);
 	}
 }
@@ -115,6 +146,16 @@ std::vector<double> Optimizer::objectiveValue(const Solution &sol)
 		ret.push_back(isMaximization(o) ? val : -val);
 	}
 	return ret;
+}
+
+bool Optimizer::hasObjective(ObjectiveType obj) const
+{
+	for (ObjectiveType o : objectives_) {
+		if (o == obj) {
+			return true;
+		}
+	}
+	return false;
 }
 
 bool Optimizer::tryAddSolution(const Solution &sol)

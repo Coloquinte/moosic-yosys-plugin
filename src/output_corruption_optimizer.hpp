@@ -61,7 +61,7 @@ class OutputCorruptionOptimizer
 	/**
 	 * @brief Maximize output corruption by picking one best gate to lock at a time
 	 */
-	Solution solveGreedy(int maxNumber, const Solution &preLocked) const;
+	Solution solveGreedy(int maxNumber, const Solution &preLocked = std::vector<int>()) const;
 
 	/**
 	 * @brief Check datastructure consistency

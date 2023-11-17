@@ -72,7 +72,8 @@ class Optimizer
 	/**
 	 * @brief Initialize the optimization
 	 */
-	Optimizer(Module *module, const std::vector<Cell *> &cells, const std::vector<ObjectiveType> &objectives, int nbAnalysisVectors=1, int nbAnalysisKeys=0);
+	Optimizer(Module *module, const std::vector<Cell *> &cells, const std::vector<ObjectiveType> &objectives, int nbAnalysisVectors = 1,
+		  int nbAnalysisKeys = 0);
 
 	/**
 	 * @brief Number of ndoes available for locking
@@ -85,9 +86,24 @@ class Optimizer
 	bool tryMove();
 
 	/**
-	 * @brief Add solutions from the greedy corruption optimization
+	 * @brief Add solutions from all greedy optimizations
 	 */
-	void runGreedyCorruption();
+	void runGreedy();
+
+	/**
+	 * @brief Add solutions from the greedy corruptibility optimization
+	 */
+	void runGreedyCorruptibility();
+
+	/**
+	 * @brief Add solutions from the greedy output corruptibility optimization
+	 */
+	void runGreedyOutputCorruptibility();
+
+	/**
+	 * @brief Add solutions from the greedy test corruptibility optimization
+	 */
+	void runGreedyTestCorruptibility();
 
 	/**
 	 * @brief Add solutions from the greedy pairwise security optimization
@@ -96,13 +112,18 @@ class Optimizer
 
 	/**
 	 * @brief Compute the N-dimensional objective value
-	*/
+	 */
 	std::vector<double> objectiveValue(const Solution &sol);
 
 	/**
 	 * @brief Return the objectives used
-	*/
+	 */
 	const std::vector<ObjectiveType> objectives() const { return objectives_; }
+
+	/**
+	 * @brief Return whether this particular objective is used
+	 */
+	bool hasObjective(ObjectiveType obj) const;
 
       private:
 	/**
@@ -119,6 +140,11 @@ class Optimizer
 	 * @brief Organize the Pareto front to be more readable
 	 */
 	void cleanupParetoFront();
+
+	/**
+	 * @brief Add all solutions obtained by a greedy algorithm to the Pareto front
+	 */
+	void addGreedySolutions(const std::vector<int> &order);
 
       private:
 	std::mt19937 rgen_;
