@@ -219,8 +219,6 @@ struct LogicLockingExplorePass : public Pass {
 		log("        enable area optimization\n");
 		log("    -delay\n");
 		log("        enable delay optimization\n");
-		log("    -corruption\n");
-		log("        enable corruption optimization\n");
 		log("    -corruptibility\n");
 		log("        enable corruptibility optimization\n");
 		log("    -output-corruptibility\n");
@@ -231,6 +229,10 @@ struct LogicLockingExplorePass : public Pass {
 		log("        enable approximate corruptibility optimization\n");
 		log("    -output-corruptibility-estimate\n");
 		log("        enable approximate output corruptibility optimization\n");
+		log("    -test-corruptibility-estimate\n");
+		log("        enable approximate test corruptibility optimization\n");
+		log("    -corruption\n");
+		log("        enable corruption optimization\n");
 		log("    -pairwise-security\n");
 		log("        enable pairwise security optimization\n");
 		log("\n");
