@@ -42,7 +42,8 @@ void report_optimization(const std::vector<std::vector<int>> &solutions, const s
 		f << (tty ? "\t" : ",");
 		f << toString(obj);
 	}
-	f << "\tSolution";
+	f << (tty ? "\t" : ",");
+	f << "Solution";
 	f << std::endl;
 	log_assert(GetSize(solutions) == GetSize(values));
 	for (int i = 0; i < GetSize(solutions); ++i) {
