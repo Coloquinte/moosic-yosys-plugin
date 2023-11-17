@@ -43,6 +43,20 @@ bool isMaximization(ObjectiveType obj)
 	}
 }
 
+ObjectiveType estimation(ObjectiveType obj)
+{
+	switch (obj) {
+	case ObjectiveType::Corruptibility:
+		return ObjectiveType::CorruptibilityEstimate;
+	case ObjectiveType::OutputCorruptibility:
+		return ObjectiveType::OutputCorruptibilityEstimate;
+	case ObjectiveType::TestCorruptibility:
+		return ObjectiveType::TestCorruptibilityEstimate;
+	default:
+		return obj;
+	}
+}
+
 OptimizationObjectives::OptimizationObjectives(Module *module, const std::vector<Cell *> &cells, int nbAnalysisVectors, int nbAnalysisKeys)
     : logicLockingAnalyzer_(module), logicLockingStats_(cells, nbAnalysisKeys), delayAnalyzer_(module, cells)
 {

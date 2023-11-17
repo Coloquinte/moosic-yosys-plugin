@@ -34,9 +34,9 @@ void run_optimization(Optimizer &opt, int iterLimit, double timeLimit)
 	}
 }
 
-void report_optimization(Optimizer &opt, std::ostream &f, bool tty)
+void report_optimization(const std::vector<std::vector<int>> &solutions, const std::vector<std::vector<double>> &values,
+			 const std::vector<ObjectiveType> &objs, int nbNodes, std::ostream &f, bool tty)
 {
-	std::vector<ObjectiveType> objs = opt.objectives();
 	f << "Cells";
 	for (ObjectiveType obj : objs) {
 		f << (tty ? "\t" : ",");
@@ -44,8 +44,6 @@ void report_optimization(Optimizer &opt, std::ostream &f, bool tty)
 	}
 	f << "\tSolution";
 	f << std::endl;
-	auto solutions = opt.paretoFront();
-	auto values = opt.paretoObjectives();
 	log_assert(GetSize(solutions) == GetSize(values));
 	for (int i = 0; i < GetSize(solutions); ++i) {
 		if (tty) {
@@ -66,9 +64,17 @@ void report_optimization(Optimizer &opt, std::ostream &f, bool tty)
 			f << d;
 		}
 		f << (tty ? "\t" : ",'");
-		f << create_hex_string(solutions[i], opt.nbNodes());
+		f << create_hex_string(solutions[i], nbNodes);
 		f << (tty ? "" : "'") << std::endl;
 	}
+}
+
+void report_optimization(Optimizer &opt, std::ostream &f, bool tty)
+{
+	auto solutions = opt.paretoFront();
+	auto values = opt.paretoObjectives();
+	std::vector<ObjectiveType> objs = opt.objectives();
+	report_optimization(solutions, values, objs, opt.nbNodes(), f, tty);
 }
 
 struct LogicLockingExplorePass : public Pass {
@@ -82,6 +88,7 @@ struct LogicLockingExplorePass : public Pass {
 		std::vector<ObjectiveType> objectives;
 		int nbAnalysisKeys = 128;
 		int nbAnalysisVectors = 1024;
+		bool noEstimate = false;
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
@@ -128,20 +135,12 @@ struct LogicLockingExplorePass : public Pass {
 				objectives.push_back(ObjectiveType::TestCorruptibility);
 				continue;
 			}
-			if (arg == "-corruptibility-estimate") {
-				objectives.push_back(ObjectiveType::CorruptibilityEstimate);
-				continue;
-			}
-			if (arg == "-output-corruptibility-estimate") {
-				objectives.push_back(ObjectiveType::OutputCorruptibilityEstimate);
-				continue;
-			}
-			if (arg == "-test-corruptibility-estimate") {
-				objectives.push_back(ObjectiveType::TestCorruptibilityEstimate);
-				continue;
-			}
 			if (arg == "-pairwise-security") {
 				objectives.push_back(ObjectiveType::PairwiseSecurity);
+				continue;
+			}
+			if (arg == "-no-estimate") {
+				noEstimate = true;
 				continue;
 			}
 			if (arg == "-nb-analysis-keys") {
@@ -187,10 +186,21 @@ struct LogicLockingExplorePass : public Pass {
 			log_error("There should be at last two different objectives for multiobjective exploration.\n");
 		}
 
+		// Use estimated objectives for optimization
+		if (!noEstimate) {
+			for (int i = 0; i < GetSize(objectives); ++i) {
+				objectives[i] = estimation(objectives[i]);
+			}
+		}
+
 		RTLIL::Module *mod = single_selected_module(design);
 
 		// Now execute the optimization itself
 		Optimizer opt(mod, get_lockable_cells(mod), objectives, nbAnalysisVectors / 64, nbAnalysisKeys);
+		if (!opt.hasObjective(ObjectiveType::Area) && !opt.hasObjective(ObjectiveType::Delay)) {
+			log_error("You should use at least the area or delay objective.\n");
+		}
+
 		run_optimization(opt, iterLimit, timeLimit);
 		report_optimization(opt, std::cout, true);
 		if (output != "") {
@@ -225,12 +235,6 @@ struct LogicLockingExplorePass : public Pass {
 		log("        enable output corruptibility optimization\n");
 		log("    -test-corruptibility\n");
 		log("        enable test corruptibility optimization\n");
-		log("    -corruptibility-estimate\n");
-		log("        enable approximate corruptibility optimization\n");
-		log("    -output-corruptibility-estimate\n");
-		log("        enable approximate output corruptibility optimization\n");
-		log("    -test-corruptibility-estimate\n");
-		log("        enable approximate test corruptibility optimization\n");
 		log("    -corruption\n");
 		log("        enable corruption optimization\n");
 		log("    -pairwise-security\n");
@@ -241,6 +245,8 @@ struct LogicLockingExplorePass : public Pass {
 		log("        number of random keys used (default=128)\n");
 		log("    -nb-analysis-vectors <value>\n");
 		log("        number of test vectors used (default=1024)\n");
+		log("    -no-estimate\n");
+		log("        use full computation for corruptibility objectives\n");
 		log("\n");
 		log("\n");
 		log("\n");

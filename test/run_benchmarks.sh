@@ -20,7 +20,7 @@ do
 	result_file="results/${name}.csv"
 	echo "read_blif ${benchmark}" > "${script_file}"
 	echo "flatten; synth" >> "${script_file}"
-	echo "ll_explore -area -delay -corruptibility-estimate -test-corruptibility-estimate -output-corruptibility-estimate -iter-limit ${iter_limit} -time-limit ${time_limit} -output ${result_file}" >> "${script_file}"
+	echo "ll_explore -area -delay -corruptibility -test-corruptibility -output-corruptibility -iter-limit ${iter_limit} -time-limit ${time_limit} -output ${result_file}" >> "${script_file}"
 	cmd="yosys -m moosic -s ${script_file} > ${log_file}"
 	eval "$cmd" || { echo "Failure on ${name}: ${cmd}"; exit 1; }
 done

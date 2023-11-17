@@ -116,6 +116,11 @@ class Optimizer
 	std::vector<double> objectiveValue(const Solution &sol);
 
 	/**
+	 * @brief Compute an objective value for reporting purposes
+	 */
+	double displayValue(const Solution &sol, ObjectiveType obj);
+
+	/**
 	 * @brief Return the objectives used
 	 */
 	const std::vector<ObjectiveType> objectives() const { return objectives_; }

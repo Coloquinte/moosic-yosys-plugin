@@ -45,6 +45,11 @@ std::string toString(ObjectiveType obj);
 bool isMaximization(ObjectiveType obj);
 
 /**
+ * @brief Return the corresponding approximation for an objective
+ */
+ObjectiveType estimation(ObjectiveType obj);
+
+/**
  * @brief A class to centralize the computation of all objective values related to logic locking optimization.
  *
  * Such objectives include:

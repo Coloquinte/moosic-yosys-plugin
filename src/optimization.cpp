@@ -145,6 +145,8 @@ std::vector<double> Optimizer::objectiveValue(const Solution &sol)
 	return ret;
 }
 
+double Optimizer::displayValue(const Solution &sol, ObjectiveType o) { return objectiveComputation_.objectiveValue(sol, o); }
+
 bool Optimizer::hasObjective(ObjectiveType obj) const
 {
 	for (ObjectiveType o : objectives_) {
