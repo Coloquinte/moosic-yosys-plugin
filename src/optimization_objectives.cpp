@@ -154,7 +154,8 @@ double OptimizationObjectives::corruptibility(const Solution &sol)
 double OptimizationObjectives::corruption(const Solution &sol)
 {
 	auto stats = logicLockingStats_.runStats(logicLockingAnalyzer_, sol);
-	return stats.corruption();
+	double v = stats.corruption();
+	return std::min(v, 100.0 - v);
 }
 
 double OptimizationObjectives::outputCorruptibilityEstimate(const Solution &sol)
