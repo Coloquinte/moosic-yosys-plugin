@@ -1,6 +1,6 @@
 #!/bin/bash
 
-dirs="logs scripts estimate full area delay area_approx delay_approx"
+dirs="logs scripts estimate full area delay area_approx delay_approx area_corr delay_corr"
 time_limit=20
 iter_limit=10000
 
@@ -26,9 +26,11 @@ do
 	# Area/corruptibility
 	echo "ll_explore -area -corruptibility -no-estimate -iter-limit ${iter_limit} -time-limit ${time_limit} -output area_approx/${name}.csv" >> "${script_file}"
 	echo "ll_explore -area -corruptibility -iter-limit ${iter_limit} -time-limit ${time_limit} -output area/${name}.csv" >> "${script_file}"
+	echo "ll_explore -area -corruption -iter-limit ${iter_limit} -time-limit ${time_limit} -output area_corr/${name}.csv" >> "${script_file}"
 	# Delay/corruptibility
 	echo "ll_explore -delay -corruptibility -no-estimate -iter-limit ${iter_limit} -time-limit ${time_limit} -output delay_approx/${name}.csv" >> "${script_file}"
 	echo "ll_explore -delay -corruptibility -iter-limit ${iter_limit} -time-limit ${time_limit} -output delay/${name}.csv" >> "${script_file}"
+	echo "ll_explore -delay -corruption -iter-limit ${iter_limit} -time-limit ${time_limit} -output delay_corr/${name}.csv" >> "${script_file}"
 	cmd="yosys -m moosic -s ${script_file} > ${log_file}"
 	eval "$cmd" || { echo "Failure on ${name}: ${cmd}"; exit 1; }
 done
