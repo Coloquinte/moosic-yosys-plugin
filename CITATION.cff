@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+title: Moosic Yosys Plugin
+message: >-
+  If you use this software and want to cite it, please use
+  the citation below.
+type: software
+authors:
+  - family-names: Gouvine
+    given-names: Gabriel
+    orcid: 0000-0003-3404-6659
+  - family-names: Chotin
+    given-names: Roselyne
+    orcid: 0000-0001-7990-9070
+    affiliation: LIP6
+  - family-names: Zaourar
+    given-names: Lilia
+    orcid: 0000-0002-6660-4347
+    affiliation: CEA
+repository-code: https://github.com/Coloquinte/moosic-yosys-plugin
+keywords:
+  - logic locking
+  - yosys plugin
+license: GPL-2.0-or-later
+date-released: 2023-10-25
+doi: 10.5281/zenodo.10390403
