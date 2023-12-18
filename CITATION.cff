@@ -15,7 +15,10 @@ authors:
   - family-names: Zaourar
     given-names: Lilia
     orcid: 0000-0002-6660-4347
-    affiliation: CEA
+    affiliation: CEA LIST
+  - family-names: Fontaine
+    given-names: Jonathan
+    affiliation: CEA LIST
 repository-code: https://github.com/Coloquinte/moosic-yosys-plugin
 keywords:
   - logic locking
