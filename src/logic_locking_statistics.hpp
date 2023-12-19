@@ -124,7 +124,7 @@ class LogicLockingStatistics
 class LogicLockingKeyStatistics
 {
       public:
-	LogicLockingKeyStatistics(const std::vector<Cell *> lockable_cells, int nbKeys);
+	LogicLockingKeyStatistics(const std::vector<Cell *> &lockable_cells, int nbKeys);
 
 	int nbNodes() const { return signals_.size(); }
 	int nbKeys() const { return keys_.size(); }

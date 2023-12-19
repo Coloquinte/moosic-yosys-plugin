@@ -179,22 +179,22 @@ class LogicLockingAnalyzer
 	/**
 	 * @brief Create the output corruption analysis
 	 */
-	OutputCorruptionOptimizer analyze_corruptibility(const std::vector<Cell *> cells);
+	OutputCorruptionOptimizer analyze_corruptibility(const std::vector<Cell *> &cells);
 
 	/**
 	 * @brief Create a special analysis for output corruptibility
 	 */
-	OutputCorruptionOptimizer analyze_output_corruptibility(const std::vector<Cell *> cells);
+	OutputCorruptionOptimizer analyze_output_corruptibility(const std::vector<Cell *> &cells);
 
 	/**
 	 * @brief Create a special analysis for test corruptibility
 	 */
-	OutputCorruptionOptimizer analyze_test_corruptibility(const std::vector<Cell *> cells);
+	OutputCorruptionOptimizer analyze_test_corruptibility(const std::vector<Cell *> &cells);
 
 	/**
 	 * @brief Create the pairwise security analysis
 	 */
-	PairwiseSecurityOptimizer analyze_pairwise_security(const std::vector<Cell *> cells, bool ignore_duplicates = true);
+	PairwiseSecurityOptimizer analyze_pairwise_security(const std::vector<Cell *> &cells, bool ignore_duplicates = true);
 
       private:
 	/**

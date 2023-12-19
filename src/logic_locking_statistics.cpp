@@ -177,7 +177,7 @@ double LogicLockingStatistics::corruptionStd() const
 	return std::sqrt(res);
 }
 
-LogicLockingKeyStatistics::LogicLockingKeyStatistics(const std::vector<Cell *> lockable_cells, int nbKeys)
+LogicLockingKeyStatistics::LogicLockingKeyStatistics(const std::vector<Cell *> &lockable_cells, int nbKeys)
 {
 	std::mt19937 rgen(1);
 	std::bernoulli_distribution dist;

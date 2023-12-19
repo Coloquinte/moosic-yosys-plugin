@@ -806,7 +806,7 @@ std::vector<std::pair<Cell *, Cell *>> LogicLockingAnalyzer::compute_dependency_
 	return ret;
 }
 
-OutputCorruptionOptimizer LogicLockingAnalyzer::analyze_corruptibility(const std::vector<Cell *> cells)
+OutputCorruptionOptimizer LogicLockingAnalyzer::analyze_corruptibility(const std::vector<Cell *> &cells)
 {
 	auto data = compute_output_corruption_data_per_signal();
 	std::vector<std::vector<std::uint64_t>> corruptionData;
@@ -816,7 +816,7 @@ OutputCorruptionOptimizer LogicLockingAnalyzer::analyze_corruptibility(const std
 	return OutputCorruptionOptimizer(corruptionData);
 }
 
-OutputCorruptionOptimizer LogicLockingAnalyzer::analyze_output_corruptibility(const std::vector<Cell *> cells)
+OutputCorruptionOptimizer LogicLockingAnalyzer::analyze_output_corruptibility(const std::vector<Cell *> &cells)
 {
 	auto data = compute_output_corruption_data_per_signal();
 	std::vector<std::vector<std::uint64_t>> corruptionData;
@@ -826,7 +826,7 @@ OutputCorruptionOptimizer LogicLockingAnalyzer::analyze_output_corruptibility(co
 	return OutputCorruptionOptimizer(corruptionData);
 }
 
-OutputCorruptionOptimizer LogicLockingAnalyzer::analyze_test_corruptibility(const std::vector<Cell *> cells)
+OutputCorruptionOptimizer LogicLockingAnalyzer::analyze_test_corruptibility(const std::vector<Cell *> &cells)
 {
 	auto data = compute_output_corruption_data_per_signal();
 	std::vector<std::vector<std::uint64_t>> corruptionData;
@@ -836,7 +836,7 @@ OutputCorruptionOptimizer LogicLockingAnalyzer::analyze_test_corruptibility(cons
 	return OutputCorruptionOptimizer(corruptionData);
 }
 
-PairwiseSecurityOptimizer LogicLockingAnalyzer::analyze_pairwise_security(const std::vector<Cell *> cells, bool ignore_duplicates)
+PairwiseSecurityOptimizer LogicLockingAnalyzer::analyze_pairwise_security(const std::vector<Cell *> &cells, bool ignore_duplicates)
 {
 	auto pairwise_security = compute_pairwise_secure_graph(ignore_duplicates);
 	pool<Cell *> cell_set(cells.begin(), cells.end());
