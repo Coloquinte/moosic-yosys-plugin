@@ -25,7 +25,7 @@ jobs:
     - name: Install dependencies
       run: sudo apt-get install tcl-dev libreadline-dev libffi-dev pkg-config python3 libboost-system-dev libboost-python-dev libboost-filesystem-dev zlib1g-dev xz-utils valgrind
 
-    - name: ccache
+    - name: Setup ccache
       uses: hendrikmuhs/ccache-action@v1.2
 
     - name: Install yosys
@@ -41,10 +41,10 @@ jobs:
     - name: Download benchmarks
       run: bash test/download_benchmarks.sh
 
-    - name: Test
+    - name: Tests
       run: ${{ matrix.compiler == 'gcc' && 'ENABLE_VALGRIND=1' || '' }} bash test/test_commands.sh
 
-    - name: Run
+    - name: Benchmarks
       if: ${{ matrix.mode == 'Release' }}
       run: bash test/run_benchmarks.sh
 
