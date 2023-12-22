@@ -1,4 +1,5 @@
-![Build](https://github.com/Coloquinte/moosic-yosys-plugin/actions/workflows/build.yml/badge.svg)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10391922.svg)](https://doi.org/10.5281/zenodo.10391922)
+![Tests](https://github.com/Coloquinte/moosic-yosys-plugin/actions/workflows/build.yml/badge.svg)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/d3249b89df3247dbbf7b6066c0c66a2f)](https://app.codacy.com/gh/Coloquinte/moosic-yosys-plugin/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![GitHub](https://img.shields.io/github/license/coloquinte/moosic-yosys-plugin?color=blue)](https://opensource.org/licenses/gpl-2.0)
 
