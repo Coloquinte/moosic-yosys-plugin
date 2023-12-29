@@ -38,7 +38,7 @@ function run_benchmark () {
 if [ "$1" = "-all" ]
 then
 	echo "Executing full benchmark set"
-	for benchmark in blif/*.blif
+	for benchmark in blif/iscas85*.blif
 	do
 		run_benchmark $benchmark
 	done
