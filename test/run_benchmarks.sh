@@ -1,8 +1,6 @@
 #!/bin/bash
 
 dirs="logs scripts estimate full area delay area_approx delay_approx area_corr delay_corr"
-time_limit=20
-iter_limit=10000
 
 cd benchmarks
 
@@ -37,14 +35,18 @@ function run_benchmark () {
 
 if [ "$1" = "-all" ]
 then
+	time_limit=600
+	iter_limit=1000000
 	echo "Executing full benchmark set"
-	for benchmark in blif/iscas85*.blif
+	for benchmark in blif/*.blif
 	do
 		run_benchmark $benchmark
 	done
 else
+	time_limit=20
+	iter_limit=10000
 	echo "Executing small benchmark set"
-	for benchmark in blif/c*.blif
+	for benchmark in blif/iscas85*.blif
 	do
 		run_benchmark $benchmark
 	done
