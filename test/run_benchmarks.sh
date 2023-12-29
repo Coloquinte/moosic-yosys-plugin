@@ -11,8 +11,8 @@ do
 	mkdir -p "${dir}"
 done
 
-for benchmark in blif/c*.blif
-do
+function run_benchmark () {
+	benchmark=$1
         name=$(basename "${benchmark}" .blif)
 	echo "Running benchmark ${name}"
 	log_file="logs/${name}.log"
@@ -33,7 +33,22 @@ do
 	echo "ll_explore -delay -corruption -iter-limit ${iter_limit} -time-limit ${time_limit} -output delay_corr/${name}.csv" >> "${script_file}"
 	cmd="yosys -m moosic -s ${script_file} > ${log_file}"
 	eval "$cmd" || { echo "Failure on ${name}: ${cmd}"; exit 1; }
-done
+}
+
+if [ "$1" = "-all" ]
+then
+	echo "Executing full benchmark set"
+	for benchmark in blif/*.blif
+	do
+		run_benchmark $benchmark
+	done
+else
+	echo "Executing small benchmark set"
+	for benchmark in blif/c*.blif
+	do
+		run_benchmark $benchmark
+	done
+fi
 
 cd ..
 tar -c benchmarks/estimate benchmarks/area benchmarks/delay benchmarks/area_approx benchmarks/delay_approx benchmarks/full | xz -9 - > benchmark_results.tar.xz
