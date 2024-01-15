@@ -40,7 +40,7 @@ then
 	echo "Executing full benchmark set"
 	for benchmark in blif/*.blif
 	do
-		run_benchmark $benchmark
+		run_benchmark "${benchmark}"
 	done
 else
 	time_limit=20
@@ -48,7 +48,7 @@ else
 	echo "Executing small benchmark set"
 	for benchmark in blif/iscas85*.blif
 	do
-		run_benchmark $benchmark
+		run_benchmark "${benchmark}"
 	done
 fi
 

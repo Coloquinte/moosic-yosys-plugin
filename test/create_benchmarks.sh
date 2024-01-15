@@ -16,12 +16,12 @@ for bench in iscas85 iscas89 iscas99
 do
 	mkdir tmp
 	cd tmp
-	wget https://pld.ttu.ee/~maksim/benchmarks/${bench}/bench -qN -l1 -nH -np -r --cut-dirs=4 --reject="*.html*" --reject=robots.txt
+	wget "https://pld.ttu.ee/~maksim/benchmarks/${bench}/bench" -qN -l1 -nH -np -r --cut-dirs=4 --reject="*.html*" --reject=robots.txt
 	rm bench
 	cd ..
 	for i in $(ls tmp)
 	do
-		mv tmp/$i $bench-$i
+		mv "tmp/${i}" "${bench}-${i}"
 	done
 	rm -rf tmp
 done
@@ -45,9 +45,9 @@ wget https://ddd.fit.cvut.cz/www/prj/Benchmarks/MCNC.7z
 
 for directory in Combinational/blif Sequential/Blif
 do
-	for i in $(ls MCNC/$directory)
+	for i in $(ls "MCNC/${directory}")
 	do
-		cp MCNC/$directory/$i benchmarks/blif/mcnc-$i
+		cp "MCNC/${directory}/${i}" "benchmarks/blif/mcnc-${i}"
 	done
 done
 
@@ -56,11 +56,11 @@ wget https://ddd.fit.cvut.cz/www/prj/Benchmarks/LGSynth91.7z
 7z x LGSynth91.7z
 for i in $(ls LGSynth91/blif)
 do
-        cp LGSynth91/blif/$i benchmarks/blif/lgsynth91-$i
+        cp "LGSynth91/blif/${i}" "benchmarks/blif/lgsynth91-${i}"
 done
 
 # Compress all
 XZ_OPT=-9 tar -Jcf benchmarks.tar.xz benchmarks/
 
 cd ..
-mv tmp/benchmarks/tar.xz .
+mv tmp/benchmarks.tar.xz .
