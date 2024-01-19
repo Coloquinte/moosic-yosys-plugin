@@ -17,16 +17,20 @@ This repository provides a Yosys plugin to add logic locking functionality to a 
 [Slides](https://wiki.f-si.org/images/5/5c/Gabriel_Gouvine_MOOSIC_FSiC_2023.pdf) and [Video](https://peertube.f-si.org/videos/watch/7f250190-6d8f-4a67-8ed6-d07deda7fba0) from [Free Silicon Conference 2023](https://wiki.f-si.org/index.php/FSiC2023)
 
 
-## Techniques used
+## Logic locking in a nutshell
 
 ![My Image](doc/XOR_NXOR_insertion.svg)
 
-A technique used here is the insertion of XOR/NXOR gates on wires carrying signals, such that an extra input with the correct value is required for them to act as a (buffered) wire again. This value is 1 for NXOR and 0 for XOR.
+The most common technique for logic locking is to insert XOR/NXOR gates on some wires of the design, such that an extra input with the correct value is required for them to act as a (buffered) wire again.
+This value is 1 for NXOR and 0 for XOR.
 The key needs to be supplied as an input to unlock the circuit.
+This is the method used by the plugin.
 
 ![My Image](doc/MUX_insertion.svg)
 
-Another technique is the mixing of signals using multiplexers. A MUX is inserted on a wire with an irrelevant signal connected to the other input of the MUX. The key value selects between the correct signal and the irrelevant one.
+Any gate that keeps the previous functionality can be inserted.
+For example, we can mix signals using multiplexers. A MUX is inserted on a wire with an irrelevant signal connected to the other input of the MUX. In this case, the key value selects between the correct signal and the irrelevant one.
+Another possibility is to replace gates with lookup-tables, which will have to be programmed correctly.
 
 Key handling (getting the key onto the chip) is left to the user.
 
