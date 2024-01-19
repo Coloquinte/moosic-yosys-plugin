@@ -60,3 +60,34 @@ jobs:
           benchmarks/results
           benchmarks/logs
           benchmarks/scripts
+
+  build_oss_cad:
+    strategy:
+      matrix:
+        mode: ["Release", "Debug"]
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: sudo apt-get install tcl-dev libreadline-dev libffi-dev pkg-config python3 libboost-system-dev libboost-python-dev libboost-filesystem-dev zlib1g-dev xz-utils valgrind
+
+    - name: Setup ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+
+    - name: Install oss-cad-suite
+      uses: YosysHQ/setup-oss-cad-suite@v3
+
+    - name: Build
+      run: make -j2 ENABLE_WERROR=1; make install
+
+    - name: Download benchmarks
+      run: bash test/download_benchmarks.sh
+
+    - name: Tests
+      run: bash test/test_commands.sh
