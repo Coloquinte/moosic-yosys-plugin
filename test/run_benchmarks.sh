@@ -42,6 +42,10 @@ then
 	do
 		run_benchmark "${benchmark}"
 	done
+elif [ "$1" != "" ]
+then
+	echo "Invalid argument; only -all is accepted"
+	exit 1
 else
 	time_limit=20
 	iter_limit=10000
