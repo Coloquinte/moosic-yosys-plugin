@@ -15,7 +15,7 @@ function run_benchmark () {
 	echo "Running benchmark ${name}"
 	log_file="logs/${name}.log"
 	script_file="scripts/${name}.ys"
-	echo "read_blif ${benchmark}" > "${script_file}"
+	echo "read_blif -sop ${benchmark}" > "${script_file}"
 	echo "flatten; synth" >> "${script_file}"
 	# Full Pareto front
 	echo "ll_explore -area -delay -corruptibility -test-corruptibility -output-corruptibility -iter-limit ${iter_limit} -time-limit ${time_limit} -output full/${name}.csv" >> "${script_file}"
