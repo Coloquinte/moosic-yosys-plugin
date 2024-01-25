@@ -723,19 +723,12 @@ dict<Cell *, std::vector<std::vector<std::uint64_t>>> LogicLockingAnalyzer::comp
 	std::vector<SigBit> signals = get_lockable_signals();
 	std::vector<Cell *> cells = get_lockable_cells();
 
-	// Old computation method
-	std::vector<std::vector<std::vector<std::uint64_t>>> corr;
-	for (int i = 0; i < GetSize(signals); ++i) {
-		corr.emplace_back(compute_output_corruption_data(signals[i]));
-	}
-
-	// New computation method
-	std::vector<std::vector<std::vector<std::uint64_t>>> corr_new;
-	corr_new.resize(signals.size(), std::vector<std::vector<std::uint64_t>>(nb_outputs()));
 	std::vector<Lit> toggles;
 	for (int i = 0; i < GetSize(signals); ++i) {
 		toggles.push_back(wire_to_aig_.at(signals[i]));
 	}
+
+	std::vector<std::vector<std::vector<std::uint64_t>>> corr(signals.size(), std::vector<std::vector<std::uint64_t>>(nb_outputs()));
 	for (int i = 0; i < nb_test_vectors(); ++i) {
 		auto no_toggle = aig_.simulate(test_vectors_[i]);
 		aig_.copyIncrementalState();
@@ -744,15 +737,9 @@ dict<Cell *, std::vector<std::vector<std::uint64_t>>> LogicLockingAnalyzer::comp
 
 			for (size_t k = 0; k < no_toggle.size(); ++k) {
 				std::uint64_t t = toggle[k] ^ no_toggle[k];
-				corr_new.at(j).at(k).push_back(t);
+				corr.at(j).at(k).push_back(t);
 			}
 		}
-	}
-	if (corr != corr_new) {
-		std::cout << "Size1: " << corr.size() << " vs " << corr_new.size() << std::endl;
-		std::cout << "Size2: " << corr[0].size() << " vs " << corr_new[0].size() << std::endl;
-		std::cout << "Size3: " << corr[0][0].size() << " vs " << corr_new[0][0].size() << std::endl;
-		throw std::runtime_error("New computation method does not match old computation method");
 	}
 
 	dict<Cell *, std::vector<std::vector<std::uint64_t>>> ret;
