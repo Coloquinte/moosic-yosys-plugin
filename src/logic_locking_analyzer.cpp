@@ -260,6 +260,8 @@ void LogicLockingAnalyzer::init_aig()
 		}
 		aig_.addOutput(wire_to_aig_.at(bit));
 	}
+	aig_.setupIncremental();
+	aig_.check();
 }
 
 void LogicLockingAnalyzer::report_conversion_issues() const
@@ -515,7 +517,6 @@ void LogicLockingAnalyzer::set_state(SigSpec sig, RTLIL::Const value)
 
 std::vector<std::uint64_t> LogicLockingAnalyzer::simulate_basic(int tv, const pool<SigBit> &toggled_bits)
 {
-	aig_.resetState();
 	std::vector<std::uint64_t> ret(comb_outputs_.size());
 	// Execute bit after bit
 	for (int ind = 0; ind < 64; ++ind) {
@@ -721,9 +722,42 @@ dict<Cell *, std::vector<std::vector<std::uint64_t>>> LogicLockingAnalyzer::comp
 {
 	std::vector<SigBit> signals = get_lockable_signals();
 	std::vector<Cell *> cells = get_lockable_cells();
+
+	// Old computation method
+	std::vector<std::vector<std::vector<std::uint64_t>>> corr;
+	for (int i = 0; i < GetSize(signals); ++i) {
+		corr.emplace_back(compute_output_corruption_data(signals[i]));
+	}
+
+	// New computation method
+	std::vector<std::vector<std::vector<std::uint64_t>>> corr_new;
+	corr_new.resize(signals.size(), std::vector<std::vector<std::uint64_t>>(nb_outputs()));
+	std::vector<Lit> toggles;
+	for (int i = 0; i < GetSize(signals); ++i) {
+		toggles.push_back(wire_to_aig_.at(signals[i]));
+	}
+	for (int i = 0; i < nb_test_vectors(); ++i) {
+		auto no_toggle = aig_.simulate(test_vectors_[i]);
+		aig_.copyIncrementalState();
+		for (int j = 0; j < GetSize(signals); ++j) {
+			auto toggle = aig_.simulateIncremental(toggles[j]);
+
+			for (size_t k = 0; k < no_toggle.size(); ++k) {
+				std::uint64_t t = toggle[k] ^ no_toggle[k];
+				corr_new.at(j).at(k).push_back(t);
+			}
+		}
+	}
+	if (corr != corr_new) {
+		std::cout << "Size1: " << corr.size() << " vs " << corr_new.size() << std::endl;
+		std::cout << "Size2: " << corr[0].size() << " vs " << corr_new[0].size() << std::endl;
+		std::cout << "Size3: " << corr[0][0].size() << " vs " << corr_new[0][0].size() << std::endl;
+		throw std::runtime_error("New computation method does not match old computation method");
+	}
+
 	dict<Cell *, std::vector<std::vector<std::uint64_t>>> ret;
 	for (int i = 0; i < GetSize(signals); ++i) {
-		ret.emplace(cells[i], compute_output_corruption_data(signals[i]));
+		ret.emplace(cells[i], corr[i]);
 	}
 	return ret;
 }

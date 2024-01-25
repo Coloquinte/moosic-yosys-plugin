@@ -7,6 +7,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <queue>
 #include <stdexcept>
 #include <vector>
 
@@ -63,12 +64,6 @@ class MiniAIG
 	 */
 	void addOutput(Lit lit) { outputs_.push_back(lit); }
 
-	void resetState()
-	{
-		state_.clear();
-		state_.resize(nbInputs_ + nodes_.size() + 1, 0);
-	}
-
 	/**
 	 * Create a new And gate and return the corresponding literal
 	 */
@@ -119,25 +114,35 @@ class MiniAIG
 	 */
 	void setValue(Lit a, std::uint64_t val) { state_[a.data >> 1] = a.polarity() ? ~val : val; }
 
+	/**
+	 * Get the whole internal state
+	 */
 	std::vector<std::uint64_t> getState() const { return state_; }
 
-	void check() const
-	{
-		assert(state_.size() == nodes_.size() + nbInputs_ + 1);
-		for ([[maybe_unused]] AIGNode n : nodes_) {
-			assert(n.a.variable() < state_.size());
-			assert(n.b.variable() < state_.size());
-		}
-		std::vector<std::uint8_t> marked(nbInputs_ + state_.size() + 1);
-		for (int i = 0; i < nbInputs_ + 1; ++i) {
-			marked.at(i) = true;
-		}
-		for (std::size_t i = 0; i < nodes_.size(); ++i) {
-			assert(marked.at(nodes_[i].a.variable()));
-			assert(marked.at(nodes_[i].b.variable()));
-			marked[i + nbInputs_ + 1] = true;
-		}
-	}
+	/**
+	 * Check the datastructure
+	 */
+	void check() const;
+
+	/**
+	 * Setup the datastructures for incremental simulation
+	 */
+	void setupIncremental();
+
+	/**
+	 * Copy the state of the simulation before an incremental run
+	 */
+	void copyIncrementalState() { savedState_ = state_; }
+
+	/**
+	 * Reset the state for incremental simulation
+	 */
+	void resetIncrementalState();
+
+	/**
+	 * Update a node for incremental simulation
+	*/
+	void updateState(std::uint32_t i, std::uint64_t value);
 
 	/**
 	 * Query the values of the outputs in the current simulation
@@ -154,6 +159,11 @@ class MiniAIG
 	 */
 	std::vector<std::uint64_t> simulateWithToggling(const std::vector<std::uint64_t> &inputVals, const std::vector<Lit> &toggling);
 
+	/**
+	 * Simulate the network with a single toggling using the previous state
+	 */
+	std::vector<std::uint64_t> simulateIncremental(Lit toggling);
+
       private:
 	struct AIGNode {
 		Lit a;
@@ -162,8 +172,18 @@ class MiniAIG
 	};
 	std::vector<AIGNode> nodes_;
 	std::vector<Lit> outputs_;
-	int nbInputs_;
+	std::size_t nbInputs_;
 	std::vector<std::uint64_t> state_;
+	std::vector<std::uint64_t> savedState_;
+
+	/// List of nodes modified during this incremental simulation
+	std::vector<std::uint32_t> touchedVars_;
+	/// Whether a node is modified during this incremental simulation
+	std::vector<char> isTouched_;
+	/// Fanout of each node for incremental simulation
+	std::vector<std::vector<std::uint32_t>> fanouts_;
+	/// Nodes left to visit during incremental simulation
+	std::priority_queue<std::uint32_t, std::vector<std::uint32_t>, std::greater<std::uint32_t> > toVisit_;
 };
 
 #endif
