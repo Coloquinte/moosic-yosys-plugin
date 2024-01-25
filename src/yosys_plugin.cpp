@@ -112,7 +112,6 @@ std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors
 	LogicLockingAnalyzer pw(module);
 	pw.gen_test_vectors(nb_test_vectors / 64, 1);
 
-	std::vector<Cell *> lockable_cells = pw.get_lockable_cells();
 	std::vector<Cell *> locked_gates;
 	if (target == PAIRWISE_SECURITY) {
 		locked_gates = optimize_pairwise_security(pw, true, nb_locked);
