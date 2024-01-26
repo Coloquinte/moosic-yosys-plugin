@@ -33,7 +33,7 @@ function run_benchmark () {
 	echo "ll_explore -area -pairwise-security -iter-limit ${iter_limit} -time-limit ${time_limit} -output area_pairwise/${name}.csv" >> "${script_file}"
 	echo "ll_explore -delay -pairwise-security -iter-limit ${iter_limit} -time-limit ${time_limit} -output delay_pairwise/${name}.csv" >> "${script_file}"
 	cmd="timeout $((12*time_limit+600)) yosys -m moosic -s ${script_file} > ${log_file}"
-	eval "$cmd" && { echo "Finished ${name}"; } || { echo "Failure on ${name}: ${cmd}"; exit 1; }
+	eval "$cmd" && { echo "Finished ${name}"; } || { echo "Failure on ${name}: ${cmd}"; }
 }
 
 if [ "$1" = "-all" ]
