@@ -29,8 +29,8 @@ function run_benchmark () {
 	echo "ll_explore -delay -corruptibility -no-estimate -iter-limit ${iter_limit} -time-limit ${time_limit} -output delay_approx/${name}.csv" >> "${script_file}"
 	echo "ll_explore -delay -corruptibility -iter-limit ${iter_limit} -time-limit ${time_limit} -output delay/${name}.csv" >> "${script_file}"
 	echo "ll_explore -delay -corruption -iter-limit ${iter_limit} -time-limit ${time_limit} -output delay_corr/${name}.csv" >> "${script_file}"
-	cmd="yosys -m moosic -s ${script_file} > ${log_file}"
-	eval "$cmd" || { echo "Failure on ${name}: ${cmd}"; exit 1; }
+	cmd="timeout $((12*time_limit+600)) yosys -m moosic -s ${script_file} > ${log_file}"
+	eval "$cmd" && { echo "Finished ${name}"; } || { echo "Failure on ${name}: ${cmd}"; exit 1; }
 }
 
 if [ "$1" = "-all" ]
@@ -38,10 +38,14 @@ then
 	time_limit=600
 	iter_limit=1000000
 	echo "Executing full benchmark set"
+	batch=16
+	i=0
 	for benchmark in blif/*.blif
 	do
-		run_benchmark "${benchmark}"
+		((i=i%batch)); ((i++==0)) && wait
+		run_benchmark "${benchmark}" &
 	done
+	wait
 elif [ "$1" != "" ]
 then
 	echo "Invalid argument; only -all is accepted"
