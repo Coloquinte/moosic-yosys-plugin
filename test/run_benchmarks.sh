@@ -1,6 +1,6 @@
 #!/bin/bash
 
-dirs="logs scripts estimate full area delay area_approx delay_approx area_corr delay_corr"
+dirs="logs scripts estimate full area delay area_approx delay_approx area_corr delay_corr pairwise_secure"
 
 cd benchmarks
 
@@ -29,6 +29,8 @@ function run_benchmark () {
 	echo "ll_explore -delay -corruptibility -no-estimate -iter-limit ${iter_limit} -time-limit ${time_limit} -output delay_approx/${name}.csv" >> "${script_file}"
 	echo "ll_explore -delay -corruptibility -iter-limit ${iter_limit} -time-limit ${time_limit} -output delay/${name}.csv" >> "${script_file}"
 	echo "ll_explore -delay -corruption -iter-limit ${iter_limit} -time-limit ${time_limit} -output delay_corr/${name}.csv" >> "${script_file}"
+	# Pairwise secure
+	echo "ll_explore -area -pairwise-security -iter-limit ${iter_limit} -time-limit ${time_limit} -output pairwise_secure/${name}.csv" >> "${script_file}"
 	cmd="timeout $((12*time_limit+600)) yosys -m moosic -s ${script_file} > ${log_file}"
 	eval "$cmd" && { echo "Finished ${name}"; } || { echo "Failure on ${name}: ${cmd}"; exit 1; }
 }
