@@ -114,6 +114,8 @@ void plot_optimization(Optimizer &opt)
 	script << "    do for [j=2:nc-1] {\n";
 	script << "      set xlabel word(firstrow, i)\n";
 	script << "      set ylabel word(firstrow, j)\n";
+	script << "      set xrange [0:]\n";
+	script << "      set yrange [0:]\n";
 	script << "      plot datafile using i:j with points\n";
 	script << "    }\n";
 	script << "  }\n";
@@ -121,6 +123,8 @@ void plot_optimization(Optimizer &opt)
 	script << "else {\n";
 	script << "  set xlabel word(firstrow, 2)\n";
 	script << "  set ylabel word(firstrow, 3)\n";
+	script << "  set xrange [0:]\n";
+	script << "  set yrange [0:]\n";
 	script << "  plot datafile using 2:3 with points\n";
 	script << "}\n";
 	script.close();
