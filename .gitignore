@@ -4,6 +4,7 @@
 *.tar.xz
 .vscode
 abc.history
-downloads/
 benchmarks/
+downloads/
+figures/
 logs/
