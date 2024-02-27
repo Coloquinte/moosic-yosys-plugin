@@ -57,9 +57,23 @@ set ylabel 'Pairwise security'
 set yrange [0:*]
 
 do for [name in list] {
-	datafile='benchmarks/pairwise_secure/'.name.'.csv'
+	datafile='benchmarks/area_pairwise/'.name.'.csv'
 	if (file_exists(datafile)) {
-		set output 'figures/pairwise_'.name.'.png'
+		set output 'figures/area_pairwise_'.name.'.png'
+		plot datafile using 2:3 with linespoints
+	}
+}
+
+
+set xlabel 'Delay penalty (%)'
+set ylabel 'Pairwise security'
+
+set yrange [0:*]
+
+do for [name in list] {
+	datafile='benchmarks/delay_pairwise/'.name.'.csv'
+	if (file_exists(datafile)) {
+		set output 'figures/delay_pairwise_'.name.'.png'
 		plot datafile using 2:3 with linespoints
 	}
 }
