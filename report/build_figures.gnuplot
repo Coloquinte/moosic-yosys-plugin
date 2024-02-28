@@ -52,7 +52,7 @@ do for [name in list] {
 
 
 set xlabel 'Area penalty (%)'
-set ylabel 'Pairwise security'
+set ylabel 'Pairwise security (bits)'
 
 set yrange [0:*]
 
@@ -66,7 +66,7 @@ do for [name in list] {
 
 
 set xlabel 'Delay penalty (%)'
-set ylabel 'Pairwise security'
+set ylabel 'Pairwise security (bits)'
 
 set yrange [0:*]
 
