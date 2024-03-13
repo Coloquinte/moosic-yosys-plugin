@@ -357,6 +357,14 @@ struct LogicLockingPass : public Pass {
 		log("for security evaluation.\n");
 		log("\n");
 		log("\n");
+		log("For more control on the logic locking solutions, you may use the logic locking\n");
+		log("exploration commands instead:");
+		log("    ll_explore to explore potential optimal solutions\n");
+		log("    ll_show to see which gates are locked in a solution\n");
+		log("    ll_analyze to compute the security and performance metrics of a solution\n");
+		log("    ll_apply to apply a locking solution to the circuit\n");
+		log("\n");
+		log("\n");
 	}
 
 } LogicLockingPass;
