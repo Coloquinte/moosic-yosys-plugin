@@ -19,10 +19,13 @@ Yosys::RTLIL::Module *single_selected_module(Yosys::RTLIL::Design *design)
 		}
 	}
 	if (modules_to_run.size() >= 2) {
-		Yosys::log_error("Multiple modules are selected. Please run logic locking on a single module to avoid duplicate keys.\n");
+		Yosys::log_error("Multiple modules are selected.\n"
+				 "You may be trying to run Moosic on a hierarchical design,which is not supported.\n"
+				 "Please run 'flatten' on your design before running Moosic, or select a single module to modify.\n");
 		return nullptr;
 	}
 	if (modules_to_run.empty()) {
+		Yosys::log_warning("No module is selected. Nothing to do.\n");
 		return nullptr;
 	}
 

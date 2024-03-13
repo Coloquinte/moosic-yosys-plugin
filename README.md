@@ -42,8 +42,11 @@ The plugin defines a new `logic_locking` command. To run Yosys with the plugin:
 yosys -m moosic
 ```
 
-And in Yosys, with a synthetized design:
+And in Yosys:
 ```sh
+# First synthetize and flatten our design; hierarchical designs are not supported
+synth; flatten
+
 # Look at the command documentation
 help logic_locking
 
