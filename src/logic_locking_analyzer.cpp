@@ -880,3 +880,21 @@ PairwiseSecurityOptimizer LogicLockingAnalyzer::analyze_pairwise_security(const 
 
 	return PairwiseSecurityOptimizer(gr);
 }
+
+std::vector<double> LogicLockingAnalyzer::compute_FLL(const std::vector<Cell *> &cells)
+{
+	std::vector<double> ret;
+	for (const Cell *c : cells) {
+		ret.push_back(0.0);
+	}
+	return ret;
+}
+
+std::vector<double> LogicLockingAnalyzer::compute_KIP(const std::vector<Cell *> &cells)
+{
+	std::vector<double> ret;
+	for (const Cell *c : cells) {
+		ret.push_back(0.0);
+	}
+	return ret;
+}

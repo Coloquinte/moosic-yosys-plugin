@@ -21,7 +21,7 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-enum OptimizationTarget { PAIRWISE_SECURITY, PAIRWISE_SECURITY_NO_DEDUP, OUTPUT_CORRUPTION, HYBRID };
+enum OptimizationTarget { PAIRWISE_SECURITY, PAIRWISE_SECURITY_NO_DEDUP, OUTPUT_CORRUPTION, HYBRID, FAULT_ANALYSIS_FLL, FAULT_ANALYSIS_KIP };
 
 /**
  * @brief Run the optimization algorithm to maximize pairwise security
@@ -105,6 +105,58 @@ std::vector<Cell *> optimize_hybrid(LogicLockingAnalyzer &pw, int maxNumber)
 }
 
 /**
+ * @brief Select the best cells to lock based on a metric.
+ *
+ * Following the KIP paper, optionally ignore cells sharing the same metric to avoid runs of cells with the same effect.
+ */
+std::vector<Cell *> select_best_cells(const std::vector<Cell *> &cells, const std::vector<double> &metric, int maxNumber,
+				      bool removeDuplicates = false)
+{
+	assert(metric.size() == cells.size());
+	std::vector<std::pair<double, Cell *>> sorted;
+	for (size_t i = 0; i < cells.size(); i++) {
+		sorted.emplace_back(metric[i], cells[i]);
+	}
+	// Stable sort to remain consistent when some cells have the same metric
+	std::stable_sort(sorted.begin(), sorted.end(), [](std::pair<double, Cell *> a, std::pair<double, Cell *> b) { return a.first > b.first; });
+
+	// Keep the maxNumber cells with the best metric, removing cells with identical metric if removeDuplicates is set
+	std::vector<Cell *> ret;
+	for (size_t i = 0; i < sorted.size(); ++i) {
+		if ((int)ret.size() >= maxNumber) {
+			break;
+		}
+		if (removeDuplicates && i > 0 && sorted[i].first == sorted[i - 1].first) {
+			continue;
+		}
+		ret.push_back(sorted[i].second);
+	}
+	return ret;
+}
+
+/**
+ * @brief Run the optimization algorithm to maximize FLL fault impact, as defined by the paper
+ * Fault Analysis-based Logic Encryption.
+ */
+std::vector<Cell *> optimize_FLL(LogicLockingAnalyzer &pw, int maxNumber)
+{
+	std::vector<Cell *> cells = pw.get_lockable_cells();
+	std::vector<double> metric = pw.compute_FLL(cells);
+	return select_best_cells(cells, metric, maxNumber, false);
+}
+
+/**
+ * @brief Run the optimization algorithm to maximize KIP fault impact, as defined by the Phd thesis
+ * Hardware Trust: Design Solutions for Logic Locking by Quang-Linh NGUYEN
+ */
+std::vector<Cell *> optimize_KIP(LogicLockingAnalyzer &pw, int maxNumber)
+{
+	std::vector<Cell *> cells = pw.get_lockable_cells();
+	std::vector<double> metric = pw.compute_KIP(cells);
+	return select_best_cells(cells, metric, maxNumber, false);
+}
+
+/**
  * @brief Run the logic locking algorithm and return the cells to be locked
  */
 std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors, int nb_locked, OptimizationTarget target)
@@ -121,6 +173,12 @@ std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors
 		locked_gates = optimize_output_corruption(pw, nb_locked);
 	} else if (target == HYBRID) {
 		locked_gates = optimize_hybrid(pw, nb_locked);
+	} else if (target == FAULT_ANALYSIS_FLL) {
+		locked_gates = optimize_FLL(pw, nb_locked);
+	} else if (target == FAULT_ANALYSIS_KIP) {
+		locked_gates = optimize_KIP(pw, nb_locked);
+	} else {
+		log_error("Target objective for logic locking not implemented");
 	}
 	return locked_gates;
 }
@@ -193,6 +251,10 @@ struct LogicLockingPass : public Pass {
 					target = OUTPUT_CORRUPTION;
 				} else if (t == "hybrid") {
 					target = HYBRID;
+				} else if (t == "fault-analysis-fll") {
+					target = FAULT_ANALYSIS_FLL;
+				} else if (t == "fault-analysis-kip") {
+					target = FAULT_ANALYSIS_KIP;
 				} else {
 					log_error("Invalid target option %s", t.c_str());
 				}
@@ -351,6 +413,12 @@ struct LogicLockingPass : public Pass {
 		log("cannot be recovered just by controlling the inputs, independently of the other.\n");
 		log("Additionally, the MOOSIC plugin forces \"useful\" pairwise security, which \n");
 		log("prevents redundant locking in buffer chains or xor trees.\n");
+		log("  * Target \"hybrid\" attempts to strike a balance between corruption and pairwise.\n");
+		log("It will select as many pairwise secure signals as possible, then switch to a\n");
+		log("corruption-driven approach.\n");
+		log("  * Targets \"fault-analysis-fll\" and \"fault-analysis-kip\" uses the metric defined in\n");
+		log("\"Fault Analysis-Based Logic Encryption\" and \"Hardware Trust: Design Solutions for Logic Locking\"\n");
+		log("to select signals to lock.\n");
 		log("\n");
 		log("Only gate outputs (not primary inputs) are considered for locking at the moment.\n");
 		log("Sequential cells and hierarchical instances are treated as primary inputs and outputs \n");

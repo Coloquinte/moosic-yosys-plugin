@@ -196,6 +196,16 @@ class LogicLockingAnalyzer
 	 */
 	PairwiseSecurityOptimizer analyze_pairwise_security(const std::vector<Cell *> &cells, bool ignore_duplicates = true);
 
+	/**
+	 * @brief Compute the FLL metric from "Fault Analysis-Based Logic Encryption"
+	 */
+	std::vector<double> compute_FLL(const std::vector<Cell *> &cells);
+
+	/**
+	 * @brief Compute the KIP metric from "Hardware Trust: Design Solutions for Logic Locking"
+	 */
+	std::vector<double> compute_KIP(const std::vector<Cell *> &cells);
+
       private:
 	/**
 	 * @brief Create wire to consuming cells information
