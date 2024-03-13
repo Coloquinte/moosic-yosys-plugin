@@ -43,7 +43,7 @@ then
 	echo "Executing full benchmark set"
 	batch=16
 	i=0
-	for benchmark in blif/*.blif
+	for benchmark in blif/iscas85*.blif blif/iscas89*.blif blif/iscas99*.blif blif/epfl*.blif blif/mcnc*.blif blif/lgsynth91*.blif
 	do
 		((i=i%batch)); ((i++==0)) && wait
 		run_benchmark "${benchmark}" &
