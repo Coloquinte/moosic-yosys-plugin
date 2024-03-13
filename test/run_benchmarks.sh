@@ -64,4 +64,4 @@ else
 fi
 
 cd ..
-tar -c benchmarks/estimate benchmarks/area benchmarks/delay benchmarks/area_approx benchmarks/delay_approx benchmarks/full | xz -9 - > benchmark_results.tar.xz
+tar -c benchmarks/estimate benchmarks/area benchmarks/delay benchmarks/area_approx benchmarks/delay_approx benchmarks/area_corr benchmarks/delay_corr benchmarks/area_pairwise benchmarks/delay_pairwise| xz -9 - > benchmark_results.tar.xz
