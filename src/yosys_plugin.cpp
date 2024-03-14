@@ -251,9 +251,9 @@ struct LogicLockingPass : public Pass {
 					target = OUTPUT_CORRUPTION;
 				} else if (t == "hybrid") {
 					target = HYBRID;
-				} else if (t == "fault-analysis-fll") {
+				} else if (t == "fault-analysis-fll" || t == "fll") {
 					target = FAULT_ANALYSIS_FLL;
-				} else if (t == "fault-analysis-kip") {
+				} else if (t == "fault-analysis-kip" || t == "kip") {
 					target = FAULT_ANALYSIS_KIP;
 				} else {
 					log_error("Invalid target option %s", t.c_str());
@@ -380,8 +380,8 @@ struct LogicLockingPass : public Pass {
 		log("\n");
 		log("\n");
 		log("The following options control the optimization algorithms.\n");
-		log("    -target {pairwise|corruption|hybrid}\n");
-		log("        optimization target for locking (default=pairwise)\n");
+		log("    -target {pairwise|corruption|hybrid|fll|kip}\n");
+		log("        optimization target for locking (default=corruption)\n");
 		log("\n");
 		log("    -nb-test-vectors <value>\n");
 		log("        number of test vectors used for analysis during optimization (default=64)\n");
@@ -416,7 +416,7 @@ struct LogicLockingPass : public Pass {
 		log("  * Target \"hybrid\" attempts to strike a balance between corruption and pairwise.\n");
 		log("It will select as many pairwise secure signals as possible, then switch to a\n");
 		log("corruption-driven approach.\n");
-		log("  * Targets \"fault-analysis-fll\" and \"fault-analysis-kip\" uses the metric defined in\n");
+		log("  * Targets \"fault-analysis-fll\" and \"fault-analysis-kip\" uses the metrics defined in\n");
 		log("\"Fault Analysis-Based Logic Encryption\" and \"Hardware Trust: Design Solutions for Logic Locking\"\n");
 		log("to select signals to lock.\n");
 		log("\n");
