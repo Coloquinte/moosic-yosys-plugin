@@ -122,6 +122,11 @@ class LogicLockingAnalyzer
 	dict<Cell *, std::vector<std::uint64_t>> compute_internal_value_per_signal();
 
 	/**
+	 * @brief Returns the value of each output when not locking is applied (per test vector)
+	 */
+	std::vector<std::vector<std::uint64_t>> compute_output_value();
+
+	/**
 	 * @brief Returns whether the two bits are pairwise secure with the given test vectors
 	 *
 	 * @param a, b Two signal bits to check

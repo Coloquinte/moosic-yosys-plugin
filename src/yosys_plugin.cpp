@@ -153,7 +153,7 @@ std::vector<Cell *> optimize_KIP(LogicLockingAnalyzer &pw, int maxNumber)
 {
 	std::vector<Cell *> cells = pw.get_lockable_cells();
 	std::vector<double> metric = pw.compute_KIP(cells);
-	return select_best_cells(cells, metric, maxNumber, false);
+	return select_best_cells(cells, metric, maxNumber, true);
 }
 
 /**

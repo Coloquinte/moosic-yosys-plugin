@@ -731,6 +731,7 @@ dict<Cell *, std::vector<std::vector<std::uint64_t>>> LogicLockingAnalyzer::comp
 	std::vector<std::vector<std::vector<std::uint64_t>>> corr(signals.size(), std::vector<std::vector<std::uint64_t>>(nb_outputs()));
 	for (int i = 0; i < nb_test_vectors(); ++i) {
 		auto no_toggle = aig_.simulate(test_vectors_[i]);
+		assert((int)no_toggle.size() == nb_outputs());
 		aig_.copyIncrementalState();
 		for (int j = 0; j < GetSize(signals); ++j) {
 			auto toggle = aig_.simulateIncremental(toggles[j]);
@@ -745,6 +746,19 @@ dict<Cell *, std::vector<std::vector<std::uint64_t>>> LogicLockingAnalyzer::comp
 	dict<Cell *, std::vector<std::vector<std::uint64_t>>> ret;
 	for (int i = 0; i < GetSize(signals); ++i) {
 		ret.emplace(cells[i], corr[i]);
+	}
+	return ret;
+}
+
+std::vector<std::vector<std::uint64_t>> LogicLockingAnalyzer::compute_output_value()
+{
+	std::vector<std::vector<std::uint64_t>> ret(nb_outputs());
+	for (int i = 0; i < nb_test_vectors(); ++i) {
+		auto no_toggle = aig_.simulate(test_vectors_[i]);
+		assert((int)no_toggle.size() == nb_outputs());
+		for (int j = 0; j < nb_outputs(); ++j) {
+			ret[j].push_back(no_toggle[i]);
+		}
 	}
 	return ret;
 }
@@ -912,8 +926,8 @@ std::vector<double> LogicLockingAnalyzer::compute_FLL(const std::vector<Cell *> 
 		assert((int)signal_values.size() == nb_test_vectors());
 
 		// Corruption for each output for each test vector
-		auto signal_data = data[c];
-		assert((int)signal_data.size() == nb_outputs());
+		auto signal_corruption = data[c];
+		assert((int)signal_corruption.size() == nb_outputs());
 
 		// How many patterns result in corruption for each stuck-at fault
 		// In the paper, NoP0 and NoP1
@@ -932,9 +946,9 @@ std::vector<double> LogicLockingAnalyzer::compute_FLL(const std::vector<Cell *> 
 			std::uint64_t detected_1 = 0;
 			// Iterate on all test outputs
 			for (int j = 0; j < nb_outputs(); ++j) {
-				assert(signal_data[j].size() == signal_values.size());
-				std::uint64_t detects_0 = signal_data[j][i] & signal_values[i];
-				std::uint64_t detects_1 = signal_data[j][i] & ~signal_values[i];
+				assert(signal_corruption[j].size() == signal_values.size());
+				std::uint64_t detects_0 = signal_corruption[j][i] & signal_values[i];
+				std::uint64_t detects_1 = signal_corruption[j][i] & ~signal_values[i];
 				nb_corrupted_outputs_0 += std::bitset<64>(detects_0).count();
 				nb_corrupted_outputs_1 += std::bitset<64>(detects_1).count();
 				detected_0 |= detects_0;
@@ -953,11 +967,70 @@ std::vector<double> LogicLockingAnalyzer::compute_FLL(const std::vector<Cell *> 
 	return ret;
 }
 
+namespace
+{
+double compute_probability(const std::vector<std::uint64_t> &data)
+{
+	size_t count = 0;
+	for (std::uint64_t d : data) {
+		count += std::bitset<64>(d).count();
+	}
+	return (double)count / (double)(data.size() * 64);
+}
+} // namespace
+
 std::vector<double> LogicLockingAnalyzer::compute_KIP(const std::vector<Cell *> &cells)
 {
+	auto data = compute_output_corruption_data_per_signal();
+	auto values = compute_internal_value_per_signal();
+	auto output_values = compute_output_value();
+
+	// Compute the "probabilities" for each output
+	std::vector<double> output_probabilities;
+	for (const auto &v : output_values) {
+		output_probabilities.push_back(compute_probability(v));
+	}
+
 	std::vector<double> ret;
-	for (const Cell *c : cells) {
-		ret.push_back(0.0);
+	for (Cell *c : cells) {
+		// Value of the signal for each test vector
+		auto signal_values = values[c];
+		assert((int)signal_values.size() == nb_test_vectors());
+
+		// Corruption for each output for each test vector
+		auto signal_corruption = data[c];
+		assert((int)signal_corruption.size() == nb_outputs());
+
+		// Output values for each kind of stuck-at-fault
+		std::vector<std::vector<std::uint64_t>> signal_output_values_0(nb_outputs());
+		std::vector<std::vector<std::uint64_t>> signal_output_values_1(nb_outputs());
+		for (int i = 0; i < nb_outputs(); ++i) {
+			for (int j = 0; j < nb_test_vectors(); ++j) {
+				signal_output_values_0[i].push_back(output_values[i][j] ^ (signal_corruption[i][j] & signal_values[j]));
+				signal_output_values_1[i].push_back(output_values[i][j] ^ (signal_corruption[i][j] & ~signal_values[j]));
+			}
+		}
+
+		// The "probabilities" for each output for each kind of stuck-at fault
+		// In the paper, that is deltaP0 and deltaP1
+		double delta_prob_0 = 0.0;
+		double delta_prob_1 = 0.0;
+
+		// The number of outputs for which their probability changes
+		// In the paper, that is nsa0 and nsa1
+		long long num_changes_0 = 0;
+		long long num_changes_1 = 0;
+		for (int i = 0; i < nb_outputs(); ++i) {
+			double val0 = std::abs(compute_probability(signal_output_values_0[i]) - output_probabilities[i]);
+			double val1 = std::abs(compute_probability(signal_output_values_1[i]) - output_probabilities[i]);
+			delta_prob_0 += val0;
+			delta_prob_1 += val1;
+			num_changes_0 += val0 > 0.0;
+			num_changes_1 += val1 > 0.0;
+		}
+
+		double kip = delta_prob_0 * num_changes_0 + delta_prob_1 * num_changes_1;
+		ret.push_back(kip);
 	}
 	return ret;
 }
