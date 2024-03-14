@@ -749,6 +749,26 @@ dict<Cell *, std::vector<std::vector<std::uint64_t>>> LogicLockingAnalyzer::comp
 	return ret;
 }
 
+dict<Cell *, std::vector<std::uint64_t>> LogicLockingAnalyzer::compute_internal_value_per_signal()
+{
+	std::vector<SigBit> signals = get_lockable_signals();
+	std::vector<Cell *> cells = get_lockable_cells();
+
+	dict<Cell *, std::vector<std::uint64_t>> ret;
+	for (int i = 0; i < GetSize(signals); ++i) {
+		ret.emplace(cells[i], std::vector<std::uint64_t>());
+	}
+	for (int i = 0; i < nb_test_vectors(); ++i) {
+		auto no_toggle = aig_.simulate(test_vectors_[i]);
+		for (int s = 0; s < GetSize(signals); ++s) {
+			Lit l = wire_to_aig_.at(signals[s]);
+			std::uint64_t val = aig_.getValue(l);
+			ret[cells[s]].push_back(val);
+		}
+	}
+	return ret;
+}
+
 bool LogicLockingAnalyzer::is_pairwise_secure(SigBit a, SigBit b, bool ignore_duplicates)
 {
 	bool same_impact = true;
@@ -883,9 +903,59 @@ PairwiseSecurityOptimizer LogicLockingAnalyzer::analyze_pairwise_security(const 
 
 std::vector<double> LogicLockingAnalyzer::compute_FLL(const std::vector<Cell *> &cells)
 {
+	auto data = compute_output_corruption_data_per_signal();
+	auto values = compute_internal_value_per_signal();
 	std::vector<double> ret;
-	for (const Cell *c : cells) {
-		ret.push_back(0.0);
+	for (Cell *c : cells) {
+		// Value of the signal for each test vector
+		auto signal_values = values[c];
+		assert((int)signal_values.size() == nb_test_vectors());
+
+		// Corruption for each output for each test vector
+		auto signal_data = data[c];
+		assert((int)signal_data.size() == nb_outputs());
+
+		// How many patterns result in corruption for each stuck-at fault
+		// In the paper, NoP0 and NoP1
+		long long detecting_patterns_0 = 0;
+		long long detecting_patterns_1 = 0;
+
+		// Outputs affected by each stuck-at fault
+		// In the paper, allows computing NoO0 and NoO1
+		// The definition is ambiguous. I'm assuming an output is affected if it's corrupted by at least one test vector
+		// An alternate reading is to count the number of test vectors that corrupt the output
+		std::vector<std::uint64_t> affected_outputs_0(nb_outputs(), 0);
+		std::vector<std::uint64_t> affected_outputs_1(nb_outputs(), 0);
+		long long nb_affected_outputs_0 = 0;
+		long long nb_affected_outputs_1 = 0;
+
+		// Iterate on all test vectors
+		for (int i = 0; i < nb_test_vectors(); ++i) {
+			std::uint64_t detected_0 = 0;
+			std::uint64_t detected_1 = 0;
+			// Iterate on all test outputs
+			for (int j = 0; j < nb_outputs(); ++j) {
+				assert(signal_data[j].size() == signal_values.size());
+				std::uint64_t detects_0 = signal_data[j][i] & ~signal_values[i];
+				std::uint64_t detects_1 = signal_data[j][i] & signal_values[i];
+				affected_outputs_0[j] |= detects_0;
+				affected_outputs_1[j] |= detects_1;
+				detected_0 |= detects_0;
+				detected_1 |= detects_1;
+			}
+			detecting_patterns_0 += std::bitset<64>(detected_0).count();
+			detecting_patterns_1 += std::bitset<64>(detected_1).count();
+		}
+
+		for (auto d : affected_outputs_0) {
+			nb_affected_outputs_0 += std::bitset<64>(d).count();
+		}
+		for (auto d : affected_outputs_1) {
+			nb_affected_outputs_1 += std::bitset<64>(d).count();
+		}
+
+		double fll = (double)detecting_patterns_0 * nb_affected_outputs_0 + (double)detecting_patterns_1 * nb_affected_outputs_1;
+		ret.push_back(fll);
 	}
 	return ret;
 }

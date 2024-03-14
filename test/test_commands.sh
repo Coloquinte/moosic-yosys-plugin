@@ -17,6 +17,9 @@ $cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; 
 # Basic hybrid
 $cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; synth; logic_locking -target hybrid"
 
+# Basic FLL
+$cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; synth; logic_locking -target fault-analysis-fll"
+
 # Basic pairwise without deduplication
 $cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; synth; logic_locking -target pairwise-no-dedup"
 

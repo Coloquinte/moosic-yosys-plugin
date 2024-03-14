@@ -147,7 +147,7 @@ std::vector<Cell *> optimize_FLL(LogicLockingAnalyzer &pw, int maxNumber)
 
 /**
  * @brief Run the optimization algorithm to maximize KIP fault impact, as defined by the Phd thesis
- * Hardware Trust: Design Solutions for Logic Locking by Quang-Linh NGUYEN
+ * Hardware Trust: Design Solutions for Logic Locking by Quang-Linh Nguyen
  */
 std::vector<Cell *> optimize_KIP(LogicLockingAnalyzer &pw, int maxNumber)
 {
