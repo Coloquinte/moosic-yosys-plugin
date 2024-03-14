@@ -920,14 +920,11 @@ std::vector<double> LogicLockingAnalyzer::compute_FLL(const std::vector<Cell *> 
 		long long detecting_patterns_0 = 0;
 		long long detecting_patterns_1 = 0;
 
-		// Outputs affected by each stuck-at fault
-		// In the paper, allows computing NoO0 and NoO1
-		// The definition is ambiguous. I'm assuming an output is affected if it's corrupted by at least one test vector
-		// An alternate reading is to count the number of test vectors that corrupt the output
-		std::vector<std::uint64_t> affected_outputs_0(nb_outputs(), 0);
-		std::vector<std::uint64_t> affected_outputs_1(nb_outputs(), 0);
-		long long nb_affected_outputs_0 = 0;
-		long long nb_affected_outputs_1 = 0;
+		// Number of outputs and test vectors combinations affected by each stuck-at fault
+		// In the paper, NoO0 and NoO1.
+		// The definition is ambiguous. This implementation is consistent with the numbers given in the paper.
+		long long nb_corrupted_outputs_0 = 0;
+		long long nb_corrupted_outputs_1 = 0;
 
 		// Iterate on all test vectors
 		for (int i = 0; i < nb_test_vectors(); ++i) {
@@ -936,10 +933,10 @@ std::vector<double> LogicLockingAnalyzer::compute_FLL(const std::vector<Cell *> 
 			// Iterate on all test outputs
 			for (int j = 0; j < nb_outputs(); ++j) {
 				assert(signal_data[j].size() == signal_values.size());
-				std::uint64_t detects_0 = signal_data[j][i] & ~signal_values[i];
-				std::uint64_t detects_1 = signal_data[j][i] & signal_values[i];
-				affected_outputs_0[j] |= detects_0;
-				affected_outputs_1[j] |= detects_1;
+				std::uint64_t detects_0 = signal_data[j][i] & signal_values[i];
+				std::uint64_t detects_1 = signal_data[j][i] & ~signal_values[i];
+				nb_corrupted_outputs_0 += std::bitset<64>(detects_0).count();
+				nb_corrupted_outputs_1 += std::bitset<64>(detects_1).count();
 				detected_0 |= detects_0;
 				detected_1 |= detects_1;
 			}
@@ -947,15 +944,11 @@ std::vector<double> LogicLockingAnalyzer::compute_FLL(const std::vector<Cell *> 
 			detecting_patterns_1 += std::bitset<64>(detected_1).count();
 		}
 
-		for (auto d : affected_outputs_0) {
-			nb_affected_outputs_0 += std::bitset<64>(d).count();
-		}
-		for (auto d : affected_outputs_1) {
-			nb_affected_outputs_1 += std::bitset<64>(d).count();
-		}
-
-		double fll = (double)detecting_patterns_0 * nb_affected_outputs_0 + (double)detecting_patterns_1 * nb_affected_outputs_1;
+		double fll = (double)detecting_patterns_0 * nb_corrupted_outputs_0 + (double)detecting_patterns_1 * nb_corrupted_outputs_1;
 		ret.push_back(fll);
+
+		// log("Cell %s: NoP0: %lld, NoO0: %lld, NoP1: %lld, NoO1: %lld, FLL: %f\n", log_id(c->name), detecting_patterns_0,
+		//     nb_corrupted_outputs_0, detecting_patterns_1, nb_corrupted_outputs_1, fll);
 	}
 	return ret;
 }
