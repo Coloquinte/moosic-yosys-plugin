@@ -75,6 +75,6 @@ struct LogicLockingShowPass : public Pass {
 		log("\n");
 		log("\n");
 	}
-} LogicLockingExplorePass;
+} LogicLockingShowPass;
 
 PRIVATE_NAMESPACE_END

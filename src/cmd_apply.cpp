@@ -97,6 +97,6 @@ struct LogicLockingApplyPass : public Pass {
 		log("\n");
 		log("\n");
 	}
-} LogicLockingExplorePass;
+} LogicLockingApplyPass;
 
 PRIVATE_NAMESPACE_END

@@ -434,7 +434,6 @@ struct LogicLockingPass : public Pass {
 		log("\n");
 		log("\n");
 	}
-
 } LogicLockingPass;
 
 PRIVATE_NAMESPACE_END
