@@ -16,6 +16,7 @@ OBJECTS = \
 	  cmd_show.o \
 	  command_utils.o \
 	  report_locking.o \
+	  cmd_sat_attack.o \
 
 LIBNAME = moosic.so
 
