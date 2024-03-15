@@ -1,5 +1,5 @@
 
-OBJECTS = yosys_plugin.o \
+OBJECTS = \
 	  pairwise_security_optimizer.o \
 	  output_corruption_optimizer.o \
 	  delay_analyzer.o \
@@ -9,6 +9,7 @@ OBJECTS = yosys_plugin.o \
 	  gate_insertion.o \
 	  optimization_objectives.o \
 	  optimization.o \
+	  cmd_logic_locking.o \
 	  cmd_analyze.o \
 	  cmd_apply.o \
 	  cmd_explore.o \
