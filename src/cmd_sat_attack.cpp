@@ -5,6 +5,7 @@
 #include "kernel/yosys.h"
 
 #include "command_utils.hpp"
+#include "logic_locking_analyzer.hpp"
 
 #include <limits>
 #include <random>
@@ -15,28 +16,31 @@ PRIVATE_NAMESPACE_BEGIN
 class SatAttack
 {
       public:
-	SatAttack(RTLIL::Module *mod, const std::string &portName, const std::vector<bool> &expectedKey, int nbInitialVectors)
-	    : mod_(mod), keyPortName_(portName), expectedKey_(expectedKey), keyFound_(false)
-	{
-		for (int i = 0; i < nbInitialVectors; i++) {
-			genTestVector();
-		}
-	}
+	SatAttack(RTLIL::Module *mod, const std::string &portName, const std::vector<bool> &expectedKey, int nbInitialVectors);
 
 	/**
 	 * @brief Run the attack with a corruption target
 	 *
 	 * Zero maximum corruption means a perfect break; a non-zero corruption will allow
 	 */
-	void run(double maxCorruption = 0.0) {}
+	void run(double maxCorruption, double timeLimit);
 
-	int nbInputs() const { return 0; /* TODO */ }
-	int nbOutputs() const { return 0; /* TODO */ }
-	int nbKeyBits() const { return expectedKey_.size(); }
+	/**
+	 * @brief Run the brute-force attack with the initial test vectors. Used as a test for small key sizes
+	 */
+	void runBruteForce();
+
+	/// @brief Number of non-key module inputs
+	int nbInputs() const { return nbInputs_; }
+	/// @brief Number of module outputs
+	int nbOutputs() const { return nbOutputs_; }
+	/// @brief Number of key bits
+	int nbKeyBits() const { return nbKeyBits_; }
+	/// @brief Current number of test vectors
 	int nbTestVectors() const { return testInputs_.size(); }
 
 	bool keyFound() const { return keyFound_; }
-	double keyCorruption() { return computeCorruption(bestKey_); }
+	const std::vector<bool> &bestKey() const { return bestKey_; }
 
       private:
 	/**
@@ -47,7 +51,7 @@ class SatAttack
 	/**
 	 * @brief Run the oracle with a particular set of inputs
 	 */
-	std::vector<bool> runOracle(const std::vector<bool> &inputs);
+	std::vector<bool> callOracle(const std::vector<bool> &inputs);
 
 	/**
 	 * @brief Run the locked design with a particular set of inputs and key
@@ -55,9 +59,19 @@ class SatAttack
 	std::vector<bool> runDesign(const std::vector<bool> &inputs, const std::vector<bool> &key);
 
 	/**
+	 * @brief Concatenate and reorder input and key to obtain Aig inputs
+	 */
+	std::vector<bool> toAigInputs(const std::vector<bool> &inputs, const std::vector<bool> &key);
+
+	/**
 	 * @brief Find a new key that works for all current test vectors
 	 */
 	std::vector<bool> findNewValidKey();
+
+	/**
+	 * @brief Obtain the key port
+	 */
+	RTLIL::Wire *getKeyPort();
 
 	/**
 	 * @brief Find a new set of inputs and a new key that is valid for all test vectors and yields a different output than the best one
@@ -65,16 +79,26 @@ class SatAttack
 	bool findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vector<bool> &key);
 
 	/**
-	 * @brief Compute corruption on the current test vectors with a given key
+	 * @brief Recursive helper for the brute-force attack
 	 */
-	double computeCorruption(const std::vector<bool> &key);
+	bool runBruteForce(std::vector<bool> &key);
 
+      private:
 	/// @brief Locked module
 	RTLIL::Module *mod_;
 	/// @brief Name of the port for the locking key
 	std::string keyPortName_;
+	/// @brief Number of non-key inputs
+	int nbInputs_;
+	/// @brief Number of outputs
+	int nbOutputs_;
+	/// @brief Number of key bits
+	int nbKeyBits_;
 	/// @brief Correct key to unlock the design
 	std::vector<bool> expectedKey_;
+
+	/// @brief Inded of each AIG input in the concatenated input + key vector
+	// std::vector<int> aigIndex
 
 	/// Current test inputs
 	std::vector<std::vector<bool>> testInputs_;
@@ -85,9 +109,38 @@ class SatAttack
 	/// Did we find a valid key?
 	bool keyFound_;
 
+	/// Reuse the analyzer for simulation, although it's not really logic locking we're analyzing
+	LogicLockingAnalyzer analyzer_;
+
 	/// Random number generator
 	std::mt19937 rgen_;
 };
+
+SatAttack::SatAttack(RTLIL::Module *mod, const std::string &portName, const std::vector<bool> &expectedKey, int nbInitialVectors)
+    : mod_(mod), keyPortName_(portName), expectedKey_(expectedKey), keyFound_(false), analyzer_(mod)
+{
+	nbOutputs_ = analyzer_.nb_outputs();
+	nbKeyBits_ = getKeyPort()->width;
+	nbInputs_ = analyzer_.nb_inputs() - nbKeyBits_;
+	log("Initialized Sat attack for a module with %d inputs, %d outputs and %d key bits\n", nbInputs(), nbOutputs(), nbKeyBits());
+
+	// Size sanity checks
+	if (GetSize(expectedKey_) < nbKeyBits_) {
+		log_cmd_error("Given key has %d bits, but the module has %d key bits\n", GetSize(expectedKey_), nbKeyBits_);
+	}
+	if (GetSize(expectedKey_) >= nbKeyBits_ + 4) {
+		log_warning("Given key has %d bits, but the module has only %d key bits\n", GetSize(expectedKey_), nbKeyBits_);
+	}
+
+	// Truncate the key to the useful bits
+	expectedKey_.resize(nbKeyBits_, false);
+
+	// Generate initial test vectors
+	log("Generating %d initial test vectors\n", nbInitialVectors);
+	for (int i = 0; i < nbInitialVectors; i++) {
+		genTestVector();
+	}
+}
 
 void SatAttack::genTestVector()
 {
@@ -96,18 +149,81 @@ void SatAttack::genTestVector()
 	for (int i = 0; i < nbInputs(); i++) {
 		inputs.push_back(dist(rgen_));
 	}
-	std::vector<bool> outputs = runOracle(inputs);
+	std::vector<bool> outputs = callOracle(inputs);
 	testInputs_.push_back(inputs);
 	testOutputs_.push_back(outputs);
 }
 
-std::vector<bool> SatAttack::runOracle(const std::vector<bool> &inputs) { return runDesign(inputs, expectedKey_); }
+void SatAttack::run(double maxCorruption, double timeLimit) { runBruteForce(); }
+
+void SatAttack::runBruteForce()
+{
+	std::vector<bool> key;
+	bool found = runBruteForce(key);
+	if (found) {
+		assert(GetSize(key) == nbKeyBits_);
+		bestKey_ = key;
+		keyFound_ = true;
+	}
+}
+
+bool SatAttack::runBruteForce(std::vector<bool> &key)
+{
+	if (GetSize(key) == nbKeyBits()) {
+		// Leaf case: check whether the key works
+		for (int i = 0; i < nbTestVectors(); i++) {
+			std::vector<bool> outputs = runDesign(testInputs_[i], key);
+			if (outputs != testOutputs_[i]) {
+				return false;
+			}
+		}
+		return true;
+	} else {
+		key.push_back(false);
+		if (runBruteForce(key)) {
+			return true;
+		}
+		key.pop_back();
+		key.push_back(true);
+		if (runBruteForce(key)) {
+			return true;
+		}
+		key.pop_back();
+		return false;
+	}
+}
+
+std::vector<bool> SatAttack::callOracle(const std::vector<bool> &inputs) { return runDesign(inputs, expectedKey_); }
 
 std::vector<bool> SatAttack::runDesign(const std::vector<bool> &inputs, const std::vector<bool> &key)
 {
-	// TODO: build inputs with the correct key
-	std::vector<bool> outputs;
+	std::vector<bool> aigInputs = toAigInputs(inputs, key);
+	std::vector<bool> outputs = analyzer_.compute_output_value(aigInputs);
 	return outputs;
+}
+
+std::vector<bool> SatAttack::toAigInputs(const std::vector<bool> &inputs, const std::vector<bool> &key)
+{
+	std::vector<bool> aigInputs;
+	int inputInd = 0;
+	for (SigBit v : analyzer_.get_comb_inputs()) {
+		if (v.wire == getKeyPort()) {
+			aigInputs.push_back(key.at(v.offset));
+		} else {
+			aigInputs.push_back(inputs.at(inputInd++));
+		}
+	}
+	return aigInputs;
+}
+
+RTLIL::Wire *SatAttack::getKeyPort()
+{
+	IdString name = RTLIL::escape_id(keyPortName_);
+	RTLIL::Wire *keyPort = mod_->wire(name);
+	if (keyPort == nullptr) {
+		log_cmd_error("Could not find port %s in module %s\n", keyPortName_.c_str(), log_id(mod_->name));
+	}
+	return keyPort;
 }
 
 struct LogicLockingSatAttackPass : public Pass {
@@ -165,7 +281,12 @@ struct LogicLockingSatAttackPass : public Pass {
 		std::vector<bool> key_values = parse_hex_string_to_bool(key);
 
 		SatAttack attack(mod, portName, key_values, nbInitialVectors);
-		attack.run();
+		attack.run(maxCorruption, timeLimit);
+		if (attack.keyFound()) {
+			log("Found a valid key, %s\n", create_hex_string(attack.bestKey()).c_str());
+		} else {
+			log("No valid key found\n");
+		}
 	}
 
 	void help() override
