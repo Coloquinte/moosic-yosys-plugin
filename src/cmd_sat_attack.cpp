@@ -64,24 +64,19 @@ class SatAttack
 	std::vector<bool> toAigInputs(const std::vector<bool> &inputs, const std::vector<bool> &key);
 
 	/**
-	 * @brief Find a new key that works for all current test vectors
-	 */
-	std::vector<bool> findNewValidKey();
-
-	/**
 	 * @brief Obtain the key port
 	 */
 	RTLIL::Wire *getKeyPort();
 
 	/**
+	 * @brief Find a new key that works for all current test vectors
+	 */
+	bool findNewValidKey(std::vector<bool> &key);
+
+	/**
 	 * @brief Find a new set of inputs and a new key that is valid for all test vectors and yields a different output than the best one
 	 */
 	bool findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vector<bool> &key);
-
-	/**
-	 * @brief Recursive helper for the brute-force attack
-	 */
-	bool runBruteForce(std::vector<bool> &key);
 
       private:
 	/// @brief Locked module
@@ -158,39 +153,34 @@ void SatAttack::run(double maxCorruption, double timeLimit) { runBruteForce(); }
 
 void SatAttack::runBruteForce()
 {
-	std::vector<bool> key;
-	bool found = runBruteForce(key);
-	if (found) {
-		assert(GetSize(key) == nbKeyBits_);
-		bestKey_ = key;
-		keyFound_ = true;
+	if (nbKeyBits() >= 32) {
+		log_cmd_error("Cannot run brute force attack on %d key bits\n", nbKeyBits());
 	}
-}
-
-bool SatAttack::runBruteForce(std::vector<bool> &key)
-{
-	if (GetSize(key) == nbKeyBits()) {
-		// Leaf case: check whether the key works
+	std::vector<bool> key(nbKeyBits());
+	for (int i = 0; i < (1 << nbKeyBits()); i++) {
+		for (int j = 0; j < nbKeyBits(); j++) {
+			key[j] = (i >> j) & 1;
+		}
+		bool ok = true;
 		for (int i = 0; i < nbTestVectors(); i++) {
 			std::vector<bool> outputs = runDesign(testInputs_[i], key);
 			if (outputs != testOutputs_[i]) {
-				return false;
+				ok = false;
+				break;
 			}
 		}
-		return true;
-	} else {
-		key.push_back(false);
-		if (runBruteForce(key)) {
-			return true;
+		if (ok) {
+			bestKey_ = key;
+			keyFound_ = true;
 		}
-		key.pop_back();
-		key.push_back(true);
-		if (runBruteForce(key)) {
-			return true;
-		}
-		key.pop_back();
-		return false;
 	}
+}
+
+bool SatAttack::findNewValidKey(std::vector<bool> &key)
+{
+	// Find a new key that works for all current test vectors
+	// TODO: implement a translation to Sat
+	return false;
 }
 
 std::vector<bool> SatAttack::callOracle(const std::vector<bool> &inputs) { return runDesign(inputs, expectedKey_); }
