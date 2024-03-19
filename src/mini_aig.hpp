@@ -50,6 +50,11 @@ class MiniAIG
 	int nbInputs() const { return nbInputs_; }
 
 	/**
+	 * Query the number of outputs
+	 */
+	int nbOutputs() const { return outputs_.size(); }
+
+	/**
 	 * Query the number of nodes
 	 */
 	int nbNodes() const { return nodes_.size(); }
@@ -63,6 +68,21 @@ class MiniAIG
 	 * Mark a literal as an output
 	 */
 	void addOutput(Lit lit) { outputs_.push_back(lit); }
+
+	/**
+	 * First input of a node
+	 */
+	Lit nodeA(int i) const { return nodes_[i].a; }
+
+	/**
+	 * Second input of a node
+	 */
+	Lit nodeB(int i) const { return nodes_[i].b; }
+
+	/**
+	 * Output literal
+	 */
+	Lit output(int i) const { return outputs_[i]; }
 
 	/**
 	 * Create a new And gate and return the corresponding literal
@@ -141,7 +161,7 @@ class MiniAIG
 
 	/**
 	 * Update a node for incremental simulation
-	*/
+	 */
 	void updateState(std::uint32_t i, std::uint64_t value);
 
 	/**
@@ -183,7 +203,7 @@ class MiniAIG
 	/// Fanout of each node for incremental simulation
 	std::vector<std::vector<std::uint32_t>> fanouts_;
 	/// Nodes left to visit during incremental simulation
-	std::priority_queue<std::uint32_t, std::vector<std::uint32_t>, std::greater<std::uint32_t> > toVisit_;
+	std::priority_queue<std::uint32_t, std::vector<std::uint32_t>, std::greater<std::uint32_t>> toVisit_;
 };
 
 #endif

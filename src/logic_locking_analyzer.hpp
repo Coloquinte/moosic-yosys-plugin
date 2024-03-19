@@ -221,6 +221,11 @@ class LogicLockingAnalyzer
 	 */
 	std::vector<double> compute_KIP(const std::vector<Cell *> &cells);
 
+	/**
+	 * @brief Direct access to the internal Aig
+	 */
+	const MiniAIG &aig() const { return aig_; }
+
       private:
 	/**
 	 * @brief Create wire to consuming cells information

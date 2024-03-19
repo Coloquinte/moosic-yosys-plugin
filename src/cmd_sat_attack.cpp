@@ -3,6 +3,7 @@
  */
 
 #include "kernel/yosys.h"
+#include "libs/ezsat/ezminisat.h"
 
 #include "command_utils.hpp"
 #include "logic_locking_analyzer.hpp"
@@ -38,6 +39,8 @@ class SatAttack
 	int nbKeyBits() const { return nbKeyBits_; }
 	/// @brief Current number of test vectors
 	int nbTestVectors() const { return testInputs_.size(); }
+	/// @brief Access to the analyzer's Aig
+	const MiniAIG &aig() const { return analyzer_.aig(); }
 
 	bool keyFound() const { return keyFound_; }
 	const std::vector<bool> &bestKey() const { return bestKey_; }
@@ -149,7 +152,19 @@ void SatAttack::genTestVector()
 	testOutputs_.push_back(outputs);
 }
 
-void SatAttack::run(double maxCorruption, double timeLimit) { runBruteForce(); }
+void SatAttack::run(double maxCorruption, double timeLimit)
+{
+	// runBruteForce();
+
+	std::vector<bool> key;
+	bool found = findNewValidKey(key);
+
+	if (found) {
+		log("Found a valid key, %s\n", create_hex_string(key).c_str());
+	} else {
+		log("No valid key found\n");
+	}
+}
 
 void SatAttack::runBruteForce()
 {
@@ -178,9 +193,56 @@ void SatAttack::runBruteForce()
 
 bool SatAttack::findNewValidKey(std::vector<bool> &key)
 {
-	// Find a new key that works for all current test vectors
-	// TODO: implement a translation to Sat
-	return false;
+	ezMiniSAT sat;
+
+	std::vector<int> keyLits;
+	for (int i = 0; i < nbKeyBits(); ++i) {
+		keyLits.push_back(sat.literal());
+	}
+
+	for (int i = 0; i < nbTestVectors(); ++i) {
+		// Create the input/key literals for this test vector
+		std::vector<int> aigLits;
+		aigLits.push_back(ezSAT::CONST_FALSE);
+		int inputInd = 0;
+		for (SigBit v : analyzer_.get_comb_inputs()) {
+			if (v.wire == getKeyPort()) {
+				aigLits.push_back(keyLits.at(v.offset));
+			} else {
+				aigLits.push_back(testInputs_[i].at(inputInd++) ? ezSAT::CONST_TRUE : ezSAT::CONST_FALSE);
+			}
+		}
+
+		// Create the clauses for each Aig gate
+		for (int j = 0; j < aig().nbNodes(); ++j) {
+			Lit nA = aig().nodeA(j);
+			Lit nB = aig().nodeB(j);
+			int aLit = nA.polarity() ? sat.NOT(aigLits.at(nA.variable())) : aigLits.at(nA.variable());
+			int bLit = nB.polarity() ? sat.NOT(aigLits.at(nB.variable())) : aigLits.at(nB.variable());
+			aigLits.push_back(sat.AND(aLit, bLit));
+		}
+
+		// Force the value at the outputs
+		for (int j = 0; j < aig().nbOutputs(); ++j) {
+			Lit out = aig().output(j);
+			int outLit = out.polarity() ? sat.NOT(aigLits.at(out.variable())) : aigLits.at(out.variable());
+			int expectedLit = testOutputs_[i].at(j) ? ezSAT::CONST_TRUE : ezSAT::CONST_FALSE;
+			sat.assume(sat.IFF(outLit, expectedLit));
+		}
+	}
+
+	// Solve the model
+	std::vector<int> assume;
+	bool success = sat.solve(keyLits, key, assume);
+
+	if (!success) {
+		log("No valid key found with current test vectors\n");
+		key.clear();
+		return false;
+	}
+
+	assert(GetSize(key) == nbKeyBits());
+	return true;
 }
 
 std::vector<bool> SatAttack::callOracle(const std::vector<bool> &inputs) { return runDesign(inputs, expectedKey_); }
@@ -222,7 +284,7 @@ struct LogicLockingSatAttackPass : public Pass {
 	{
 		log_header(design, "Executing LOGIC_LOCKING_SAT_ATTACK pass.\n");
 
-		int nbInitialVectors = 1024;
+		int nbInitialVectors = 64;
 		double maxCorruption = 0.0;
 		double timeLimit = std::numeric_limits<double>::infinity();
 		std::string portName = "moosic_key";
@@ -303,7 +365,7 @@ struct LogicLockingSatAttackPass : public Pass {
 		log("    -max-corruption <value>\n");
 		log("        maximum corruption allowed for probabilistic attacks (default=0.0)\n");
 		log("    -nb-initial-vectors <value>\n");
-		log("        number of initial random input patterns to match (default=1024)\n");
+		log("        number of initial random input patterns to match (default=64)\n");
 		log("\n");
 		log("\n");
 		log("\n");
