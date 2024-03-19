@@ -763,6 +763,20 @@ std::vector<std::vector<std::uint64_t>> LogicLockingAnalyzer::compute_output_val
 	return ret;
 }
 
+std::vector<bool> LogicLockingAnalyzer::compute_output_value(const std::vector<bool> &inputs)
+{
+	std::vector<std::uint64_t> i64_in;
+	for (bool b : inputs) {
+		i64_in.push_back(b ? 1 : 0);
+	}
+	auto res = aig_.simulate(i64_in);
+	std::vector<bool> ret(nb_outputs());
+	for (int j = 0; j < nb_outputs(); ++j) {
+		ret[j] = res[j] != 0;
+	}
+	return ret;
+}
+
 dict<Cell *, std::vector<std::uint64_t>> LogicLockingAnalyzer::compute_internal_value_per_signal()
 {
 	std::vector<SigBit> signals = get_lockable_signals();

@@ -92,7 +92,6 @@ Wire *add_key_input(Module *module, int width, const std::string &port_name)
  */
 void lock_gates(Module *module, const std::vector<Cell *> &cells, SigSpec key, const std::vector<bool> &key_values)
 {
-
 	if (GetSize(cells) != GetSize(key_values)) {
 		log_cmd_error("Number of cells to lock %d does not match the number of key values %d\n", GetSize(cells), GetSize(key_values));
 	}
