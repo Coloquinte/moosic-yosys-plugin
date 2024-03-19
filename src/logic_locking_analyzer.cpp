@@ -148,7 +148,7 @@ void LogicLockingAnalyzer::init_wire_to_wires()
 		SigSpec a = it.first;
 		SigSpec b = it.second;
 		if (GetSize(a) != GetSize(b)) {
-			log_error("A connection doesn't have same-size signals on both sides");
+			log_cmd_error("A connection doesn't have same-size signals on both sides");
 			continue;
 		}
 		for (int i = 0; i < GetSize(a); ++i) {
@@ -361,7 +361,7 @@ void LogicLockingAnalyzer::cell_to_aig(Cell *cell)
 			else if (cell->type.in(ID($_ORNOT_)))
 				res = aig_.addOr(sig_a, sig_b.inv());
 			else
-				log_error("Cell type not handled");
+				log_cmd_error("Cell type %s not handled", log_id(cell->type));
 
 			wire_to_aig_[cell->getPort(ID::Y)] = res;
 			dirty_bits_.insert(cell->getPort(ID::Y));
@@ -400,7 +400,7 @@ void LogicLockingAnalyzer::cell_to_aig(Cell *cell)
 			dirty_bits_.insert(cell->getPort(ID::Y));
 		}
 	} else {
-		log_error("Cell %s has type %s which is not supported. Did you run synthesis before?\n", log_id(cell->name), log_id(cell->type));
+		log_cmd_error("Cell %s has type %s which is not supported. Did you run synthesis before?\n", log_id(cell->name), log_id(cell->type));
 	}
 	if (wire_to_aig_.count(cell->getPort(ID::Y))) {
 		log_debug("Converting cell %s of type %s, wire %s\n", log_id(cell->name), log_id(cell->type),
@@ -656,7 +656,7 @@ void LogicLockingAnalyzer::simulate_cell(RTLIL::Cell *cell)
 			return;
 		}
 
-		log_error("Cell %s of type %s cannot be evaluated", log_id(cell->name), log_id(cell->type));
+		log_cmd_error("Cell %s of type %s cannot be evaluated", log_id(cell->name), log_id(cell->type));
 	}
 }
 

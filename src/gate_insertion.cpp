@@ -79,7 +79,7 @@ Wire *add_key_input(Module *module, int width, const std::string &port_name)
 {
 	IdString name = escape_id(port_name);
 	if (module->wire(name)) {
-		log_error("Wire %s is already present in the module. Did you run logic locking twice\n", log_id(name));
+		log_cmd_error("Wire %s is already present in the module. Did you run logic locking twice\n", log_id(name));
 	}
 	Wire *wire = module->addWire(name, width);
 	wire->port_input = true;
@@ -94,10 +94,10 @@ void lock_gates(Module *module, const std::vector<Cell *> &cells, SigSpec key, c
 {
 
 	if (GetSize(cells) != GetSize(key_values)) {
-		log_error("Number of cells to lock %d does not match the number of key values %d\n", GetSize(cells), GetSize(key_values));
+		log_cmd_error("Number of cells to lock %d does not match the number of key values %d\n", GetSize(cells), GetSize(key_values));
 	}
 	if (GetSize(cells) != GetSize(key)) {
-		log_error("Number of cells to lock %d does not match the key length %d\n", GetSize(cells), GetSize(key));
+		log_cmd_error("Number of cells to lock %d does not match the key length %d\n", GetSize(cells), GetSize(key));
 	}
 	for (int i = 0; i < GetSize(cells); ++i) {
 		bool key_value = key_values[i];
@@ -118,7 +118,7 @@ void lock_gates(Module *module, const std::vector<IdString> &names, SigSpec key,
 		if (cell) {
 			cells.push_back(cell);
 		} else {
-			log_error("Cell %s not found in module\n", name.c_str());
+			log_cmd_error("Cell %s not found in module\n", name.c_str());
 		}
 	}
 	lock_gates(module, cells, key, key_values);
@@ -130,10 +130,10 @@ void lock_gates(Module *module, const std::vector<IdString> &names, SigSpec key,
 void mix_gates(Module *module, const std::vector<std::pair<Cell *, Cell *>> &cells, SigSpec key, const std::vector<bool> &key_values)
 {
 	if (GetSize(cells) != GetSize(key_values)) {
-		log_error("Number of cells to lock %d does not match the number of key values %d\n", GetSize(cells), GetSize(key_values));
+		log_cmd_error("Number of cells to lock %d does not match the number of key values %d\n", GetSize(cells), GetSize(key_values));
 	}
 	if (GetSize(cells) != GetSize(key)) {
-		log_error("Number of cells to lock %d does not match the key length %d\n", GetSize(cells), GetSize(key));
+		log_cmd_error("Number of cells to lock %d does not match the key length %d\n", GetSize(cells), GetSize(key));
 	}
 	for (int i = 0; i < GetSize(cells); ++i) {
 		bool key_value = key_values[i];
@@ -157,9 +157,9 @@ void mix_gates(Module *module, const std::vector<std::pair<IdString, IdString>> 
 		if (c1 && c2) {
 			cells.emplace_back(c1, c2);
 		} else if (!c1) {
-			log_error("Cell %s not found in module\n", names[i].first.c_str());
+			log_cmd_error("Cell %s not found in module\n", names[i].first.c_str());
 		} else {
-			log_error("Cell %s not found in module\n", names[i].second.c_str());
+			log_cmd_error("Cell %s not found in module\n", names[i].second.c_str());
 		}
 	}
 	mix_gates(module, cells, key, key_values);

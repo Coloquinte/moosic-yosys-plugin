@@ -178,7 +178,7 @@ std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors
 	} else if (target == FAULT_ANALYSIS_KIP) {
 		locked_gates = optimize_KIP(pw, nb_locked);
 	} else {
-		log_error("Target objective for logic locking not implemented");
+		log_cmd_error("Target objective for logic locking not implemented");
 	}
 	return locked_gates;
 }
@@ -256,7 +256,7 @@ struct LogicLockingPass : public Pass {
 				} else if (t == "fault-analysis-kip" || t == "kip") {
 					target = FAULT_ANALYSIS_KIP;
 				} else {
-					log_error("Invalid target option %s", t.c_str());
+					log_cmd_error("Invalid target option %s", t.c_str());
 				}
 				continue;
 			}
@@ -320,7 +320,7 @@ struct LogicLockingPass : public Pass {
 			key_values = parse_hex_string_to_bool(key);
 		}
 		if (nb_locked > GetSize(key_values)) {
-			log_error("Key size is %d bits, which is not enough to lock %d gates\n", GetSize(key_values), nb_locked);
+			log_cmd_error("Key size is %d bits, which is not enough to lock %d gates\n", GetSize(key_values), nb_locked);
 		}
 		std::string key_check = create_hex_string(key_values);
 

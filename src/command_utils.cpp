@@ -19,9 +19,9 @@ Yosys::RTLIL::Module *single_selected_module(Yosys::RTLIL::Design *design)
 		}
 	}
 	if (modules_to_run.size() >= 2) {
-		Yosys::log_error("Multiple modules are selected.\n"
-				 "You may be trying to run Moosic on a hierarchical design,which is not supported.\n"
-				 "Please run 'flatten' on your design before running Moosic, or select a single module to modify.\n");
+		Yosys::log_cmd_error("Multiple modules are selected.\n"
+				     "You may be trying to run Moosic on a hierarchical design,which is not supported.\n"
+				     "Please run 'flatten' on your design before running Moosic, or select a single module to modify.\n");
 		return nullptr;
 	}
 	if (modules_to_run.empty()) {
@@ -40,9 +40,10 @@ static bool check_sol(const std::vector<int> &solution, int nbCells)
 {
 	for (int s : solution) {
 		if (s < 0 || s >= nbCells) {
-			Yosys::log_error("The solution references more cells than can be locked in the design (cell number is %d out of %d). Is it "
-					 "taken from another design?\n",
-					 s + 1, nbCells);
+			Yosys::log_cmd_error(
+			  "The solution references more cells than can be locked in the design (cell number is %d out of %d). Is it "
+			  "taken from another design?\n",
+			  s + 1, nbCells);
 			return false;
 		}
 	}
@@ -90,7 +91,7 @@ std::vector<bool> parse_hex_string_to_bool(const std::string &str)
 		} else if (c >= 'a' && c <= 'f') {
 			v = (c - 'a') + 10;
 		} else {
-			Yosys::log_error("<%c> is not a proper hexadecimal character\n", cur);
+			Yosys::log_cmd_error("<%c> is not a proper hexadecimal character\n", cur);
 		}
 		for (int i = 0; i < 4; ++i) {
 			ret.push_back(v % 2);
@@ -168,7 +169,7 @@ Yosys::RTLIL::IdString get_output_portname(Yosys::RTLIL::Cell *cell)
 			return it.first;
 		}
 	}
-	Yosys::log_error("No output port found on the cell\n");
+	Yosys::log_error("No output port found on cell %s\n", Yosys::log_id(cell->name));
 }
 
 Yosys::RTLIL::SigBit get_output_signal(Yosys::RTLIL::Cell *cell)

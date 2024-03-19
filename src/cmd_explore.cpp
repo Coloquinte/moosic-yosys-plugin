@@ -251,7 +251,7 @@ struct LogicLockingExplorePass : public Pass {
 		}
 
 		if (objectives.size() < 2) {
-			log_error("There should be at last two different objectives for multiobjective exploration.\n");
+			log_cmd_error("There should be at last two different objectives for multiobjective exploration.\n");
 		}
 
 		// Use estimated objectives for optimization
@@ -275,7 +275,7 @@ struct LogicLockingExplorePass : public Pass {
 		// Now execute the optimization itself
 		Optimizer opt(mod, get_lockable_cells(mod), objectives, nbAnalysisVectors / 64, nbAnalysisKeys);
 		if (!opt.hasObjective(ObjectiveType::Area) && !opt.hasObjective(ObjectiveType::Delay)) {
-			log_error("You should use at least the area or delay objective.\n");
+			log_cmd_error("You should use at least the area or delay objective.\n");
 		}
 
 		run_optimization(opt, iterLimit, timeLimit);
