@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Gabriel Gouvine
+ * Copyright (c) 2023-2024 Gabriel Gouvine
  */
 
 #ifndef MOOSIC_LOGIC_LOCKING_ANALYZER_H

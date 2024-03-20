@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2023 Gabriel Gouvine
+ * Copyright (c) 2023-2024 Gabriel Gouvine
  */
 
 #ifndef MOOSIC_GATE_INSERTION_H
