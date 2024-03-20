@@ -59,7 +59,7 @@ class SatAttack
 	/**
 	 * @brief Run the locked design with a particular set of inputs and key
 	 */
-	std::vector<bool> runDesign(const std::vector<bool> &inputs, const std::vector<bool> &key);
+	std::vector<bool> callDesign(const std::vector<bool> &inputs, const std::vector<bool> &key);
 
 	/**
 	 * @brief Concatenate and reorder input and key to obtain Aig inputs
@@ -154,15 +154,33 @@ void SatAttack::genTestVector()
 
 void SatAttack::run(double maxCorruption, double timeLimit)
 {
-	// runBruteForce();
+	keyFound_ = false;
+	bestKey_.clear();
+	bool found = findNewValidKey(bestKey_);
+	if (!found) {
+		log("No valid key found for the initial test vectors\n");
+		return;
+	}
+	log("Found a candidate key for the initial test vectors: %s\n", create_hex_string(bestKey_).c_str());
 
-	std::vector<bool> key;
-	bool found = findNewValidKey(key);
-
-	if (found) {
-		log("Found a valid key, %s\n", create_hex_string(key).c_str());
-	} else {
-		log("No valid key found\n");
+	while (true) {
+		std::vector<bool> candidateInputs;
+		std::vector<bool> candidateKey;
+		found = findNewDifferentInputsAndKey(candidateInputs, candidateKey);
+		if (!found) {
+			log("Found a key that unlocks the design: %s\n", create_hex_string(bestKey_).c_str());
+			keyFound_ = true;
+			return;
+		}
+		log("Found a new candidate key: %s\n", create_hex_string(candidateKey).c_str());
+		std::vector<bool> expectedOutputs = callOracle(candidateInputs);
+		testInputs_.push_back(candidateInputs);
+		testOutputs_.push_back(expectedOutputs);
+		found = findNewValidKey(bestKey_);
+		if (!found) {
+			log("No valid key found for the test vectors\n");
+			return;
+		}
 	}
 }
 
@@ -178,7 +196,7 @@ void SatAttack::runBruteForce()
 		}
 		bool ok = true;
 		for (int i = 0; i < nbTestVectors(); i++) {
-			std::vector<bool> outputs = runDesign(testInputs_[i], key);
+			std::vector<bool> outputs = callDesign(testInputs_[i], key);
 			if (outputs != testOutputs_[i]) {
 				ok = false;
 				break;
@@ -245,9 +263,16 @@ bool SatAttack::findNewValidKey(std::vector<bool> &key)
 	return true;
 }
 
-std::vector<bool> SatAttack::callOracle(const std::vector<bool> &inputs) { return runDesign(inputs, expectedKey_); }
+bool SatAttack::findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vector<bool> &key)
+{
+	inputs.clear();
+	key.clear();
+	return false;
+}
 
-std::vector<bool> SatAttack::runDesign(const std::vector<bool> &inputs, const std::vector<bool> &key)
+std::vector<bool> SatAttack::callOracle(const std::vector<bool> &inputs) { return callDesign(inputs, expectedKey_); }
+
+std::vector<bool> SatAttack::callDesign(const std::vector<bool> &inputs, const std::vector<bool> &key)
 {
 	std::vector<bool> aigInputs = toAigInputs(inputs, key);
 	std::vector<bool> outputs = analyzer_.compute_output_value(aigInputs);
@@ -334,11 +359,6 @@ struct LogicLockingSatAttackPass : public Pass {
 
 		SatAttack attack(mod, portName, key_values, nbInitialVectors);
 		attack.run(maxCorruption, timeLimit);
-		if (attack.keyFound()) {
-			log("Found a valid key, %s\n", create_hex_string(attack.bestKey()).c_str());
-		} else {
-			log("No valid key found\n");
-		}
 	}
 
 	void help() override
