@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Gabriel Gouvine
+ * Copyright (c) 2023-2024 Gabriel Gouvine
  */
 
 #include "kernel/yosys.h"
@@ -80,6 +80,16 @@ class SatAttack
 	 * @brief Find a new set of inputs and a new key that is valid for all test vectors and yields a different output than the best one
 	 */
 	bool findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vector<bool> &key);
+
+	/**
+	 * @brief Translate the AIG into Sat and return the literals for each Aig variable
+	 */
+	std::vector<int> aigToSat(ezMiniSAT &sat, const std::vector<int> &inputLits, const std::vector<int> &keyLits);
+
+	/**
+	 * @brief Force the key to be correct for all test vectors
+	 */
+	void forceKeyCorrect(ezMiniSAT &sat, const std::vector<int> &keyLits);
 
       private:
 	/// @brief Locked module
@@ -218,36 +228,7 @@ bool SatAttack::findNewValidKey(std::vector<bool> &key)
 		keyLits.push_back(sat.literal());
 	}
 
-	for (int i = 0; i < nbTestVectors(); ++i) {
-		// Create the input/key literals for this test vector
-		std::vector<int> aigLits;
-		aigLits.push_back(ezSAT::CONST_FALSE);
-		int inputInd = 0;
-		for (SigBit v : analyzer_.get_comb_inputs()) {
-			if (v.wire == getKeyPort()) {
-				aigLits.push_back(keyLits.at(v.offset));
-			} else {
-				aigLits.push_back(testInputs_[i].at(inputInd++) ? ezSAT::CONST_TRUE : ezSAT::CONST_FALSE);
-			}
-		}
-
-		// Create the clauses for each Aig gate
-		for (int j = 0; j < aig().nbNodes(); ++j) {
-			Lit nA = aig().nodeA(j);
-			Lit nB = aig().nodeB(j);
-			int aLit = nA.polarity() ? sat.NOT(aigLits.at(nA.variable())) : aigLits.at(nA.variable());
-			int bLit = nB.polarity() ? sat.NOT(aigLits.at(nB.variable())) : aigLits.at(nB.variable());
-			aigLits.push_back(sat.AND(aLit, bLit));
-		}
-
-		// Force the value at the outputs
-		for (int j = 0; j < aig().nbOutputs(); ++j) {
-			Lit out = aig().output(j);
-			int outLit = out.polarity() ? sat.NOT(aigLits.at(out.variable())) : aigLits.at(out.variable());
-			int expectedLit = testOutputs_[i].at(j) ? ezSAT::CONST_TRUE : ezSAT::CONST_FALSE;
-			sat.assume(sat.IFF(outLit, expectedLit));
-		}
-	}
+	forceKeyCorrect(sat, keyLits);
 
 	// Solve the model
 	std::vector<int> assume;
@@ -265,9 +246,81 @@ bool SatAttack::findNewValidKey(std::vector<bool> &key)
 
 bool SatAttack::findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vector<bool> &key)
 {
+	assert(GetSize(bestKey_) == nbKeyBits());
 	inputs.clear();
 	key.clear();
+
+	ezMiniSAT sat;
+
+	std::vector<int> keyLits;
+	for (int i = 0; i < nbKeyBits(); ++i) {
+		keyLits.push_back(sat.literal());
+	}
+
+	forceKeyCorrect(sat, keyLits);
+
+	std::vector<int> inputLits;
+	for (int i = 0; i < nbInputs(); ++i) {
+		inputLits.push_back(sat.literal());
+	}
+
+	// Force the new key to have a different output than the current key on these inputs
+	std::vector<int> bestKeyLits;
+	for (bool b : bestKey_) {
+		bestKeyLits.push_back(b ? ezSAT::CONST_TRUE : ezSAT::CONST_FALSE);
+	}
+
+	std::vector<int> outputKey = aigToSat(sat, inputLits, keyLits);
+	std::vector<int> outputBestKey = aigToSat(sat, inputLits, bestKeyLits);
+
+	// Now force the output to be different
+	sat.assume(sat.vec_ne(outputKey, outputBestKey));
+
 	return false;
+}
+
+std::vector<int> SatAttack::aigToSat(ezMiniSAT &sat, const std::vector<int> &inputLits, const std::vector<int> &keyLits)
+{
+	// Create the input/key literals for this test vector
+	std::vector<int> aigLits;
+	aigLits.push_back(ezSAT::CONST_FALSE); // Initial zero literal in the AIG
+	int inputInd = 0;
+	for (SigBit v : analyzer_.get_comb_inputs()) {
+		if (v.wire == getKeyPort()) {
+			aigLits.push_back(keyLits.at(v.offset));
+		} else {
+			aigLits.push_back(inputLits.at(inputInd++));
+		}
+	}
+
+	// Create the clauses for each Aig gate
+	for (int j = 0; j < aig().nbNodes(); ++j) {
+		Lit nA = aig().nodeA(j);
+		Lit nB = aig().nodeB(j);
+		int aLit = nA.polarity() ? sat.NOT(aigLits.at(nA.variable())) : aigLits.at(nA.variable());
+		int bLit = nB.polarity() ? sat.NOT(aigLits.at(nB.variable())) : aigLits.at(nB.variable());
+		aigLits.push_back(sat.AND(aLit, bLit));
+	}
+
+	return aigLits;
+}
+
+void SatAttack::forceKeyCorrect(ezMiniSAT &sat, const std::vector<int> &keyLits)
+{
+	for (int i = 0; i < nbTestVectors(); ++i) {
+		std::vector<int> inputLits;
+		for (bool b : testInputs_[i]) {
+			inputLits.push_back(b ? ezSAT::CONST_TRUE : ezSAT::CONST_FALSE);
+		}
+		std::vector<int> aigLits = aigToSat(sat, inputLits, keyLits);
+		// Force the value at the outputs
+		for (int j = 0; j < aig().nbOutputs(); ++j) {
+			Lit out = aig().output(j);
+			int outLit = out.polarity() ? sat.NOT(aigLits.at(out.variable())) : aigLits.at(out.variable());
+			int expectedLit = testOutputs_[i].at(j) ? ezSAT::CONST_TRUE : ezSAT::CONST_FALSE;
+			sat.assume(sat.IFF(outLit, expectedLit));
+		}
+	}
 }
 
 std::vector<bool> SatAttack::callOracle(const std::vector<bool> &inputs) { return callDesign(inputs, expectedKey_); }
