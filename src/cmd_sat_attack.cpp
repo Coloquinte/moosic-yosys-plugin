@@ -82,7 +82,7 @@ class SatAttack
 	bool findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vector<bool> &key);
 
 	/**
-	 * @brief Translate the AIG into Sat and return the literals for each Aig variable
+	 * @brief Translate the AIG into Sat and return the literals for each Aig output
 	 */
 	std::vector<int> aigToSat(ezMiniSAT &sat, const std::vector<int> &inputLits, const std::vector<int> &keyLits);
 
@@ -219,6 +219,18 @@ void SatAttack::runBruteForce()
 	}
 }
 
+namespace
+{
+std::vector<int> boolVectorToSat(const std::vector<bool> &v)
+{
+	std::vector<int> ret;
+	for (bool b : v) {
+		ret.push_back(b ? ezSAT::CONST_TRUE : ezSAT::CONST_FALSE);
+	}
+	return ret;
+}
+} // namespace
+
 bool SatAttack::findNewValidKey(std::vector<bool> &key)
 {
 	ezMiniSAT sat;
@@ -235,7 +247,6 @@ bool SatAttack::findNewValidKey(std::vector<bool> &key)
 	bool success = sat.solve(keyLits, key, assume);
 
 	if (!success) {
-		log("No valid key found with current test vectors\n");
 		key.clear();
 		return false;
 	}
@@ -256,27 +267,40 @@ bool SatAttack::findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vec
 	for (int i = 0; i < nbKeyBits(); ++i) {
 		keyLits.push_back(sat.literal());
 	}
-
-	forceKeyCorrect(sat, keyLits);
-
 	std::vector<int> inputLits;
 	for (int i = 0; i < nbInputs(); ++i) {
 		inputLits.push_back(sat.literal());
 	}
+	std::vector<int> bestKeyLits = boolVectorToSat(bestKey_);
+
+	forceKeyCorrect(sat, keyLits);
 
 	// Force the new key to have a different output than the current key on these inputs
-	std::vector<int> bestKeyLits;
-	for (bool b : bestKey_) {
-		bestKeyLits.push_back(b ? ezSAT::CONST_TRUE : ezSAT::CONST_FALSE);
+	std::vector<int> output1 = aigToSat(sat, inputLits, keyLits);
+	std::vector<int> output2 = aigToSat(sat, inputLits, bestKeyLits);
+	sat.assume(sat.vec_ne(output1, output2));
+
+	// Solve the model
+	std::vector<int> assume;
+	// Values we are interested in: key and inputs
+	std::vector<int> query = keyLits;
+	for (int i : inputLits) {
+		query.push_back(i);
 	}
+	std::vector<bool> res;
+	bool success = sat.solve(query, res, assume);
 
-	std::vector<int> outputKey = aigToSat(sat, inputLits, keyLits);
-	std::vector<int> outputBestKey = aigToSat(sat, inputLits, bestKeyLits);
-
-	// Now force the output to be different
-	sat.assume(sat.vec_ne(outputKey, outputBestKey));
-
-	return false;
+	if (!success) {
+		return false;
+	} else {
+		for (int i = 0; i < nbKeyBits(); ++i) {
+			key.push_back(res.at(i));
+		}
+		for (int i = 0; i < nbInputs(); ++i) {
+			inputs.push_back(res.at(i + nbKeyBits()));
+		}
+		return true;
+	}
 }
 
 std::vector<int> SatAttack::aigToSat(ezMiniSAT &sat, const std::vector<int> &inputLits, const std::vector<int> &keyLits)
@@ -302,24 +326,23 @@ std::vector<int> SatAttack::aigToSat(ezMiniSAT &sat, const std::vector<int> &inp
 		aigLits.push_back(sat.AND(aLit, bLit));
 	}
 
-	return aigLits;
+	std::vector<int> outputLits;
+	for (int j = 0; j < aig().nbOutputs(); ++j) {
+		Lit out = aig().output(j);
+		int outLit = out.polarity() ? sat.NOT(aigLits.at(out.variable())) : aigLits.at(out.variable());
+		outputLits.push_back(outLit);
+	}
+	return outputLits;
 }
 
 void SatAttack::forceKeyCorrect(ezMiniSAT &sat, const std::vector<int> &keyLits)
 {
 	for (int i = 0; i < nbTestVectors(); ++i) {
-		std::vector<int> inputLits;
-		for (bool b : testInputs_[i]) {
-			inputLits.push_back(b ? ezSAT::CONST_TRUE : ezSAT::CONST_FALSE);
-		}
-		std::vector<int> aigLits = aigToSat(sat, inputLits, keyLits);
-		// Force the value at the outputs
-		for (int j = 0; j < aig().nbOutputs(); ++j) {
-			Lit out = aig().output(j);
-			int outLit = out.polarity() ? sat.NOT(aigLits.at(out.variable())) : aigLits.at(out.variable());
-			int expectedLit = testOutputs_[i].at(j) ? ezSAT::CONST_TRUE : ezSAT::CONST_FALSE;
-			sat.assume(sat.IFF(outLit, expectedLit));
-		}
+		std::vector<int> inputLits = boolVectorToSat(testInputs_[i]);
+		std::vector<int> expectedLits = boolVectorToSat(testOutputs_[i]);
+
+		std::vector<int> outputLits = aigToSat(sat, inputLits, keyLits);
+		sat.assume(sat.vec_eq(outputLits, expectedLits));
 	}
 }
 
