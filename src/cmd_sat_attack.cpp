@@ -87,6 +87,11 @@ class SatAttack
 	std::vector<int> aigToSat(ezMiniSAT &sat, const std::vector<int> &inputLits, const std::vector<int> &keyLits);
 
 	/**
+	 * @brief Check that the Sat translation works on a given set of inputs and key
+	 */
+	void checkSatTranslation(const std::vector<bool> &inputs, const std::vector<bool> &key);
+
+	/**
 	 * @brief Force the key to be correct for all test vectors
 	 */
 	void forceKeyCorrect(ezMiniSAT &sat, const std::vector<int> &keyLits);
@@ -305,6 +310,8 @@ bool SatAttack::findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vec
 
 std::vector<int> SatAttack::aigToSat(ezMiniSAT &sat, const std::vector<int> &inputLits, const std::vector<int> &keyLits)
 {
+	assert(GetSize(inputLits) == nbInputs());
+	assert(GetSize(keyLits) == nbKeyBits());
 	// Create the input/key literals for this test vector
 	std::vector<int> aigLits;
 	aigLits.push_back(ezSAT::CONST_FALSE); // Initial zero literal in the AIG
@@ -346,6 +353,34 @@ void SatAttack::forceKeyCorrect(ezMiniSAT &sat, const std::vector<int> &keyLits)
 	}
 }
 
+void SatAttack::checkSatTranslation(const std::vector<bool> &inputs, const std::vector<bool> &key)
+{
+	ezMiniSAT sat;
+	std::vector<int> inputLits = boolVectorToSat(inputs);
+	std::vector<int> keyLits = boolVectorToSat(key);
+	std::vector<int> outputLits = aigToSat(sat, inputLits, keyLits);
+	std::vector<bool> expected = callDesign(inputs, key);
+
+	aig().print();
+
+	std::vector<bool> res;
+	std::vector<int> assume;
+	bool success = sat.solve(outputLits, res, assume);
+	if (!success) {
+		log_error("Sat translation failed\n");
+	}
+	if (expected != res) {
+		for (int i = 0; i < nbOutputs(); ++i) {
+			log("Output %d: %d vs %d expected", i, (int)res.at(i), (int)expected.at(i));
+			if (res.at(i) != (int)expected.at(i)) {
+				log(" (different)");
+			}
+			log("\n");
+		}
+		log_error("Sat result different from expected\n");
+	}
+}
+
 std::vector<bool> SatAttack::callOracle(const std::vector<bool> &inputs) { return callDesign(inputs, expectedKey_); }
 
 std::vector<bool> SatAttack::callDesign(const std::vector<bool> &inputs, const std::vector<bool> &key)
@@ -357,6 +392,8 @@ std::vector<bool> SatAttack::callDesign(const std::vector<bool> &inputs, const s
 
 std::vector<bool> SatAttack::toAigInputs(const std::vector<bool> &inputs, const std::vector<bool> &key)
 {
+	assert(GetSize(inputs) == nbInputs());
+	assert(GetSize(key) == nbKeyBits());
 	std::vector<bool> aigInputs;
 	int inputInd = 0;
 	for (SigBit v : analyzer_.get_comb_inputs()) {

@@ -184,6 +184,11 @@ class MiniAIG
 	 */
 	std::vector<std::uint64_t> simulateIncremental(Lit toggling);
 
+	/**
+	 * Print the network for debugging
+	 */
+	void print() const;
+
       private:
 	struct AIGNode {
 		Lit a;

@@ -4,6 +4,18 @@
 
 #include "mini_aig.hpp"
 
+#include <iostream>
+
+std::ostream &operator<<(std::ostream &s, Lit l)
+{
+	if (l.is_constant()) {
+		s << (l.polarity() ? "1" : "0");
+	} else {
+		s << (l.polarity() ? "~" : "") << "x" << l.variable();
+	}
+	return s;
+}
+
 std::vector<std::uint64_t> MiniAIG::simulate(const std::vector<std::uint64_t> &inputVals)
 {
 	assert(inputVals.size() == (std::size_t)nbInputs_);
@@ -132,4 +144,18 @@ void MiniAIG::setupIncremental()
 		fanouts_[nodes_[node].b.data >> 1].push_back(i);
 	}
 	touchedVars_.clear();
+}
+
+void MiniAIG::print() const
+{
+	std::cout << "AIG with " << nbInputs_ << " inputs, " << nbNodes() << " nodes, " << nbOutputs() << " outputs" << std::endl;
+	for (int i = 0; i < nbInputs(); ++i) {
+		std::cout << "x" << i + 1 << " = input()" << std::endl;
+	}
+	for (int i = 0; i < nbNodes(); ++i) {
+		std::cout << "x" << i + nbInputs() + 1 << " = " << nodeA(i) << " & " << nodeB(i) << std::endl;
+	}
+	for (int i = 0; i < nbOutputs(); ++i) {
+		std::cout << "Output " << i << ": " << output(i) << std::endl;
+	}
 }
