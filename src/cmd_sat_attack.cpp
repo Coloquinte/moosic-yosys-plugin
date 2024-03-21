@@ -62,11 +62,6 @@ class SatAttack
 	std::vector<bool> callDesign(const std::vector<bool> &inputs, const std::vector<bool> &key);
 
 	/**
-	 * @brief Concatenate and reorder input and key to obtain Aig inputs
-	 */
-	std::vector<bool> toAigInputs(const std::vector<bool> &inputs, const std::vector<bool> &key);
-
-	/**
 	 * @brief Obtain the key port
 	 */
 	RTLIL::Wire *getKeyPort();
@@ -82,9 +77,19 @@ class SatAttack
 	bool findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vector<bool> &key);
 
 	/**
-	 * @brief Translate the AIG into Sat and return the literals for each Aig output
+	 * @brief Concatenate and reorder input and key to obtain Aig inputs
+	 */
+	std::vector<bool> toAigInputs(const std::vector<bool> &inputs, const std::vector<bool> &key);
+
+	/**
+	 * @brief Translate the AIG into Sat and return the literals for each Aig node
 	 */
 	std::vector<int> aigToSat(ezMiniSAT &sat, const std::vector<int> &inputLits, const std::vector<int> &keyLits);
+
+	/**
+	 * @brief Obtain the literals for each Aig output from the literals for each Aig node
+	 */
+	std::vector<int> extractOutputs(ezMiniSAT &sat, const std::vector<int> &aigLits);
 
 	/**
 	 * @brief Check that the Sat translation works on a given set of inputs and key
@@ -281,8 +286,8 @@ bool SatAttack::findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vec
 	forceKeyCorrect(sat, keyLits);
 
 	// Force the new key to have a different output than the current key on these inputs
-	std::vector<int> output1 = aigToSat(sat, inputLits, keyLits);
-	std::vector<int> output2 = aigToSat(sat, inputLits, bestKeyLits);
+	std::vector<int> output1 = extractOutputs(sat, aigToSat(sat, inputLits, keyLits));
+	std::vector<int> output2 = extractOutputs(sat, aigToSat(sat, inputLits, bestKeyLits));
 	sat.assume(sat.vec_ne(output1, output2));
 
 	// Solve the model
@@ -333,6 +338,11 @@ std::vector<int> SatAttack::aigToSat(ezMiniSAT &sat, const std::vector<int> &inp
 		aigLits.push_back(sat.AND(aLit, bLit));
 	}
 
+	return aigLits;
+}
+
+std::vector<int> SatAttack::extractOutputs(ezMiniSAT &sat, const std::vector<int> &aigLits)
+{
 	std::vector<int> outputLits;
 	for (int j = 0; j < aig().nbOutputs(); ++j) {
 		Lit out = aig().output(j);
@@ -348,7 +358,8 @@ void SatAttack::forceKeyCorrect(ezMiniSAT &sat, const std::vector<int> &keyLits)
 		std::vector<int> inputLits = boolVectorToSat(testInputs_[i]);
 		std::vector<int> expectedLits = boolVectorToSat(testOutputs_[i]);
 
-		std::vector<int> outputLits = aigToSat(sat, inputLits, keyLits);
+		std::vector<int> aigLits = aigToSat(sat, inputLits, keyLits);
+		std::vector<int> outputLits = extractOutputs(sat, aigLits);
 		sat.assume(sat.vec_eq(outputLits, expectedLits));
 	}
 }
@@ -358,20 +369,23 @@ void SatAttack::checkSatTranslation(const std::vector<bool> &inputs, const std::
 	ezMiniSAT sat;
 	std::vector<int> inputLits = boolVectorToSat(inputs);
 	std::vector<int> keyLits = boolVectorToSat(key);
-	std::vector<int> outputLits = aigToSat(sat, inputLits, keyLits);
-	std::vector<bool> expected = callDesign(inputs, key);
-
-	aig().print();
+	std::vector<int> aigLits = aigToSat(sat, inputLits, keyLits);
+	callDesign(inputs, key);
 
 	std::vector<bool> res;
 	std::vector<int> assume;
-	bool success = sat.solve(outputLits, res, assume);
+	bool success = sat.solve(aigLits, res, assume);
 	if (!success) {
 		log_error("Sat translation failed\n");
 	}
+	assert(GetSize(aig().getState()) == GetSize(res));
+	std::vector<bool> expected;
+	for (auto s : aig().getState()) {
+		expected.push_back(s != 0);
+	}
 	if (expected != res) {
-		for (int i = 0; i < nbOutputs(); ++i) {
-			log("Output %d: %d vs %d expected", i, (int)res.at(i), (int)expected.at(i));
+		for (int i = 0; i < GetSize(res); ++i) {
+			log("x%d: %d vs %d expected", i, (int)res.at(i), (int)expected.at(i));
 			if (res.at(i) != (int)expected.at(i)) {
 				log(" (different)");
 			}
