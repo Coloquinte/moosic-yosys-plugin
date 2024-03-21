@@ -24,7 +24,7 @@ class SatAttack
 	 *
 	 * Zero maximum corruption means a perfect break; a non-zero corruption will allow
 	 */
-	void run(double maxCorruption, double timeLimit);
+	void run(double maxCorruption);
 
 	/**
 	 * @brief Run the brute-force attack with the initial test vectors. Used as a test for small key sizes
@@ -41,6 +41,9 @@ class SatAttack
 	int nbTestVectors() const { return testInputs_.size(); }
 	/// @brief Access to the analyzer's Aig
 	const MiniAIG &aig() const { return analyzer_.aig(); }
+
+	/// @brief Set the time limit
+	void setTimeLimit(double timeLimit) { timeLimit_ = timeLimit; }
 
 	bool keyFound() const { return keyFound_; }
 	const std::vector<bool> &bestKey() const { return bestKey_; }
@@ -132,6 +135,9 @@ class SatAttack
 
 	/// Random number generator
 	std::mt19937 rgen_;
+
+	/// Solving time limit
+	double timeLimit_;
 };
 
 SatAttack::SatAttack(RTLIL::Module *mod, const std::string &portName, const std::vector<bool> &expectedKey, int nbInitialVectors)
@@ -172,7 +178,7 @@ void SatAttack::genTestVector()
 	testOutputs_.push_back(outputs);
 }
 
-void SatAttack::run(double maxCorruption, double timeLimit)
+void SatAttack::run(double maxCorruption)
 {
 	keyFound_ = false;
 	bestKey_.clear();
@@ -244,6 +250,9 @@ std::vector<int> boolVectorToSat(const std::vector<bool> &v)
 bool SatAttack::findNewValidKey(std::vector<bool> &key)
 {
 	ezMiniSAT sat;
+	if (std::isfinite(timeLimit_)) {
+		sat.solverTimeout = (int)timeLimit_;
+	}
 
 	std::vector<int> keyLits;
 	for (int i = 0; i < nbKeyBits(); ++i) {
@@ -257,6 +266,9 @@ bool SatAttack::findNewValidKey(std::vector<bool> &key)
 	bool success = sat.solve(keyLits, key, assume);
 
 	if (!success) {
+		if (sat.solverTimoutStatus) {
+			log_cmd_error("Timeout while solving the model\n");
+		}
 		key.clear();
 		return false;
 	}
@@ -272,6 +284,9 @@ bool SatAttack::findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vec
 	key.clear();
 
 	ezMiniSAT sat;
+	if (std::isfinite(timeLimit_)) {
+		sat.solverTimeout = (int)timeLimit_;
+	}
 
 	std::vector<int> keyLits;
 	for (int i = 0; i < nbKeyBits(); ++i) {
@@ -301,6 +316,9 @@ bool SatAttack::findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vec
 	bool success = sat.solve(query, res, assume);
 
 	if (!success) {
+		if (sat.solverTimoutStatus) {
+			log_cmd_error("Timeout while solving the model\n");
+		}
 		return false;
 	} else {
 		for (int i = 0; i < nbKeyBits(); ++i) {
@@ -485,7 +503,8 @@ struct LogicLockingSatAttackPass : public Pass {
 		std::vector<bool> key_values = parse_hex_string_to_bool(key);
 
 		SatAttack attack(mod, portName, key_values, nbInitialVectors);
-		attack.run(maxCorruption, timeLimit);
+		attack.setTimeLimit(timeLimit);
+		attack.run(maxCorruption);
 	}
 
 	void help() override
