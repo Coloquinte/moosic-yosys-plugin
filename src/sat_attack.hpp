@@ -13,6 +13,7 @@
 
 #include <limits>
 #include <random>
+#include <string>
 
 class SatAttack
 {
@@ -44,6 +45,9 @@ class SatAttack
 
 	/// @brief Set the time limit
 	void setTimeLimit(double timeLimit) { timeLimit_ = timeLimit; }
+
+	/// @brief Set the file to export cnf to
+	void setCnfFile(const std::string &f) { cnfFile_ = f; }
 
 	bool keyFound() const { return keyFound_; }
 	const std::vector<bool> &bestKey() const { return bestKey_; }
@@ -138,6 +142,8 @@ class SatAttack
 
 	/// Solving time limit
 	double timeLimit_;
+    /// Cnf file export
+    std::string cnfFile_;
 };
 
 #endif

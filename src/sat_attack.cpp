@@ -127,6 +127,11 @@ bool SatAttack::findNewValidKey(std::vector<bool> &key)
 
 	forceKeyCorrect(sat, keyLits);
 
+    if (!cnfFile_.empty()) {
+        FILE *f = fopen(cnfFile_.c_str(), "w");
+        sat.printDIMACS(f);
+        fclose(f);
+    }
 	// Solve the model
 	std::vector<int> assume;
 	bool success = sat.solve(keyLits, key, assume);

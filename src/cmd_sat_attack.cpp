@@ -17,6 +17,7 @@ struct LogicLockingSatAttackPass : public Pass {
 		double maxCorruption = 0.0;
 		double timeLimit = std::numeric_limits<double>::infinity();
 		std::string portName = "moosic_key";
+		std::string cnfFile = "";
 		std::string key;
 
 		size_t argidx;
@@ -52,6 +53,12 @@ struct LogicLockingSatAttackPass : public Pass {
 				portName = args[++argidx];
 				continue;
 			}
+			if (arg == "-cnf-file") {
+				if (argidx + 1 >= args.size())
+					break;
+				cnfFile = args[++argidx];
+				continue;
+			}
 			break;
 		}
 
@@ -63,6 +70,7 @@ struct LogicLockingSatAttackPass : public Pass {
 
 		SatAttack attack(mod, portName, key_values, nbInitialVectors);
 		attack.setTimeLimit(timeLimit);
+		attack.setCnfFile(cnfFile);
 		attack.run(maxCorruption);
 	}
 
