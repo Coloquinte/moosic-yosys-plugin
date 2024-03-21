@@ -767,7 +767,7 @@ std::vector<bool> LogicLockingAnalyzer::compute_output_value(const std::vector<b
 {
 	std::vector<std::uint64_t> i64_in;
 	for (bool b : inputs) {
-		i64_in.push_back(b ? 1 : 0);
+		i64_in.push_back(b ? (std::uint64_t)-1 : (std::uint64_t)0);
 	}
 	auto res = aig_.simulate(i64_in);
 	std::vector<bool> ret(nb_outputs());
