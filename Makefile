@@ -9,14 +9,15 @@ OBJECTS = \
 	  gate_insertion.o \
 	  optimization_objectives.o \
 	  optimization.o \
+	  report_locking.o \
+	  sat_attack.o \
 	  cmd_logic_locking.o \
 	  cmd_analyze.o \
 	  cmd_apply.o \
 	  cmd_explore.o \
 	  cmd_show.o \
-	  command_utils.o \
-	  report_locking.o \
 	  cmd_sat_attack.o \
+	  command_utils.o \
 
 LIBNAME = moosic.so
 
