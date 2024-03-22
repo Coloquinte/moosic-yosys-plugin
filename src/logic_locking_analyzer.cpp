@@ -787,7 +787,7 @@ dict<Cell *, std::vector<std::uint64_t>> LogicLockingAnalyzer::compute_internal_
 		ret.emplace(cells[i], std::vector<std::uint64_t>());
 	}
 	for (int i = 0; i < nb_test_vectors(); ++i) {
-		auto no_toggle = aig_.simulate(test_vectors_[i]);
+		aig_.simulate(test_vectors_[i]);
 		for (int s = 0; s < GetSize(signals); ++s) {
 			Lit l = wire_to_aig_.at(signals[s]);
 			std::uint64_t val = aig_.getValue(l);
