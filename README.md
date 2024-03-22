@@ -55,6 +55,9 @@ logic_locking -key-bits 16 -key 048c
 
 # Add logic locking up to 5% of the module size, maximizing output corruption, with an auto-generated key
 logic_locking -key-percent 5 -target corruption
+
+# Check if the key can be recovered by a Sat attack after locking
+ll_sat_attack -key 048c
 ```
 
 A new port is created on the selected module, named `moosic_key` by default.

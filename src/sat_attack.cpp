@@ -46,6 +46,9 @@ void SatAttack::genTestVector()
 
 void SatAttack::run(double maxCorruption)
 {
+	if (!keyPassesTests(expectedKey_)) {
+		log_error("The expected locking key does not pass the test vectors: there must be a bug\n");
+	}
 	keyFound_ = false;
 	bestKey_.clear();
 	bool found = findNewValidKey(bestKey_);

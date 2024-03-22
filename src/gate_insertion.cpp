@@ -79,7 +79,7 @@ Wire *add_key_input(Module *module, int width, const std::string &port_name)
 {
 	IdString name = escape_id(port_name);
 	if (module->wire(name)) {
-		log_cmd_error("Wire %s is already present in the module. Did you run logic locking twice\n", log_id(name));
+		log_cmd_error("Wire %s is already present in the module. Did you run logic locking twice?\n", log_id(name));
 	}
 	Wire *wire = module->addWire(name, width);
 	wire->port_input = true;
