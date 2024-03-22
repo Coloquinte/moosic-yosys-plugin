@@ -63,7 +63,7 @@ std::vector<Cell *> optimize_output_corruption(LogicLockingAnalyzer &pw, int max
 	float cover = 100.0 * opt.corruptibility(sol);
 	float rate = 100.0 * opt.corruptionSum(sol);
 
-	log("Locking solution with %d locked wires, %.1f%% estimated corruptibility and %.1f%% summed corruption.\n", (int)sol.size(), cover, rate);
+	log("Locking solution with %d locked wires, %.1f%% estimated corruptibility and %.1f%% secondary objective.\n", (int)sol.size(), cover, rate);
 
 	std::vector<Cell *> ret;
 	for (int c : sol) {
@@ -94,7 +94,7 @@ std::vector<Cell *> optimize_hybrid(LogicLockingAnalyzer &pw, int maxNumber)
 	float cover = 100.0 * corr.corruptibility(sol);
 	float rate = 100.0 * corr.corruptionSum(sol);
 
-	log("Locking solution with %d locked wires, largest clique of size %d, %.1f%% corruption cover and %.1f%% corruption rate.\n",
+	log("Locking solution with %d locked wires, largest clique of size %d, %.1f%% estimated corruptibility and %.1f%% secondary objective.\n",
 	    (int)sol.size(), (int)largestClique.size(), cover, rate);
 
 	std::vector<Cell *> ret;
@@ -348,6 +348,9 @@ struct LogicLockingPass : public Pass {
 			log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,
 			    GetSize(mod->cells_), key_check.c_str());
 			auto locked_gates = run_logic_locking(mod, nb_test_vectors, nb_locked, target);
+			if (GetSize(locked_gates) < nb_locked) {
+				log_warning("Could not lock the requested number of gates. Only %d gates were locked.\n", GetSize(locked_gates));
+			}
 			report_locking(mod, locked_gates, nb_analysis_keys, nb_analysis_vectors);
 			nb_locked = locked_gates.size();
 			RTLIL::Wire *w = add_key_input(mod, nb_locked, port_name);
