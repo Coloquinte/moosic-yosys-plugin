@@ -62,7 +62,7 @@ void SatAttack::run(double maxCorruption)
 		if (!found) {
 			log("Found a key that unlocks the design: %s\n", create_hex_string(bestKey_).c_str());
 			keyFound_ = true;
-			return;
+			break;
 		}
 		log("Found a new candidate key: %s\n", create_hex_string(candidateKey).c_str());
 		std::vector<bool> expectedOutputs = callOracle(candidateInputs);
@@ -70,8 +70,14 @@ void SatAttack::run(double maxCorruption)
 		testOutputs_.push_back(expectedOutputs);
 		found = findNewValidKey(bestKey_);
 		if (!found) {
-			log("No valid key found for the test vectors\n");
-			return;
+			bestKey_.clear();
+			log("No valid key found with the new test vector\n");
+			break;
+		}
+	}
+	if (keyFound_) {
+		if (!keyPassesTests(bestKey_)) {
+			log_error("Found key does not pass the test vectors\n");
 		}
 	}
 }
@@ -127,11 +133,11 @@ bool SatAttack::findNewValidKey(std::vector<bool> &key)
 
 	forceKeyCorrect(sat, keyLits);
 
-    if (!cnfFile_.empty()) {
-        FILE *f = fopen(cnfFile_.c_str(), "w");
-        sat.printDIMACS(f);
-        fclose(f);
-    }
+	if (!cnfFile_.empty()) {
+		FILE *f = fopen(cnfFile_.c_str(), "w");
+		sat.printDIMACS(f);
+		fclose(f);
+	}
 	// Solve the model
 	std::vector<int> assume;
 	bool success = sat.solve(keyLits, key, assume);
@@ -317,4 +323,16 @@ RTLIL::Wire *SatAttack::getKeyPort()
 		log_cmd_error("Could not find port %s in module %s\n", keyPortName_.c_str(), log_id(mod_->name));
 	}
 	return keyPort;
+}
+
+bool SatAttack::keyPassesTests(const std::vector<bool> &key)
+{
+	assert(GetSize(key) == nbKeyBits());
+	for (int i = 0; i < nbTestVectors(); ++i) {
+		std::vector<bool> outputs = callDesign(testInputs_[i], key);
+		if (outputs != testOutputs_[i]) {
+			return false;
+		}
+	}
+	return true;
 }

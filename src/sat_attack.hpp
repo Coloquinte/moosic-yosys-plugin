@@ -108,6 +108,11 @@ class SatAttack
 	 */
 	void forceKeyCorrect(ezMiniSAT &sat, const std::vector<int> &keyLits);
 
+	/**
+	 * @brief Check that the key is correct on the test vectors
+	 */
+	bool keyPassesTests(const std::vector<bool> &key);
+
       private:
 	/// @brief Locked module
 	Yosys::RTLIL::Module *mod_;
