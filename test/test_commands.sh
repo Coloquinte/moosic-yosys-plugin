@@ -52,3 +52,6 @@ $cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; 
 
 # Apply exploration result
 $cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; synth; ll_apply -locking af53 -port-name test_port"
+
+# Sat attack
+$cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; synth; logic_locking -key 555555; ll_sat_attack -key 555555"
