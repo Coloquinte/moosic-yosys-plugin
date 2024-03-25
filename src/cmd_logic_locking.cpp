@@ -21,7 +21,7 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-enum OptimizationTarget { PAIRWISE_SECURITY, PAIRWISE_SECURITY_NO_DEDUP, OUTPUT_CORRUPTION, HYBRID, FAULT_ANALYSIS_FLL, FAULT_ANALYSIS_KIP };
+enum OptimizationTarget { PAIRWISE_SECURITY, PAIRWISE_SECURITY_NO_DEDUP, OUTPUT_CORRUPTION, HYBRID, FAULT_ANALYSIS_FLL, FAULT_ANALYSIS_KIP, OUTPUTS };
 
 /**
  * @brief Run the optimization algorithm to maximize pairwise security
@@ -157,6 +157,23 @@ std::vector<Cell *> optimize_KIP(LogicLockingAnalyzer &pw, int maxNumber)
 }
 
 /**
+ * @brief Just return the design outputs
+ */
+std::vector<Cell *> optimize_outputs(LogicLockingAnalyzer &pw, int maxNumber)
+{
+	std::vector<Cell *> cells = pw.get_lockable_cells();
+	std::vector<SigBit> sigs = pw.get_lockable_signals();
+	auto outputs = pw.get_comb_outputs();
+	std::vector<Cell *> ret;
+	for (int i = 0; i < GetSize(sigs); ++i) {
+		if (outputs.count(sigs[i])) {
+			ret.push_back(cells[i]);
+		}
+	}
+	return ret;
+}
+
+/**
  * @brief Run the logic locking algorithm and return the cells to be locked
  */
 std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors, int nb_locked, OptimizationTarget target)
@@ -177,6 +194,8 @@ std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors
 		locked_gates = optimize_FLL(pw, nb_locked);
 	} else if (target == FAULT_ANALYSIS_KIP) {
 		locked_gates = optimize_KIP(pw, nb_locked);
+	} else if (target == OUTPUTS) {
+		locked_gates = optimize_outputs(pw, nb_locked);
 	} else {
 		log_cmd_error("Target objective for logic locking not implemented");
 	}
@@ -255,6 +274,8 @@ struct LogicLockingPass : public Pass {
 					target = FAULT_ANALYSIS_FLL;
 				} else if (t == "fault-analysis-kip" || t == "kip") {
 					target = FAULT_ANALYSIS_KIP;
+				} else if (t == "outputs") {
+					target = OUTPUTS;
 				} else {
 					log_cmd_error("Invalid target option %s", t.c_str());
 				}
@@ -351,10 +372,16 @@ struct LogicLockingPass : public Pass {
 			if (GetSize(locked_gates) < nb_locked) {
 				log_warning("Could not lock the requested number of gates. Only %d gates were locked.\n", GetSize(locked_gates));
 			}
+			if (GetSize(locked_gates) > nb_locked) {
+				log_warning("The algorithm returned more gates than requested. Additional gates will be ignored.\n");
+				locked_gates.resize(nb_locked);
+			}
+
 			report_locking(mod, locked_gates, nb_analysis_keys, nb_analysis_vectors);
 			nb_locked = locked_gates.size();
+			assert(GetSize(key_values) >= nb_locked);
+			key_values.resize(nb_locked);
 			RTLIL::Wire *w = add_key_input(mod, nb_locked, port_name);
-			key_values.erase(key_values.begin() + nb_locked, key_values.end());
 			lock_gates(mod, locked_gates, SigSpec(w), key_values);
 		}
 	}
@@ -383,7 +410,7 @@ struct LogicLockingPass : public Pass {
 		log("\n");
 		log("\n");
 		log("The following options control the optimization algorithms.\n");
-		log("    -target {pairwise|corruption|hybrid|fll|kip}\n");
+		log("    -target {corruption|pairwise|hybrid|fll|kip|outputs}\n");
 		log("        optimization target for locking (default=corruption)\n");
 		log("\n");
 		log("    -nb-test-vectors <value>\n");
@@ -422,6 +449,7 @@ struct LogicLockingPass : public Pass {
 		log("  * Targets \"fault-analysis-fll\" and \"fault-analysis-kip\" uses the metrics defined in\n");
 		log("\"Fault Analysis-Based Logic Encryption\" and \"Hardware Trust: Design Solutions for Logic Locking\"\n");
 		log("to select signals to lock.\n");
+		log("  * Target \"outputs\" will lock the primary outputs.\n");
 		log("\n");
 		log("Only gate outputs (not primary inputs) are considered for locking at the moment.\n");
 		log("Sequential cells and hierarchical instances are treated as primary inputs and outputs \n");
