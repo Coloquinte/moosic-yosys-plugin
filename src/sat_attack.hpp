@@ -6,7 +6,7 @@
 #define MOOSIC_SAT_ATTACK_H
 
 #include "kernel/yosys.h"
-#include "libs/ezsat/ezminisat.h"
+#include "libs/ezsat/ezsat.h"
 
 #include "command_utils.hpp"
 #include "logic_locking_analyzer.hpp"
@@ -48,6 +48,9 @@ class SatAttack
 
 	/// @brief Set the file to export cnf to
 	void setCnfFile(const std::string &f) { cnfFile_ = f; }
+
+	/// @brief Set the Sat command to run instead of the internal Minisat
+	void setCommand(const std::string &cmd) { command_ = cmd; }
 
 	bool keyFound() const { return keyFound_; }
 	const std::vector<bool> &bestKey() const { return bestKey_; }
@@ -91,12 +94,12 @@ class SatAttack
 	/**
 	 * @brief Translate the AIG into Sat and return the literals for each Aig node
 	 */
-	std::vector<int> aigToSat(ezMiniSAT &sat, const std::vector<int> &inputLits, const std::vector<int> &keyLits);
+	std::vector<int> aigToSat(ezSAT &sat, const std::vector<int> &inputLits, const std::vector<int> &keyLits);
 
 	/**
 	 * @brief Obtain the literals for each Aig output from the literals for each Aig node
 	 */
-	std::vector<int> extractOutputs(ezMiniSAT &sat, const std::vector<int> &aigLits);
+	std::vector<int> extractOutputs(ezSAT &sat, const std::vector<int> &aigLits);
 
 	/**
 	 * @brief Check that the Sat translation works on a given set of inputs and key
@@ -106,12 +109,17 @@ class SatAttack
 	/**
 	 * @brief Force the key to be correct for all test vectors
 	 */
-	void forceKeyCorrect(ezMiniSAT &sat, const std::vector<int> &keyLits);
+	void forceKeyCorrect(ezSAT &sat, const std::vector<int> &keyLits);
 
 	/**
 	 * @brief Check that the key is correct on the test vectors
 	 */
 	bool keyPassesTests(const std::vector<bool> &key);
+
+	/**
+	 * Instanciate a solver
+	 */
+	std::unique_ptr<ezSAT> createSolver();
 
       private:
 	/// @brief Locked module
@@ -147,8 +155,10 @@ class SatAttack
 
 	/// Solving time limit
 	double timeLimit_;
-    /// Cnf file export
-    std::string cnfFile_;
+	/// Cnf file export
+	std::string cnfFile_;
+	/// Command to run, if any
+	std::string command_;
 };
 
 #endif

@@ -3,6 +3,8 @@
  */
 
 #include "sat_attack.hpp"
+#include "libs/ezsat/ezcommand.h"
+#include "libs/ezsat/ezminisat.h"
 
 USING_YOSYS_NAMESPACE
 
@@ -122,31 +124,43 @@ std::vector<int> boolVectorToSat(const std::vector<bool> &v)
 }
 } // namespace
 
+std::unique_ptr<ezSAT> SatAttack::createSolver()
+{
+	std::unique_ptr<ezSAT> sat;
+	if (command_.empty()) {
+		ezMiniSAT *s = new ezMiniSAT();
+		if (std::isfinite(timeLimit_)) {
+			s->solverTimeout = (int)timeLimit_;
+		}
+		sat.reset(s);
+	} else {
+		ezSATCommand *s = new ezSATCommand(command_);
+		sat.reset(s);
+	}
+	return sat;
+}
+
 bool SatAttack::findNewValidKey(std::vector<bool> &key)
 {
-	ezMiniSAT sat;
-	if (std::isfinite(timeLimit_)) {
-		sat.solverTimeout = (int)timeLimit_;
-	}
-
+	auto sat = createSolver();
 	std::vector<int> keyLits;
 	for (int i = 0; i < nbKeyBits(); ++i) {
-		keyLits.push_back(sat.literal());
+		keyLits.push_back(sat->literal());
 	}
 
-	forceKeyCorrect(sat, keyLits);
+	forceKeyCorrect(*sat, keyLits);
 
 	if (!cnfFile_.empty()) {
 		FILE *f = fopen(cnfFile_.c_str(), "w");
-		sat.printDIMACS(f);
+		sat->printDIMACS(f);
 		fclose(f);
 	}
 	// Solve the model
 	std::vector<int> assume;
-	bool success = sat.solve(keyLits, key, assume);
+	bool success = sat->solve(keyLits, key, assume);
 
 	if (!success) {
-		if (sat.solverTimoutStatus) {
+		if (sat->solverTimoutStatus) {
 			log_cmd_error("Timeout while solving the model\n");
 		}
 		key.clear();
@@ -163,27 +177,23 @@ bool SatAttack::findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vec
 	inputs.clear();
 	key.clear();
 
-	ezMiniSAT sat;
-	if (std::isfinite(timeLimit_)) {
-		sat.solverTimeout = (int)timeLimit_;
-	}
-
+	auto sat = createSolver();
 	std::vector<int> keyLits;
 	for (int i = 0; i < nbKeyBits(); ++i) {
-		keyLits.push_back(sat.literal());
+		keyLits.push_back(sat->literal());
 	}
 	std::vector<int> inputLits;
 	for (int i = 0; i < nbInputs(); ++i) {
-		inputLits.push_back(sat.literal());
+		inputLits.push_back(sat->literal());
 	}
 	std::vector<int> bestKeyLits = boolVectorToSat(bestKey_);
 
-	forceKeyCorrect(sat, keyLits);
+	forceKeyCorrect(*sat, keyLits);
 
 	// Force the new key to have a different output than the current key on these inputs
-	std::vector<int> output1 = extractOutputs(sat, aigToSat(sat, inputLits, keyLits));
-	std::vector<int> output2 = extractOutputs(sat, aigToSat(sat, inputLits, bestKeyLits));
-	sat.assume(sat.vec_ne(output1, output2));
+	std::vector<int> output1 = extractOutputs(*sat, aigToSat(*sat, inputLits, keyLits));
+	std::vector<int> output2 = extractOutputs(*sat, aigToSat(*sat, inputLits, bestKeyLits));
+	sat->assume(sat->vec_ne(output1, output2));
 
 	// Solve the model
 	std::vector<int> assume;
@@ -193,10 +203,10 @@ bool SatAttack::findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vec
 		query.push_back(i);
 	}
 	std::vector<bool> res;
-	bool success = sat.solve(query, res, assume);
+	bool success = sat->solve(query, res, assume);
 
 	if (!success) {
-		if (sat.solverTimoutStatus) {
+		if (sat->solverTimoutStatus) {
 			log_cmd_error("Timeout while solving the model\n");
 		}
 		return false;
@@ -211,7 +221,7 @@ bool SatAttack::findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vec
 	}
 }
 
-std::vector<int> SatAttack::aigToSat(ezMiniSAT &sat, const std::vector<int> &inputLits, const std::vector<int> &keyLits)
+std::vector<int> SatAttack::aigToSat(ezSAT &sat, const std::vector<int> &inputLits, const std::vector<int> &keyLits)
 {
 	assert(GetSize(inputLits) == nbInputs());
 	assert(GetSize(keyLits) == nbKeyBits());
@@ -239,7 +249,7 @@ std::vector<int> SatAttack::aigToSat(ezMiniSAT &sat, const std::vector<int> &inp
 	return aigLits;
 }
 
-std::vector<int> SatAttack::extractOutputs(ezMiniSAT &sat, const std::vector<int> &aigLits)
+std::vector<int> SatAttack::extractOutputs(ezSAT &sat, const std::vector<int> &aigLits)
 {
 	std::vector<int> outputLits;
 	for (int j = 0; j < aig().nbOutputs(); ++j) {
@@ -250,7 +260,7 @@ std::vector<int> SatAttack::extractOutputs(ezMiniSAT &sat, const std::vector<int
 	return outputLits;
 }
 
-void SatAttack::forceKeyCorrect(ezMiniSAT &sat, const std::vector<int> &keyLits)
+void SatAttack::forceKeyCorrect(ezSAT &sat, const std::vector<int> &keyLits)
 {
 	for (int i = 0; i < nbTestVectors(); ++i) {
 		std::vector<int> inputLits = boolVectorToSat(testInputs_[i]);

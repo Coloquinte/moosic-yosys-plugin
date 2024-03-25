@@ -18,6 +18,7 @@ struct LogicLockingSatAttackPass : public Pass {
 		double timeLimit = std::numeric_limits<double>::infinity();
 		std::string portName = "moosic_key";
 		std::string cnfFile = "";
+		std::string command = "";
 		std::string key;
 
 		size_t argidx;
@@ -59,6 +60,12 @@ struct LogicLockingSatAttackPass : public Pass {
 				cnfFile = args[++argidx];
 				continue;
 			}
+			if (arg == "-command") {
+				if (argidx + 1 >= args.size())
+					break;
+				command = args[++argidx];
+				continue;
+			}
 			break;
 		}
 
@@ -71,6 +78,7 @@ struct LogicLockingSatAttackPass : public Pass {
 		SatAttack attack(mod, portName, key_values, nbInitialVectors);
 		attack.setTimeLimit(timeLimit);
 		attack.setCnfFile(cnfFile);
+		attack.setCommand(command);
 		attack.run(maxCorruption);
 	}
 
@@ -99,6 +107,8 @@ struct LogicLockingSatAttackPass : public Pass {
 		log("        maximum corruption allowed for probabilistic attacks (default=0.0)\n");
 		log("    -nb-initial-vectors <value>\n");
 		log("        number of initial random input patterns to match (default=64)\n");
+		log("    -command <value>\n");
+		log("        command to use for Sat solving instead of Minisat\n");
 		log("\n");
 		log("\n");
 		log("\n");
