@@ -14,6 +14,7 @@ OBJECTS = \
 	  cmd_logic_locking.o \
 	  cmd_analyze.o \
 	  cmd_apply.o \
+	  cmd_direct_locking.o \
 	  cmd_explore.o \
 	  cmd_show.o \
 	  cmd_sat_attack.o \

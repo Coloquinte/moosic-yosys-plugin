@@ -216,25 +216,9 @@ struct LogicLockingPass : public Pass {
 		bool dry_run = false;
 		std::string port_name = "moosic_key";
 		std::string key;
-		std::vector<IdString> gates_to_lock;
-		std::vector<std::pair<IdString, IdString>> gates_to_mix;
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
 			std::string arg = args[argidx];
-			if (arg == "-lock-gate") {
-				if (argidx + 1 >= args.size())
-					break;
-				gates_to_lock.emplace_back(args[++argidx]);
-				continue;
-			}
-			if (arg == "-mix-gate") {
-				if (argidx + 2 >= args.size())
-					break;
-				IdString n1 = args[++argidx];
-				IdString n2 = args[++argidx];
-				gates_to_mix.emplace_back(n1, n2);
-				continue;
-			}
 			if (arg == "-key-percent") {
 				if (argidx + 1 >= args.size())
 					break;
@@ -328,14 +312,8 @@ struct LogicLockingPass : public Pass {
 		RTLIL::Module *mod = single_selected_module(design);
 		if (mod == NULL)
 			return;
-
-		bool explicit_locking = !gates_to_lock.empty() || !gates_to_mix.empty();
-		int nb_locked;
-		if (explicit_locking) {
-			nb_locked = gates_to_lock.size() + gates_to_mix.size();
-		} else if (key_size >= 0) {
-			nb_locked = key_size;
-		} else {
+		int nb_locked = key_size;
+		if (key_size < 0) {
 			nb_locked = static_cast<int>(0.01 * GetSize(mod->cells_) * percent_locked);
 		}
 
@@ -361,37 +339,26 @@ struct LogicLockingPass : public Pass {
 		 * This would give more targets for locking, as primary inputs are not considered
 		 * right now.
 		 */
-		if (explicit_locking) {
-			log("Explicit logic locking solution: %zu xor locks and %zu mux locks, key %s\n", gates_to_lock.size(), gates_to_mix.size(),
-			    key_check.c_str());
-			RTLIL::Wire *w = add_key_input(mod, nb_locked, port_name);
-			int nb_xor_gates = gates_to_lock.size();
-			std::vector<bool> lock_key(key_values.begin(), key_values.begin() + nb_xor_gates);
-			lock_gates(mod, gates_to_lock, SigSpec(w, 0, nb_xor_gates), lock_key);
-			std::vector<bool> mix_key(key_values.begin() + gates_to_lock.size(), key_values.begin() + nb_locked);
-			mix_gates(mod, gates_to_mix, SigSpec(w, nb_xor_gates, nb_locked), mix_key);
-		} else {
-			log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,
-			    GetSize(mod->cells_), key_check.c_str());
-			auto locked_gates = run_logic_locking(mod, nb_test_vectors, nb_locked, target);
-			if (GetSize(locked_gates) < nb_locked) {
-				log_warning("Could not lock the requested number of gates. Only %d gates were locked.\n", GetSize(locked_gates));
-			}
-			if (GetSize(locked_gates) > nb_locked) {
-				log_warning("The algorithm returned more gates than requested. Additional gates will be ignored.\n");
-				locked_gates.resize(nb_locked);
-			}
+		log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,
+		    GetSize(mod->cells_), key_check.c_str());
+		auto locked_gates = run_logic_locking(mod, nb_test_vectors, nb_locked, target);
+		if (GetSize(locked_gates) < nb_locked) {
+			log_warning("Could not lock the requested number of gates. Only %d gates were locked.\n", GetSize(locked_gates));
+		}
+		if (GetSize(locked_gates) > nb_locked) {
+			log_warning("The algorithm returned more gates than requested. Additional gates will be ignored.\n");
+			locked_gates.resize(nb_locked);
+		}
 
-			report_locking(mod, locked_gates, nb_analysis_keys, nb_analysis_vectors);
-			nb_locked = locked_gates.size();
-			assert(GetSize(key_values) >= nb_locked);
-			key_values.resize(nb_locked);
-			if (dry_run) {
-				log("Dry run: no modification made to the module\n");
-			} else {
-				RTLIL::Wire *w = add_key_input(mod, nb_locked, port_name);
-				lock_gates(mod, locked_gates, SigSpec(w), key_values);
-			}
+		report_locking(mod, locked_gates, nb_analysis_keys, nb_analysis_vectors);
+		nb_locked = locked_gates.size();
+		assert(GetSize(key_values) >= nb_locked);
+		key_values.resize(nb_locked);
+		if (dry_run) {
+			log("Dry run: no modification made to the module\n");
+		} else {
+			RTLIL::Wire *w = add_key_input(mod, nb_locked, port_name);
+			lock_gates(mod, locked_gates, SigSpec(w), key_values);
 		}
 	}
 
@@ -436,16 +403,6 @@ struct LogicLockingPass : public Pass {
 		log("        number of test vectors used to analyze security (default=1024)\n");
 		log("\n");
 		log("\n");
-		log("The following options control locking manually, locking the corresponding \n");
-		log("gate outputs directly without any optimization. They can be mixed and repeated.\n");
-		log("\n");
-		log("    -lock-gate <name>\n");
-		log("        lock the output of the gate, adding a xor/xnor and a module input\n");
-		log("\n");
-		log("    -mix-gate <name1> <name2>\n");
-		log("        mix the output of one gate with another, adding a mux and a module input\n");
-		log("\n");
-		log("\n");
 		log("Security is evaluated with simple metrics:\n");
 		log("  * Target \"corruption\" maximizes the impact of the locked signals on the outputs.\n");
 		log("It will chose signals that cause changes in as many outputs for as many \n");
@@ -468,12 +425,12 @@ struct LogicLockingPass : public Pass {
 		log("for security evaluation.\n");
 		log("\n");
 		log("\n");
-		log("For more control on the logic locking solutions, you may use the logic locking\n");
-		log("exploration commands instead:");
+		log("For more control, you may use the other logic locking commands:\n");
 		log("    ll_explore to explore potential optimal solutions\n");
 		log("    ll_show to see which gates are locked in a solution\n");
 		log("    ll_analyze to compute the security and performance metrics of a solution\n");
 		log("    ll_apply to apply a locking solution to the circuit\n");
+		log("    ll_direct_locking to lock gates directly by names\n");
 		log("\n");
 		log("\n");
 	}
