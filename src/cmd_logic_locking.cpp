@@ -22,6 +22,7 @@ USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
 enum OptimizationTarget { PAIRWISE_SECURITY, PAIRWISE_SECURITY_NO_DEDUP, OUTPUT_CORRUPTION, HYBRID, FAULT_ANALYSIS_FLL, FAULT_ANALYSIS_KIP, OUTPUTS };
+enum class SatCountermeasure { None, AntiSat, SarLock };
 
 /**
  * @brief Run the optimization algorithm to maximize pairwise security
@@ -242,7 +243,9 @@ struct LogicLockingPass : public Pass {
 	{
 		log_header(design, "Executing LOGIC_LOCKING pass.\n");
 		OptimizationTarget target = OUTPUT_CORRUPTION;
+		SatCountermeasure antisat = SatCountermeasure::None;
 		std::string nb_locked_str;
+		std::string nb_antisat_str;
 		int nb_test_vectors = 64;
 		int nb_analysis_keys = 128;
 		int nb_analysis_vectors = 1024;
@@ -256,6 +259,12 @@ struct LogicLockingPass : public Pass {
 				if (argidx + 1 >= args.size())
 					break;
 				nb_locked_str = args[++argidx].c_str();
+				continue;
+			}
+			if (arg == "-nb-antisat") {
+				if (argidx + 1 >= args.size())
+					break;
+				nb_antisat_str = args[++argidx].c_str();
 				continue;
 			}
 			if (arg == "-nb-test-vectors") {
@@ -290,6 +299,21 @@ struct LogicLockingPass : public Pass {
 					target = OUTPUTS;
 				} else {
 					log_cmd_error("Invalid target option %s", t.c_str());
+				}
+				continue;
+			}
+			if (arg == "-antisat") {
+				if (argidx + 1 >= args.size())
+					break;
+				auto t = args[++argidx];
+				if (t == "none") {
+					antisat = SatCountermeasure::None;
+				} else if (t == "antisat") {
+					antisat = SatCountermeasure::AntiSat;
+				} else if (t == "sarlock") {
+					antisat = SatCountermeasure::SarLock;
+				} else {
+					log_cmd_error("Invalid antisat option %s", t.c_str());
 				}
 				continue;
 			}
@@ -338,6 +362,7 @@ struct LogicLockingPass : public Pass {
 			return;
 
 		int nb_locked = parseOptionalPercentage(mod, nb_locked_str, 5.0);
+		int nb_antisat = parseOptionalPercentage(mod, nb_antisat_str, 5.0);
 
 		std::vector<bool> key_values = parse_hex_string_to_bool(key);
 
@@ -392,6 +417,12 @@ struct LogicLockingPass : public Pass {
 		log("\n");
 		log("    -key <value>\n");
 		log("        the locking key (hexadecimal); if not provided, an insecure key will be generated\n");
+		log("\n");
+		log("    -antisat {none|antisat|sarlock}\n");
+		log("        countermeasure against Sat attacks (default=none)\n");
+		log("\n");
+		log("    -nb-antisat <value>\n");
+		log("        number of bits for the antisat key, either absolute (5) or as percentage (3.0%%) (default=5%%)\n");
 		log("\n");
 		log("    -dry-run\n");
 		log("        do not modify the design, just print the locking solution\n");
