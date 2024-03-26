@@ -98,6 +98,7 @@ void lock_gates(Module *module, const std::vector<Cell *> &cells, SigSpec key, c
 	if (GetSize(cells) != GetSize(key)) {
 		log_cmd_error("Number of cells to lock %d does not match the key length %d\n", GetSize(cells), GetSize(key));
 	}
+	log("Applying locking on %d cells with key %s.\n", GetSize(cells), create_hex_string(key_values).c_str());
 	for (int i = 0; i < GetSize(cells); ++i) {
 		bool key_value = key_values[i];
 		IdString port = get_output_portname(cells[i]);

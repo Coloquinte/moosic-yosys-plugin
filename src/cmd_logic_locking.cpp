@@ -176,9 +176,12 @@ std::vector<Cell *> optimize_outputs(LogicLockingAnalyzer &pw)
 /**
  * @brief Run the logic locking algorithm and return the cells to be locked
  */
-std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors, int nb_locked, OptimizationTarget target)
+std::vector<Cell *> run_logic_locking(RTLIL::Module *mod, int nb_test_vectors, int nb_locked, OptimizationTarget target)
 {
-	LogicLockingAnalyzer pw(module);
+	if (target != OUTPUTS) {
+		log("Running logic locking with %d test vectors, locking %d cells out of %d.\n", nb_test_vectors, nb_locked, GetSize(mod->cells_));
+	}
+	LogicLockingAnalyzer pw(mod);
 	pw.gen_test_vectors(nb_test_vectors / 64, 1);
 
 	std::vector<Cell *> locked_gates;
@@ -199,7 +202,38 @@ std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors
 	} else {
 		log_cmd_error("Target objective for logic locking not implemented");
 	}
+	if (target == OUTPUTS) {
+		if (GetSize(locked_gates) < nb_locked) {
+			log("Locking %d output gates.\n", GetSize(locked_gates));
+		}
+	} else {
+		if (GetSize(locked_gates) < nb_locked) {
+			log_warning("Could not lock the requested number of gates. Only %d gates were locked.\n", GetSize(locked_gates));
+		}
+		if (GetSize(locked_gates) > nb_locked) {
+			log_warning("The algorithm returned more gates than requested. Additional gates will be ignored.\n");
+			locked_gates.resize(nb_locked);
+		}
+	}
 	return locked_gates;
+}
+
+int parseOptionalPercentage(RTLIL::Module *module, std::string arg, double defaultValue)
+{
+	if (arg.empty()) {
+		log_assert(defaultValue >= 0.0);
+		log_assert(defaultValue <= 100.0);
+		return static_cast<int>(0.01 * GetSize(module->cells_) * defaultValue);
+	}
+	if (arg.back() == '%') {
+		arg.pop_back();
+		double percent = std::atof(arg.c_str());
+		log_assert(percent >= 0.0);
+		log_assert(percent <= 100.0);
+		return static_cast<int>(0.01 * GetSize(module->cells_) * percent);
+	} else {
+		return std::atoi(arg.c_str());
+	}
 }
 
 struct LogicLockingPass : public Pass {
@@ -208,7 +242,7 @@ struct LogicLockingPass : public Pass {
 	{
 		log_header(design, "Executing LOGIC_LOCKING pass.\n");
 		OptimizationTarget target = OUTPUT_CORRUPTION;
-		std::string number_locked = "5.0%";
+		std::string nb_locked_str;
 		int nb_test_vectors = 64;
 		int nb_analysis_keys = 128;
 		int nb_analysis_vectors = 1024;
@@ -221,7 +255,7 @@ struct LogicLockingPass : public Pass {
 			if (arg == "-nb-locked") {
 				if (argidx + 1 >= args.size())
 					break;
-				number_locked = args[++argidx].c_str();
+				nb_locked_str = args[++argidx].c_str();
 				continue;
 			}
 			if (arg == "-nb-test-vectors") {
@@ -303,29 +337,9 @@ struct LogicLockingPass : public Pass {
 		if (mod == NULL)
 			return;
 
-		int nb_locked = 0;
-		if (number_locked.empty()) {
-			log_cmd_error("No number of locked gates specified\n");
-		} else if (number_locked.back() == '%') {
-			number_locked.pop_back();
-			double percent_locked = std::atof(number_locked.c_str()) / 100.0;
-			log_assert(percent_locked >= 0.0f);
-			log_assert(percent_locked <= 100.0f);
-			nb_locked = static_cast<int>(0.01 * GetSize(mod->cells_) * percent_locked);
-		} else {
-			nb_locked = std::atoi(number_locked.c_str()) / 100.0;
-		}
+		int nb_locked = parseOptionalPercentage(mod, nb_locked_str, 5.0);
 
-		std::vector<bool> key_values;
-		if (key.empty()) {
-			key_values = create_key(nb_locked);
-		} else {
-			key_values = parse_hex_string_to_bool(key);
-		}
-		if (nb_locked > GetSize(key_values)) {
-			log_cmd_error("Key size is %d bits, which is not enough to lock %d gates\n", GetSize(key_values), nb_locked);
-		}
-		std::string key_check = create_hex_string(key_values);
+		std::vector<bool> key_values = parse_hex_string_to_bool(key);
 
 		/*
 		 * TODO: the locking should be at the signal level, not the gate level.
@@ -338,23 +352,22 @@ struct LogicLockingPass : public Pass {
 		 * This would give more targets for locking, as primary inputs are not considered
 		 * right now.
 		 */
-		log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,
-		    GetSize(mod->cells_), key_check.c_str());
 		auto locked_gates = run_logic_locking(mod, nb_test_vectors, nb_locked, target);
-		if (GetSize(locked_gates) < nb_locked) {
-			log_warning("Could not lock the requested number of gates. Only %d gates were locked.\n", GetSize(locked_gates));
-		}
-		if (GetSize(locked_gates) > nb_locked) {
-			log_warning("The algorithm returned more gates than requested. Additional gates will be ignored.\n");
-			locked_gates.resize(nb_locked);
-		}
 
 		report_locking(mod, locked_gates, nb_analysis_keys, nb_analysis_vectors);
+
 		nb_locked = locked_gates.size();
+		if (key.empty()) {
+			key_values = create_key(nb_locked);
+		}
+		if (nb_locked > GetSize(key_values)) {
+			log_cmd_error("Key size is %d bits, which is not enough to lock %d gates\n", GetSize(key_values), nb_locked);
+		}
+
 		assert(GetSize(key_values) >= nb_locked);
 		key_values.resize(nb_locked);
 		if (dry_run) {
-			log("Dry run: no modification made to the module\n");
+			log("Dry run: no modification made to the module.\n");
 		} else {
 			RTLIL::Wire *w = add_key_input(mod, nb_locked, port_name);
 			lock_gates(mod, locked_gates, SigSpec(w), key_values);
@@ -372,7 +385,7 @@ struct LogicLockingPass : public Pass {
 		log("are locked, making it difficult to recover the original design.\n");
 		log("\n");
 		log("    -nb-locked <value>\n");
-		log("        number of gates to lock, either absolute (5) or as percentage (3.0%) (default=5%)\n");
+		log("        number of gates to lock, either absolute (5) or as percentage (3.0%%) (default=5%%)\n");
 		log("\n");
 		log("    -port-name <value>\n");
 		log("        name for the key input (default=moosic_key)\n");
