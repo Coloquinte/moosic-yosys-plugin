@@ -213,6 +213,7 @@ struct LogicLockingPass : public Pass {
 		int nb_test_vectors = 64;
 		int nb_analysis_keys = 128;
 		int nb_analysis_vectors = 1024;
+		bool dry_run = false;
 		std::string port_name = "moosic_key";
 		std::string key;
 		std::vector<IdString> gates_to_lock;
@@ -311,6 +312,10 @@ struct LogicLockingPass : public Pass {
 				}
 				continue;
 			}
+			if (arg == "-dry-run") {
+				dry_run = true;
+				continue;
+			}
 			break;
 		}
 
@@ -381,8 +386,12 @@ struct LogicLockingPass : public Pass {
 			nb_locked = locked_gates.size();
 			assert(GetSize(key_values) >= nb_locked);
 			key_values.resize(nb_locked);
-			RTLIL::Wire *w = add_key_input(mod, nb_locked, port_name);
-			lock_gates(mod, locked_gates, SigSpec(w), key_values);
+			if (dry_run) {
+				log("Dry run: no modification made to the module\n");
+			} else {
+				RTLIL::Wire *w = add_key_input(mod, nb_locked, port_name);
+				lock_gates(mod, locked_gates, SigSpec(w), key_values);
+			}
 		}
 	}
 
@@ -408,8 +417,11 @@ struct LogicLockingPass : public Pass {
 		log("    -port-name <value>\n");
 		log("        name for the key input (default=moosic_key)\n");
 		log("\n");
+		log("    -dry-run\n");
+		log("        do not modify the design, just print the locking solution\n");
 		log("\n");
-		log("The following options control the optimization algorithms.\n");
+		log("\n");
+		log("The following options control the optimization algorithms to insert key gates.\n");
 		log("    -target {corruption|pairwise|hybrid|fll|kip|outputs}\n");
 		log("        optimization target for locking (default=corruption)\n");
 		log("\n");
@@ -417,7 +429,7 @@ struct LogicLockingPass : public Pass {
 		log("        number of test vectors used for analysis during optimization (default=64)\n");
 		log("\n");
 		log("\n");
-		log("These options analyze the logic locking solution's security.\n");
+		log("These options control the security metrics analysis.\n");
 		log("    -nb-analysis-keys <value>\n");
 		log("        number of random keys used to analyze security (default=128)\n");
 		log("    -nb-analysis-vectors <value>\n");

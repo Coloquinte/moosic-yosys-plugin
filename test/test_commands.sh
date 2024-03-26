@@ -29,6 +29,9 @@ $cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; 
 # Basic pairwise without deduplication
 $cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; synth; logic_locking -target pairwise-no-dedup"
 
+# Dry run option
+$cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; synth; logic_locking -dry-run"
+
 # Set key percent and key
 $cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; synth; logic_locking -key-percent 5 -key 0a239e"
 
