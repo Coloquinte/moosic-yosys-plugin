@@ -11,6 +11,7 @@ OBJECTS = \
 	  optimization.o \
 	  report_locking.o \
 	  sat_attack.o \
+	  antisat.o \
 	  cmd_logic_locking.o \
 	  cmd_analyze.o \
 	  cmd_apply.o \
