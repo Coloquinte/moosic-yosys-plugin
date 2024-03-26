@@ -54,10 +54,10 @@ synth; flatten
 help logic_locking
 
 # Add logic locking with a 16b key, with hexadecimal key 048c
-logic_locking -key-bits 16 -key 048c
+logic_locking -nb-locked 16 -key 048c
 
 # Add logic locking up to 5% of the module size, maximizing output corruption, with an auto-generated key
-logic_locking -key-percent 5 -target corruption
+logic_locking -nb-locked 5% -target corruption
 
 # Check if the key can be recovered by a Sat attack after locking
 ll_sat_attack -key 048c

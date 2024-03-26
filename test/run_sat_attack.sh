@@ -18,7 +18,7 @@ function run_benchmark () {
 	echo "read_blif -sop ${benchmark}" > "${script_file}"
 	echo "flatten; synth" >> "${script_file}"
 	# Apply the locking
-	echo "logic_locking -key-bits 64 -key 555555555555555555555555555555555555555" >> "${script_file}"
+	echo "logic_locking -nb-locked 64 -key 555555555555555555555555555555555555555" >> "${script_file}"
 	# Sat attack
 	echo "ll_sat_attack -time-limit 10 -key 555555555555555555555555555555555555555" >> "${script_file}"
 	cmd="timeout 600 yosys -m moosic -s ${script_file} > ${log_file}"

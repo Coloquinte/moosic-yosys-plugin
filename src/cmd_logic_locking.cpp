@@ -208,8 +208,7 @@ struct LogicLockingPass : public Pass {
 	{
 		log_header(design, "Executing LOGIC_LOCKING pass.\n");
 		OptimizationTarget target = OUTPUT_CORRUPTION;
-		double percent_locked = 5.0f;
-		int key_size = -1;
+		std::string number_locked = "5.0%";
 		int nb_test_vectors = 64;
 		int nb_analysis_keys = 128;
 		int nb_analysis_vectors = 1024;
@@ -219,16 +218,10 @@ struct LogicLockingPass : public Pass {
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
 			std::string arg = args[argidx];
-			if (arg == "-key-percent") {
+			if (arg == "-nb-locked") {
 				if (argidx + 1 >= args.size())
 					break;
-				percent_locked = std::atof(args[++argidx].c_str());
-				continue;
-			}
-			if (arg == "-key-bits") {
-				if (argidx + 1 >= args.size())
-					break;
-				key_size = std::atoi(args[++argidx].c_str());
+				number_locked = args[++argidx].c_str();
 				continue;
 			}
 			if (arg == "-nb-test-vectors") {
@@ -303,18 +296,24 @@ struct LogicLockingPass : public Pass {
 			break;
 		}
 
-		log_assert(percent_locked >= 0.0f);
-		log_assert(percent_locked <= 100.0f);
-
 		// handle extra options (e.g. selection)
 		extra_args(args, argidx, design);
 
 		RTLIL::Module *mod = single_selected_module(design);
 		if (mod == NULL)
 			return;
-		int nb_locked = key_size;
-		if (key_size < 0) {
+
+		int nb_locked = 0;
+		if (number_locked.empty()) {
+			log_cmd_error("No number of locked gates specified\n");
+		} else if (number_locked.back() == '%') {
+			number_locked.pop_back();
+			double percent_locked = std::atof(number_locked.c_str()) / 100.0;
+			log_assert(percent_locked >= 0.0f);
+			log_assert(percent_locked <= 100.0f);
 			nb_locked = static_cast<int>(0.01 * GetSize(mod->cells_) * percent_locked);
+		} else {
+			nb_locked = std::atoi(number_locked.c_str()) / 100.0;
 		}
 
 		std::vector<bool> key_values;
@@ -372,17 +371,14 @@ struct LogicLockingPass : public Pass {
 		log("By default, it runs simulations and optimizes the subset of signals that \n");
 		log("are locked, making it difficult to recover the original design.\n");
 		log("\n");
-		log("    -key <value>\n");
-		log("        the locking key (hexadecimal)\n");
-		log("\n");
-		log("    -key-bits <value>\n");
-		log("        size of the key in bits\n");
-		log("\n");
-		log("    -key-percent <value>\n");
-		log("        size of the key as a percentage of the number of gates in the design (default=5)\n");
+		log("    -nb-locked <value>\n");
+		log("        number of gates to lock, either absolute (5) or as percentage (3.0%) (default=5%)\n");
 		log("\n");
 		log("    -port-name <value>\n");
 		log("        name for the key input (default=moosic_key)\n");
+		log("\n");
+		log("    -key <value>\n");
+		log("        the locking key (hexadecimal); if not provided, an insecure key will be generated\n");
 		log("\n");
 		log("    -dry-run\n");
 		log("        do not modify the design, just print the locking solution\n");
