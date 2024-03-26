@@ -159,7 +159,7 @@ std::vector<Cell *> optimize_KIP(LogicLockingAnalyzer &pw, int maxNumber)
 /**
  * @brief Just return the design outputs
  */
-std::vector<Cell *> optimize_outputs(LogicLockingAnalyzer &pw, int maxNumber)
+std::vector<Cell *> optimize_outputs(LogicLockingAnalyzer &pw)
 {
 	std::vector<Cell *> cells = pw.get_lockable_cells();
 	std::vector<SigBit> sigs = pw.get_lockable_signals();
@@ -195,7 +195,7 @@ std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors
 	} else if (target == FAULT_ANALYSIS_KIP) {
 		locked_gates = optimize_KIP(pw, nb_locked);
 	} else if (target == OUTPUTS) {
-		locked_gates = optimize_outputs(pw, nb_locked);
+		locked_gates = optimize_outputs(pw);
 	} else {
 		log_cmd_error("Target objective for logic locking not implemented");
 	}
