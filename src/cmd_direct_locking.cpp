@@ -18,7 +18,6 @@ struct LogicLockingDirectLockingPass : public Pass {
 	{
 		log_header(design, "Executing LOGIC_LOCKING_DIRECT_LOCKING pass.\n");
 
-		std::vector<int> solution;
 		std::vector<bool> key_values;
 		std::string port_name = "moosic_key";
 		std::vector<IdString> gates_to_lock;
@@ -31,7 +30,7 @@ struct LogicLockingDirectLockingPass : public Pass {
 				if (argidx + 1 >= args.size())
 					break;
 				log("Locking <%s>\n", args[++argidx].c_str());
-                IdString name = RTLIL::escape_id(args[++argidx]);
+				IdString name = RTLIL::escape_id(args[++argidx]);
 				gates_to_lock.push_back(name);
 				continue;
 			}
@@ -72,8 +71,12 @@ struct LogicLockingDirectLockingPass : public Pass {
 		}
 
 		if (key_values.empty()) {
-			key_values = create_key(solution.size());
+			key_values = create_key(nb_locked);
+		} else if (GetSize(key_values) < nb_locked) {
+			log_cmd_error("Key size is %d bits, while %d are required\n", GetSize(key_values), nb_locked);
 		}
+		log_assert(GetSize(key_values) >= nb_locked);
+		key_values.resize(nb_locked);
 
 		log("Explicit logic locking solution: %zu xor locks and %zu mux locks, key %s\n", gates_to_lock.size(), gates_to_mix.size(),
 		    create_hex_string(key_values).c_str());

@@ -114,7 +114,7 @@ std::vector<Cell *> optimize_hybrid(LogicLockingAnalyzer &pw, int maxNumber)
 std::vector<Cell *> select_best_cells(const std::vector<Cell *> &cells, const std::vector<double> &metric, int maxNumber,
 				      bool removeDuplicates = false)
 {
-	assert(metric.size() == cells.size());
+	log_assert(metric.size() == cells.size());
 	std::vector<std::pair<double, Cell *>> sorted;
 	for (size_t i = 0; i < cells.size(); i++) {
 		sorted.emplace_back(metric[i], cells[i]);
@@ -394,7 +394,7 @@ struct LogicLockingPass : public Pass {
 			log_cmd_error("Key size is %d bits, while %d are required (%d locking + %d antisat)\n", GetSize(key_values), key_size,
 				      nb_locked, nb_antisat);
 		}
-		assert(GetSize(key_values) >= key_size);
+		log_assert(GetSize(key_values) >= key_size);
 		key_values.resize(key_size);
 
 		if (dry_run) {
