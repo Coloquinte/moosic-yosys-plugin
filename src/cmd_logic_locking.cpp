@@ -9,6 +9,7 @@
 
 #include <boost/filesystem.hpp>
 
+#include "antisat.hpp"
 #include "command_utils.hpp"
 #include "gate_insertion.hpp"
 #include "mini_aig.hpp"
@@ -382,21 +383,59 @@ struct LogicLockingPass : public Pass {
 		report_locking(mod, locked_gates, nb_analysis_keys, nb_analysis_vectors);
 
 		nb_locked = locked_gates.size();
+		if (antisat == SatCountermeasure::None) {
+			nb_antisat = 0;
+		}
+		int key_size = nb_locked + nb_antisat;
 		if (key.empty()) {
-			key_values = create_key(nb_locked);
+			key_values = create_key(key_size);
 		}
-		if (nb_locked > GetSize(key_values)) {
-			log_cmd_error("Key size is %d bits, which is not enough to lock %d gates\n", GetSize(key_values), nb_locked);
+		if (key_size > GetSize(key_values)) {
+			log_cmd_error("Key size is %d bits, while %d are required (%d locking + %d antisat)\n", GetSize(key_values), key_size,
+				      nb_locked, nb_antisat);
 		}
+		assert(GetSize(key_values) >= key_size);
+		key_values.resize(key_size);
 
-		assert(GetSize(key_values) >= nb_locked);
-		key_values.resize(nb_locked);
 		if (dry_run) {
 			log("Dry run: no modification made to the module.\n");
-		} else {
-			RTLIL::Wire *w = add_key_input(mod, nb_locked, port_name);
-			lock_gates(mod, locked_gates, SigSpec(w), key_values);
+			return;
 		}
+
+		SigSpec input_signal(LogicLockingAnalyzer::get_comb_inputs(mod));
+
+		/**
+		 * WARNING: modifications start here!!!!
+		 *
+		 * Queries on the module (inputs/outputs/cells/...) will start returning modified results and are forbidden from now on
+		 */
+		SigSpec key_signal(add_key_input(mod, key_size, port_name));
+		SigSpec lock_signal = key_signal.extract(0, nb_locked);
+		std::vector<bool> lock_key(key_values.begin(), key_values.begin() + nb_locked);
+
+		// Instanciate antisat countermeasure
+		if (nb_antisat > 0) {
+			log_assert(antisat != SatCountermeasure::None);
+			SigSpec antisat_signal = key_signal.extract(nb_locked, nb_antisat);
+			std::vector<bool> antisat_key(key_values.begin() + nb_locked, key_values.end());
+
+			SigBit flip;
+			if (antisat == SatCountermeasure::AntiSat) {
+				flip = create_antisat(mod, input_signal, antisat_signal, antisat_key);
+			} else if (antisat == SatCountermeasure::SarLock) {
+				flip = create_sarlock(mod, input_signal, antisat_signal, antisat_key);
+			} else {
+				log_cmd_error("Invalid antisat option");
+			}
+
+			// Add the flipping to the locked signals
+			SigSpec flip_vec(std::vector<SigBit>(nb_locked, flip));
+			log_assert(flip_vec.size() == nb_locked);
+			lock_signal = mod->Xor(NEW_ID, lock_signal, flip_vec);
+		}
+
+		// Instanciate locking
+		lock_gates(mod, locked_gates, lock_signal, lock_key);
 	}
 
 	void help() override
@@ -410,7 +449,7 @@ struct LogicLockingPass : public Pass {
 		log("are locked, making it difficult to recover the original design.\n");
 		log("\n");
 		log("    -nb-locked <value>\n");
-		log("        number of gates to lock, either absolute (5) or as percentage (3.0%%) (default=5%%)\n");
+		log("        number of gates to lock, either absolute (5) or as percentage of gates (3.0%%) (default=5%%)\n");
 		log("\n");
 		log("    -port-name <value>\n");
 		log("        name for the key input (default=moosic_key)\n");
@@ -422,7 +461,7 @@ struct LogicLockingPass : public Pass {
 		log("        countermeasure against Sat attacks (default=none)\n");
 		log("\n");
 		log("    -nb-antisat <value>\n");
-		log("        number of bits for the antisat key, either absolute (5) or as percentage (3.0%%) (default=5%%)\n");
+		log("        number of bits for the antisat key, either absolute (5) or as percentage of gates (3.0%%) (default=5%%)\n");
 		log("\n");
 		log("    -dry-run\n");
 		log("        do not modify the design, just print the locking solution\n");

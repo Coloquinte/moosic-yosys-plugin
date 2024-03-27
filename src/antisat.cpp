@@ -2,7 +2,62 @@
 
 USING_YOSYS_NAMESPACE
 
-RTLIL::SigBit create_antisat_module(RTLIL::Module *module, RTLIL::SigSpec input_wire, RTLIL::SigSpec key1, RTLIL::SigSpec key2)
+SigSpec const_signal(const std::vector<bool> &vals)
+{
+	std::vector<SigBit> bits;
+	for (bool val : vals) {
+		bits.push_back(SigBit(val ? RTLIL::State::S1 : RTLIL::State::S0));
+	}
+	return SigSpec(bits);
+}
+
+Yosys::RTLIL::SigBit create_antisat(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
+				    const std::vector<bool> &expected)
+{
+	log_assert(GetSize(key) == GetSize(expected));
+	// Xor with the expected key
+	key = module->Xor(NEW_ID, key, const_signal(expected));
+
+	// Various checks
+	if (key.size() % 2 != 0) {
+		log_warning("Antisat key size is not even, ignoring the last bit.\n");
+	}
+	int sz = key.size() / 2;
+	if (sz > inputs.size()) {
+		log_warning("Antisat key size is larger than the input size. Reduced from %d to %d\n", sz, inputs.size());
+		sz = inputs.size();
+	}
+	if (sz < inputs.size()) {
+		log("Using only %d inputs out of %d for antisat.\n", sz, inputs.size());
+		inputs = inputs.extract(0, sz);
+	}
+
+	SigSpec key1 = key.extract(0, sz);
+	SigSpec key2 = key.extract(sz, sz);
+	log_assert(inputs.size() == sz);
+	log_assert(key1.size() == sz);
+	log_assert(key2.size() == sz);
+	return create_antisat_internals(module, inputs, key1, key2);
+}
+
+Yosys::RTLIL::SigBit create_sarlock(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
+				    const std::vector<bool> &expected)
+{
+	log_assert(GetSize(key) == GetSize(expected));
+	SigSpec expected_sig = const_signal(expected);
+	if (key.size() > inputs.size()) {
+		log_warning("Sarlock key size is larger than the input size. Reduced from %d to %d\n", key.size(), inputs.size());
+		key = key.extract(0, inputs.size());
+		expected_sig = expected_sig.extract(0, inputs.size());
+	}
+	if (key.size() < inputs.size()) {
+		log("Using only %d inputs out of %d for Sarlock.\n", key.size(), inputs.size());
+		inputs = inputs.extract(0, key.size());
+	}
+	return create_sarlock_internals(module, inputs, key, expected_sig);
+}
+
+RTLIL::SigBit create_antisat_internals(RTLIL::Module *module, RTLIL::SigSpec input_wire, RTLIL::SigSpec key1, RTLIL::SigSpec key2)
 {
 	log_assert(input_wire.size() == key1.size());
 	log_assert(input_wire.size() == key2.size());
@@ -14,7 +69,7 @@ RTLIL::SigBit create_antisat_module(RTLIL::Module *module, RTLIL::SigSpec input_
 	return flip.as_bit();
 }
 
-RTLIL::SigBit create_sarlock_module(RTLIL::Module *module, RTLIL::SigSpec input_wire, RTLIL::SigSpec key, RTLIL::SigSpec expected)
+RTLIL::SigBit create_sarlock_internals(RTLIL::Module *module, RTLIL::SigSpec input_wire, RTLIL::SigSpec key, RTLIL::SigSpec expected)
 {
 	log_assert(input_wire.size() == key.size());
 	log_assert(input_wire.size() == expected.size());
@@ -24,7 +79,7 @@ RTLIL::SigBit create_sarlock_module(RTLIL::Module *module, RTLIL::SigSpec input_
 	return flip.as_bit();
 }
 
-Yosys::RTLIL::SigSpec create_skglock_module(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec input_wire, Yosys::RTLIL::SigSpec key)
+Yosys::RTLIL::SigSpec create_skglock_switch_controller(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec input_wire, Yosys::RTLIL::SigSpec key)
 {
 	log_assert(input_wire.size() == key.size());
 	auto xor_res = module->Xor(NEW_ID, input_wire, key);
