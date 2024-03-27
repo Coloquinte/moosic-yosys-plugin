@@ -26,10 +26,10 @@ LogicLockingAnalyzer::LogicLockingAnalyzer(RTLIL::Module *module) : module_(modu
 	init_aig();
 }
 
-pool<SigBit> LogicLockingAnalyzer::get_comb_inputs() const
+pool<SigBit> LogicLockingAnalyzer::get_comb_inputs(RTLIL::Module *mod)
 {
 	pool<SigBit> ret;
-	for (RTLIL::Wire *wire : module_->wires()) {
+	for (RTLIL::Wire *wire : mod->wires()) {
 		if (wire->port_input) {
 			RTLIL::SigSpec spec(wire);
 			for (SigBit sig : spec) {
@@ -37,7 +37,7 @@ pool<SigBit> LogicLockingAnalyzer::get_comb_inputs() const
 			}
 		}
 	}
-	for (RTLIL::Cell *cell : module_->cells()) {
+	for (RTLIL::Cell *cell : mod->cells()) {
 		// Handle non-combinatorial cells and hierarchical modules
 		if (!yosys_celltypes.cell_evaluable(cell->type)) {
 			for (auto it : cell->connections()) {
@@ -52,10 +52,12 @@ pool<SigBit> LogicLockingAnalyzer::get_comb_inputs() const
 	return ret;
 }
 
-pool<SigBit> LogicLockingAnalyzer::get_comb_outputs() const
+pool<SigBit> LogicLockingAnalyzer::get_comb_inputs() const { return get_comb_inputs(module_); }
+
+pool<SigBit> LogicLockingAnalyzer::get_comb_outputs(RTLIL::Module *mod)
 {
 	pool<SigBit> ret;
-	for (RTLIL::Wire *wire : module_->wires()) {
+	for (RTLIL::Wire *wire : mod->wires()) {
 		if (wire->port_output) {
 			RTLIL::SigSpec spec(wire);
 			for (SigBit sig : spec) {
@@ -63,7 +65,7 @@ pool<SigBit> LogicLockingAnalyzer::get_comb_outputs() const
 			}
 		}
 	}
-	for (RTLIL::Cell *cell : module_->cells()) {
+	for (RTLIL::Cell *cell : mod->cells()) {
 		// Handle non-combinatorial cells and hierarchical modules
 		if (!yosys_celltypes.cell_evaluable(cell->type)) {
 			for (auto it : cell->connections()) {
@@ -77,6 +79,8 @@ pool<SigBit> LogicLockingAnalyzer::get_comb_outputs() const
 	}
 	return ret;
 }
+
+pool<SigBit> LogicLockingAnalyzer::get_comb_outputs() const { return get_comb_outputs(module_); }
 
 std::vector<SigBit> LogicLockingAnalyzer::get_lockable_signals() const { return get_lockable_signals(module_); }
 

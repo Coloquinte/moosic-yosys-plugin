@@ -9,6 +9,7 @@
 
 #include <boost/filesystem.hpp>
 
+#include "antisat.hpp"
 #include "command_utils.hpp"
 #include "gate_insertion.hpp"
 #include "mini_aig.hpp"
@@ -21,7 +22,8 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-enum OptimizationTarget { PAIRWISE_SECURITY, PAIRWISE_SECURITY_NO_DEDUP, OUTPUT_CORRUPTION, HYBRID, FAULT_ANALYSIS_FLL, FAULT_ANALYSIS_KIP };
+enum OptimizationTarget { PAIRWISE_SECURITY, PAIRWISE_SECURITY_NO_DEDUP, OUTPUT_CORRUPTION, HYBRID, FAULT_ANALYSIS_FLL, FAULT_ANALYSIS_KIP, OUTPUTS };
+enum class SatCountermeasure { None, AntiSat, SarLock };
 
 /**
  * @brief Run the optimization algorithm to maximize pairwise security
@@ -112,7 +114,7 @@ std::vector<Cell *> optimize_hybrid(LogicLockingAnalyzer &pw, int maxNumber)
 std::vector<Cell *> select_best_cells(const std::vector<Cell *> &cells, const std::vector<double> &metric, int maxNumber,
 				      bool removeDuplicates = false)
 {
-	assert(metric.size() == cells.size());
+	log_assert(metric.size() == cells.size());
 	std::vector<std::pair<double, Cell *>> sorted;
 	for (size_t i = 0; i < cells.size(); i++) {
 		sorted.emplace_back(metric[i], cells[i]);
@@ -157,11 +159,31 @@ std::vector<Cell *> optimize_KIP(LogicLockingAnalyzer &pw, int maxNumber)
 }
 
 /**
+ * @brief Just return the design outputs
+ */
+std::vector<Cell *> optimize_outputs(LogicLockingAnalyzer &pw)
+{
+	std::vector<Cell *> cells = pw.get_lockable_cells();
+	std::vector<SigBit> sigs = pw.get_lockable_signals();
+	auto outputs = pw.get_comb_outputs();
+	std::vector<Cell *> ret;
+	for (int i = 0; i < GetSize(sigs); ++i) {
+		if (outputs.count(sigs[i])) {
+			ret.push_back(cells[i]);
+		}
+	}
+	return ret;
+}
+
+/**
  * @brief Run the logic locking algorithm and return the cells to be locked
  */
-std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors, int nb_locked, OptimizationTarget target)
+std::vector<Cell *> run_logic_locking(RTLIL::Module *mod, int nb_test_vectors, int nb_locked, OptimizationTarget target)
 {
-	LogicLockingAnalyzer pw(module);
+	if (target != OUTPUTS) {
+		log("Running logic locking with %d test vectors, locking %d cells out of %d.\n", nb_test_vectors, nb_locked, GetSize(mod->cells_));
+	}
+	LogicLockingAnalyzer pw(mod);
 	pw.gen_test_vectors(nb_test_vectors / 64, 1);
 
 	std::vector<Cell *> locked_gates;
@@ -177,10 +199,43 @@ std::vector<Cell *> run_logic_locking(RTLIL::Module *module, int nb_test_vectors
 		locked_gates = optimize_FLL(pw, nb_locked);
 	} else if (target == FAULT_ANALYSIS_KIP) {
 		locked_gates = optimize_KIP(pw, nb_locked);
+	} else if (target == OUTPUTS) {
+		locked_gates = optimize_outputs(pw);
 	} else {
 		log_cmd_error("Target objective for logic locking not implemented");
 	}
+	if (target == OUTPUTS) {
+		if (GetSize(locked_gates) < nb_locked) {
+			log("Locking %d output gates.\n", GetSize(locked_gates));
+		}
+	} else {
+		if (GetSize(locked_gates) < nb_locked) {
+			log_warning("Could not lock the requested number of gates. Only %d gates were locked.\n", GetSize(locked_gates));
+		}
+		if (GetSize(locked_gates) > nb_locked) {
+			log_warning("The algorithm returned more gates than requested. Additional gates will be ignored.\n");
+			locked_gates.resize(nb_locked);
+		}
+	}
 	return locked_gates;
+}
+
+int parseOptionalPercentage(RTLIL::Module *module, std::string arg, double defaultValue)
+{
+	if (arg.empty()) {
+		log_assert(defaultValue >= 0.0);
+		log_assert(defaultValue <= 100.0);
+		return static_cast<int>(0.01 * GetSize(module->cells_) * defaultValue);
+	}
+	if (arg.back() == '%') {
+		arg.pop_back();
+		double percent = std::atof(arg.c_str());
+		log_assert(percent >= 0.0);
+		log_assert(percent <= 100.0);
+		return static_cast<int>(0.01 * GetSize(module->cells_) * percent);
+	} else {
+		return std::atoi(arg.c_str());
+	}
 }
 
 struct LogicLockingPass : public Pass {
@@ -189,42 +244,28 @@ struct LogicLockingPass : public Pass {
 	{
 		log_header(design, "Executing LOGIC_LOCKING pass.\n");
 		OptimizationTarget target = OUTPUT_CORRUPTION;
-		double percent_locked = 5.0f;
-		int key_size = -1;
+		SatCountermeasure antisat = SatCountermeasure::None;
+		std::string nb_locked_str;
+		std::string nb_antisat_str;
 		int nb_test_vectors = 64;
 		int nb_analysis_keys = 128;
 		int nb_analysis_vectors = 1024;
+		bool dry_run = false;
 		std::string port_name = "moosic_key";
 		std::string key;
-		std::vector<IdString> gates_to_lock;
-		std::vector<std::pair<IdString, IdString>> gates_to_mix;
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
 			std::string arg = args[argidx];
-			if (arg == "-lock-gate") {
+			if (arg == "-nb-locked") {
 				if (argidx + 1 >= args.size())
 					break;
-				gates_to_lock.emplace_back(args[++argidx]);
+				nb_locked_str = args[++argidx].c_str();
 				continue;
 			}
-			if (arg == "-mix-gate") {
-				if (argidx + 2 >= args.size())
-					break;
-				IdString n1 = args[++argidx];
-				IdString n2 = args[++argidx];
-				gates_to_mix.emplace_back(n1, n2);
-				continue;
-			}
-			if (arg == "-key-percent") {
+			if (arg == "-nb-antisat") {
 				if (argidx + 1 >= args.size())
 					break;
-				percent_locked = std::atof(args[++argidx].c_str());
-				continue;
-			}
-			if (arg == "-key-bits") {
-				if (argidx + 1 >= args.size())
-					break;
-				key_size = std::atoi(args[++argidx].c_str());
+				nb_antisat_str = args[++argidx].c_str();
 				continue;
 			}
 			if (arg == "-nb-test-vectors") {
@@ -255,8 +296,25 @@ struct LogicLockingPass : public Pass {
 					target = FAULT_ANALYSIS_FLL;
 				} else if (t == "fault-analysis-kip" || t == "kip") {
 					target = FAULT_ANALYSIS_KIP;
+				} else if (t == "outputs") {
+					target = OUTPUTS;
 				} else {
 					log_cmd_error("Invalid target option %s", t.c_str());
+				}
+				continue;
+			}
+			if (arg == "-antisat") {
+				if (argidx + 1 >= args.size())
+					break;
+				auto t = args[++argidx];
+				if (t == "none") {
+					antisat = SatCountermeasure::None;
+				} else if (t == "antisat") {
+					antisat = SatCountermeasure::AntiSat;
+				} else if (t == "sarlock") {
+					antisat = SatCountermeasure::SarLock;
+				} else {
+					log_cmd_error("Invalid antisat option %s", t.c_str());
 				}
 				continue;
 			}
@@ -290,11 +348,12 @@ struct LogicLockingPass : public Pass {
 				}
 				continue;
 			}
+			if (arg == "-dry-run") {
+				dry_run = true;
+				continue;
+			}
 			break;
 		}
-
-		log_assert(percent_locked >= 0.0f);
-		log_assert(percent_locked <= 100.0f);
 
 		// handle extra options (e.g. selection)
 		extra_args(args, argidx, design);
@@ -303,26 +362,10 @@ struct LogicLockingPass : public Pass {
 		if (mod == NULL)
 			return;
 
-		bool explicit_locking = !gates_to_lock.empty() || !gates_to_mix.empty();
-		int nb_locked;
-		if (explicit_locking) {
-			nb_locked = gates_to_lock.size() + gates_to_mix.size();
-		} else if (key_size >= 0) {
-			nb_locked = key_size;
-		} else {
-			nb_locked = static_cast<int>(0.01 * GetSize(mod->cells_) * percent_locked);
-		}
+		int nb_locked = parseOptionalPercentage(mod, nb_locked_str, 5.0);
+		int nb_antisat = parseOptionalPercentage(mod, nb_antisat_str, 5.0);
 
-		std::vector<bool> key_values;
-		if (key.empty()) {
-			key_values = create_key(nb_locked);
-		} else {
-			key_values = parse_hex_string_to_bool(key);
-		}
-		if (nb_locked > GetSize(key_values)) {
-			log_cmd_error("Key size is %d bits, which is not enough to lock %d gates\n", GetSize(key_values), nb_locked);
-		}
-		std::string key_check = create_hex_string(key_values);
+		std::vector<bool> key_values = parse_hex_string_to_bool(key);
 
 		/*
 		 * TODO: the locking should be at the signal level, not the gate level.
@@ -335,28 +378,64 @@ struct LogicLockingPass : public Pass {
 		 * This would give more targets for locking, as primary inputs are not considered
 		 * right now.
 		 */
-		if (explicit_locking) {
-			log("Explicit logic locking solution: %zu xor locks and %zu mux locks, key %s\n", gates_to_lock.size(), gates_to_mix.size(),
-			    key_check.c_str());
-			RTLIL::Wire *w = add_key_input(mod, nb_locked, port_name);
-			int nb_xor_gates = gates_to_lock.size();
-			std::vector<bool> lock_key(key_values.begin(), key_values.begin() + nb_xor_gates);
-			lock_gates(mod, gates_to_lock, SigSpec(w, 0, nb_xor_gates), lock_key);
-			std::vector<bool> mix_key(key_values.begin() + gates_to_lock.size(), key_values.begin() + nb_locked);
-			mix_gates(mod, gates_to_mix, SigSpec(w, nb_xor_gates, nb_locked), mix_key);
-		} else {
-			log("Running logic locking with %d test vectors, locking %d cells out of %d, key %s.\n", nb_test_vectors, nb_locked,
-			    GetSize(mod->cells_), key_check.c_str());
-			auto locked_gates = run_logic_locking(mod, nb_test_vectors, nb_locked, target);
-			if (GetSize(locked_gates) < nb_locked) {
-				log_warning("Could not lock the requested number of gates. Only %d gates were locked.\n", GetSize(locked_gates));
-			}
-			report_locking(mod, locked_gates, nb_analysis_keys, nb_analysis_vectors);
-			nb_locked = locked_gates.size();
-			RTLIL::Wire *w = add_key_input(mod, nb_locked, port_name);
-			key_values.erase(key_values.begin() + nb_locked, key_values.end());
-			lock_gates(mod, locked_gates, SigSpec(w), key_values);
+		auto locked_gates = run_logic_locking(mod, nb_test_vectors, nb_locked, target);
+
+		report_locking(mod, locked_gates, nb_analysis_keys, nb_analysis_vectors);
+
+		nb_locked = locked_gates.size();
+		if (antisat == SatCountermeasure::None) {
+			nb_antisat = 0;
 		}
+		int key_size = nb_locked + nb_antisat;
+		if (key.empty()) {
+			key_values = create_key(key_size);
+		}
+		if (key_size > GetSize(key_values)) {
+			log_cmd_error("Key size is %d bits, while %d are required (%d locking + %d antisat)\n", GetSize(key_values), key_size,
+				      nb_locked, nb_antisat);
+		}
+		log_assert(GetSize(key_values) >= key_size);
+		key_values.resize(key_size);
+
+		if (dry_run) {
+			log("Dry run: no modification made to the module.\n");
+			return;
+		}
+
+		SigSpec input_signal(LogicLockingAnalyzer::get_comb_inputs(mod));
+
+		/**
+		 * WARNING: modifications start here!!!!
+		 *
+		 * Queries on the module (inputs/outputs/cells/...) will start returning modified results and are forbidden from now on
+		 */
+		SigSpec key_signal(add_key_input(mod, key_size, port_name));
+		SigSpec lock_signal = key_signal.extract(0, nb_locked);
+		std::vector<bool> lock_key(key_values.begin(), key_values.begin() + nb_locked);
+
+		// Instanciate antisat countermeasure
+		if (nb_antisat > 0) {
+			log_assert(antisat != SatCountermeasure::None);
+			SigSpec antisat_signal = key_signal.extract(nb_locked, nb_antisat);
+			std::vector<bool> antisat_key(key_values.begin() + nb_locked, key_values.end());
+
+			SigBit flip;
+			if (antisat == SatCountermeasure::AntiSat) {
+				flip = create_antisat(mod, input_signal, antisat_signal, antisat_key);
+			} else if (antisat == SatCountermeasure::SarLock) {
+				flip = create_sarlock(mod, input_signal, antisat_signal, antisat_key);
+			} else {
+				log_cmd_error("Invalid antisat option");
+			}
+
+			// Add the flipping to the locked signals
+			SigSpec flip_vec(std::vector<SigBit>(nb_locked, flip));
+			log_assert(flip_vec.size() == nb_locked);
+			lock_signal = mod->Xor(NEW_ID, lock_signal, flip_vec);
+		}
+
+		// Instanciate locking
+		lock_gates(mod, locked_gates, lock_signal, lock_key);
 	}
 
 	void help() override
@@ -369,42 +448,38 @@ struct LogicLockingPass : public Pass {
 		log("By default, it runs simulations and optimizes the subset of signals that \n");
 		log("are locked, making it difficult to recover the original design.\n");
 		log("\n");
-		log("    -key <value>\n");
-		log("        the locking key (hexadecimal)\n");
-		log("\n");
-		log("    -key-bits <value>\n");
-		log("        size of the key in bits\n");
-		log("\n");
-		log("    -key-percent <value>\n");
-		log("        size of the key as a percentage of the number of gates in the design (default=5)\n");
+		log("    -nb-locked <value>\n");
+		log("        number of gates to lock, either absolute (5) or as percentage of gates (3.0%%) (default=5%%)\n");
 		log("\n");
 		log("    -port-name <value>\n");
 		log("        name for the key input (default=moosic_key)\n");
 		log("\n");
+		log("    -key <value>\n");
+		log("        the locking key (hexadecimal); if not provided, an insecure key will be generated\n");
 		log("\n");
-		log("The following options control the optimization algorithms.\n");
-		log("    -target {pairwise|corruption|hybrid|fll|kip}\n");
+		log("    -antisat {none|antisat|sarlock}\n");
+		log("        countermeasure against Sat attacks (default=none)\n");
+		log("\n");
+		log("    -nb-antisat <value>\n");
+		log("        number of bits for the antisat key, either absolute (5) or as percentage of gates (3.0%%) (default=5%%)\n");
+		log("\n");
+		log("    -dry-run\n");
+		log("        do not modify the design, just print the locking solution\n");
+		log("\n");
+		log("\n");
+		log("The following options control the optimization algorithms to insert key gates.\n");
+		log("    -target {corruption|pairwise|hybrid|fll|kip|outputs}\n");
 		log("        optimization target for locking (default=corruption)\n");
 		log("\n");
 		log("    -nb-test-vectors <value>\n");
 		log("        number of test vectors used for analysis during optimization (default=64)\n");
 		log("\n");
 		log("\n");
-		log("These options analyze the logic locking solution's security.\n");
+		log("These options control the security metrics analysis.\n");
 		log("    -nb-analysis-keys <value>\n");
 		log("        number of random keys used to analyze security (default=128)\n");
 		log("    -nb-analysis-vectors <value>\n");
 		log("        number of test vectors used to analyze security (default=1024)\n");
-		log("\n");
-		log("\n");
-		log("The following options control locking manually, locking the corresponding \n");
-		log("gate outputs directly without any optimization. They can be mixed and repeated.\n");
-		log("\n");
-		log("    -lock-gate <name>\n");
-		log("        lock the output of the gate, adding a xor/xnor and a module input\n");
-		log("\n");
-		log("    -mix-gate <name1> <name2>\n");
-		log("        mix the output of one gate with another, adding a mux and a module input\n");
 		log("\n");
 		log("\n");
 		log("Security is evaluated with simple metrics:\n");
@@ -422,18 +497,19 @@ struct LogicLockingPass : public Pass {
 		log("  * Targets \"fault-analysis-fll\" and \"fault-analysis-kip\" uses the metrics defined in\n");
 		log("\"Fault Analysis-Based Logic Encryption\" and \"Hardware Trust: Design Solutions for Logic Locking\"\n");
 		log("to select signals to lock.\n");
+		log("  * Target \"outputs\" will lock the primary outputs.\n");
 		log("\n");
 		log("Only gate outputs (not primary inputs) are considered for locking at the moment.\n");
 		log("Sequential cells and hierarchical instances are treated as primary inputs and outputs \n");
 		log("for security evaluation.\n");
 		log("\n");
 		log("\n");
-		log("For more control on the logic locking solutions, you may use the logic locking\n");
-		log("exploration commands instead:");
+		log("For more control, you may use the other logic locking commands:\n");
 		log("    ll_explore to explore potential optimal solutions\n");
 		log("    ll_show to see which gates are locked in a solution\n");
 		log("    ll_analyze to compute the security and performance metrics of a solution\n");
 		log("    ll_apply to apply a locking solution to the circuit\n");
+		log("    ll_direct_locking to lock gates directly by names\n");
 		log("\n");
 		log("\n");
 	}

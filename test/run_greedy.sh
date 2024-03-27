@@ -6,7 +6,7 @@ function run_benchmark () {
 	benchmark=$1
 	percent=$2
 	target=$3
-	yosys -m moosic -p "read_blif -sop ${benchmark}; flatten; synth; logic_locking -key-percent ${percent} -target ${target}" && { echo "Finished ${name}"; } || { echo "Failure on ${name}: ${cmd}"; exit 1; }
+	yosys -m moosic -p "read_blif -sop ${benchmark}; flatten; synth; logic_locking -nb-locked ${percent}% -target ${target}" && { echo "Finished ${name}"; } || { echo "Failure on ${name}: ${cmd}"; exit 1; }
 }
 
 echo "benchmark,key_percent,moosic,fll,kip" > corruptibility.csv

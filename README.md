@@ -12,7 +12,7 @@ When creating an electronic circuit, manufacturing steps are usually performed b
 
 This mangling makes it more difficult to reverse-engineer the circuit, to add trojans, or simply to reuse without the correct key.
 
-This repository provides a Yosys plugin to add logic locking functionality to a circuit.
+This repository provides a Yosys plugin to add logic locking functionality to a circuit and perform security analysis.
 
 [Slides](https://wiki.f-si.org/images/5/5c/Gabriel_Gouvine_MOOSIC_FSiC_2023.pdf) and [Video](https://peertube.f-si.org/videos/watch/7f250190-6d8f-4a67-8ed6-d07deda7fba0) from [Free Silicon Conference 2023](https://wiki.f-si.org/index.php/FSiC2023)
 
@@ -28,11 +28,14 @@ This is the method used by the plugin.
 
 ![My Image](doc/MUX_insertion.svg)
 
-Any gate that keeps the previous functionality can be inserted.
+Any gate that keeps the previous functionality could be inserted.
 For example, we can mix signals using multiplexers. A MUX is inserted on a wire with an irrelevant signal connected to the other input of the MUX. In this case, the key value selects between the correct signal and the irrelevant one.
 Another possibility is to replace gates with lookup-tables, which will have to be programmed correctly.
 
-Key handling (getting the key onto the chip) is left to the user.
+Several attacks have been designed against logic locking.
+This plugin provides countermeasures against common attacks based on Sat solvers.
+
+Key handling (getting the key onto the chip) is highly application-specific and is left to the user.
 
 ## Using the plugin
 
@@ -51,10 +54,10 @@ synth; flatten
 help logic_locking
 
 # Add logic locking with a 16b key, with hexadecimal key 048c
-logic_locking -key-bits 16 -key 048c
+logic_locking -nb-locked 16 -key 048c
 
 # Add logic locking up to 5% of the module size, maximizing output corruption, with an auto-generated key
-logic_locking -key-percent 5 -target corruption
+logic_locking -nb-locked 5% -target corruption
 
 # Check if the key can be recovered by a Sat attack after locking
 ll_sat_attack -key 048c
