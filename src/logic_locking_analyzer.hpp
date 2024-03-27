@@ -152,12 +152,22 @@ class LogicLockingAnalyzer
 	std::vector<std::pair<Cell *, Cell *>> compute_dependency_graph();
 
 	/**
-	 * @brief List the combinatorial inputs of the module (inputs + flip-flop outputs)
+	 * @brief List the combinatorial inputs of a module (inputs + flip-flop outputs)
+	 */
+	static pool<SigBit> get_comb_inputs(Module *mod);
+
+	/**
+	 * @brief List the combinatorial inputs (inputs + flip-flop outputs)
 	 */
 	pool<SigBit> get_comb_inputs() const;
 
 	/**
-	 * @brief List the combinatorial outputs of the module (outputs + flip-flop inputs)
+	 * @brief List the combinatorial outputs of a module (outputs + flip-flop inputs)
+	 */
+	static pool<SigBit> get_comb_outputs(Module *mod);
+
+	/**
+	 * @brief List the combinatorial outputs (outputs + flip-flop inputs)
 	 */
 	pool<SigBit> get_comb_outputs() const;
 
