@@ -64,3 +64,12 @@ $cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; 
 
 # Sat attack
 $cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; synth; logic_locking -key 555555; ll_sat_attack -key 555555"
+
+# Antisat
+$cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; synth; logic_locking -antisat antisat -nb-antisat 10"
+
+# Sarlock
+$cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; synth; logic_locking -antisat sarlock -nb-antisat 10"
+
+# Skglock
+$cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; synth; logic_locking -antisat skglock -nb-antisat 10"

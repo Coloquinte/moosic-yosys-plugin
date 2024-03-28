@@ -41,8 +41,11 @@ jobs:
     - name: Download benchmarks
       run: bash test/download_benchmarks.sh
 
-    - name: Tests
+    - name: Test commands
       run: ${{ matrix.compiler == 'gcc' && 'ENABLE_VALGRIND=1' || '' }} bash test/test_commands.sh
+
+    - name: Test edge cases
+      run: ${{ matrix.compiler == 'gcc' && 'ENABLE_VALGRIND=1' || '' }} bash test/test_edge_cases.sh
 
     - name: Benchmarks
       if: ${{ matrix.mode == 'Release' }}

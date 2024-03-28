@@ -23,7 +23,7 @@ USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
 enum OptimizationTarget { PAIRWISE_SECURITY, PAIRWISE_SECURITY_NO_DEDUP, OUTPUT_CORRUPTION, HYBRID, FAULT_ANALYSIS_FLL, FAULT_ANALYSIS_KIP, OUTPUTS };
-enum class SatCountermeasure { None, AntiSat, SarLock };
+enum class SatCountermeasure { None, AntiSat, SarLock, SkgLock };
 
 /**
  * @brief Run the optimization algorithm to maximize pairwise security
@@ -313,6 +313,8 @@ struct LogicLockingPass : public Pass {
 					antisat = SatCountermeasure::AntiSat;
 				} else if (t == "sarlock") {
 					antisat = SatCountermeasure::SarLock;
+				} else if (t == "skglock") {
+					antisat = SatCountermeasure::SkgLock;
 				} else {
 					log_cmd_error("Invalid antisat option %s", t.c_str());
 				}
@@ -401,6 +403,10 @@ struct LogicLockingPass : public Pass {
 			log("Dry run: no modification made to the module.\n");
 			return;
 		}
+		if (nb_locked == 0) {
+			log_warning("Number of gates to lock is 0. Nothing to be done.\n");
+			return;
+		}
 
 		SigSpec input_signal(LogicLockingAnalyzer::get_comb_inputs(mod));
 
@@ -419,19 +425,28 @@ struct LogicLockingPass : public Pass {
 			SigSpec antisat_signal = key_signal.extract(nb_locked, nb_antisat);
 			std::vector<bool> antisat_key(key_values.begin() + nb_locked, key_values.end());
 
-			SigBit flip;
 			if (antisat == SatCountermeasure::AntiSat) {
-				flip = create_antisat(mod, input_signal, antisat_signal, antisat_key);
+				SigBit flip = create_antisat(mod, input_signal, antisat_signal, antisat_key);
+				lock_signal = mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
 			} else if (antisat == SatCountermeasure::SarLock) {
-				flip = create_sarlock(mod, input_signal, antisat_signal, antisat_key);
+				SigBit flip = create_sarlock(mod, input_signal, antisat_signal, antisat_key);
+				lock_signal = mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
+			} else if (antisat == SatCountermeasure::SkgLock) {
+				std::vector<SigBit> active = create_skglock_switch_controller(mod, input_signal, antisat_signal, antisat_key).bits();
+				if (GetSize(active) > GetSize(lock_signal)) {
+					log_warning("SKG switch controller generates %d bits, but only %d will be used by the locking\n",
+						    GetSize(active), GetSize(lock_signal));
+					active.resize(GetSize(lock_signal));
+				}
+				if (GetSize(active) < GetSize(lock_signal)) {
+					log_warning("SKG switch controller generates only %d bits, padding with 1s to %d for locking\n",
+						    GetSize(active), GetSize(lock_signal));
+					active.resize(GetSize(lock_signal), SigBit(RTLIL::State::S1));
+				}
+				lock_signal = mod->And(NEW_ID, lock_signal, SigSpec(active));
 			} else {
 				log_cmd_error("Invalid antisat option");
 			}
-
-			// Add the flipping to the locked signals
-			SigSpec flip_vec(std::vector<SigBit>(nb_locked, flip));
-			log_assert(flip_vec.size() == nb_locked);
-			lock_signal = mod->Xor(NEW_ID, lock_signal, flip_vec);
 		}
 
 		// Instanciate locking
@@ -457,7 +472,7 @@ struct LogicLockingPass : public Pass {
 		log("    -key <value>\n");
 		log("        the locking key (hexadecimal); if not provided, an insecure key will be generated\n");
 		log("\n");
-		log("    -antisat {none|antisat|sarlock}\n");
+		log("    -antisat {none|antisat|sarlock|skglock}\n");
 		log("        countermeasure against Sat attacks (default=none)\n");
 		log("\n");
 		log("    -nb-antisat <value>\n");

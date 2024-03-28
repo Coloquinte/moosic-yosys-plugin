@@ -31,7 +31,11 @@ Yosys::RTLIL::SigBit create_antisat(Yosys::RTLIL::Module *module, Yosys::RTLIL::
 		log("Using only %d inputs out of %d for antisat.\n", sz, inputs.size());
 		inputs = inputs.extract(0, sz);
 	}
-
+	if (key.size() < 20) {
+		log_warning(
+		  "The size of the Antisat key (%d) is too low. Complexity is proportional to 2^(n/2), and a size below 20 is not useful.\n",
+		  key.size());
+	}
 	SigSpec key1 = key.extract(0, sz);
 	SigSpec key2 = key.extract(sz, sz);
 	log_assert(inputs.size() == sz);
@@ -53,6 +57,10 @@ Yosys::RTLIL::SigBit create_sarlock(Yosys::RTLIL::Module *module, Yosys::RTLIL::
 	if (key.size() < inputs.size()) {
 		log("Using only %d inputs out of %d for Sarlock.\n", key.size(), inputs.size());
 		inputs = inputs.extract(0, key.size());
+	}
+	if (key.size() < 10) {
+		log_warning("The size of the Sarlock key (%d) is too low. Complexity is proportional to 2^n, and a size below 10 is not useful.\n",
+			    key.size());
 	}
 	return create_sarlock_internals(module, inputs, key, expected_sig);
 }
@@ -79,16 +87,31 @@ RTLIL::SigBit create_sarlock_internals(RTLIL::Module *module, RTLIL::SigSpec inp
 	return flip.as_bit();
 }
 
-Yosys::RTLIL::SigSpec create_skglock_switch_controller(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec input_wire, Yosys::RTLIL::SigSpec key)
+Yosys::RTLIL::SigSpec create_skglock_switch_controller(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
+						       const std::vector<bool> &xoring)
 {
-	log_assert(input_wire.size() == key.size());
-	auto xor_res = module->Xor(NEW_ID, input_wire, key);
+	log_assert(GetSize(key) == GetSize(xoring));
+	// Xor with the constant scrambling key
+	key = module->Xor(NEW_ID, key, const_signal(xoring));
+	if (key.size() > inputs.size()) {
+		log_warning("Skglock key size is larger than the input size. Reduced from %d to %d\n", key.size(), inputs.size());
+		key = key.extract(0, inputs.size());
+	}
+	if (key.size() < inputs.size()) {
+		log("Using only %d inputs out of %d for Skglock.\n", key.size(), inputs.size());
+		inputs = inputs.extract(0, key.size());
+	}
+	if (key.size() < 10) {
+		log_warning("The size of the Skglock key (%d) is too low. Complexity is proportional to 2^n, and a size below 10 is not useful.\n",
+			    key.size());
+	}
+	auto xor_res = module->Xor(NEW_ID, inputs, key);
 
 	// n-bit prefix and
 	std::vector<SigBit> out_bits;
 	SigBit b(RTLIL::State::S1);
 	for (int i = 0; i < xor_res.size(); i++) {
-		b = module->And(NEW_ID, xor_res[i], b);
+		b = module->And(NEW_ID, module->Not(NEW_ID, xor_res[i]), b);
 		out_bits.push_back(b);
 	}
 
