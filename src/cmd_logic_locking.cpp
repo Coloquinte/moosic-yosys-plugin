@@ -403,6 +403,10 @@ struct LogicLockingPass : public Pass {
 			log("Dry run: no modification made to the module.\n");
 			return;
 		}
+		if (nb_locked == 0) {
+			log_warning("Number of gates to lock is 0. Nothing to be done.\n");
+			return;
+		}
 
 		SigSpec input_signal(LogicLockingAnalyzer::get_comb_inputs(mod));
 
