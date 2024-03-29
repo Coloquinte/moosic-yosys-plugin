@@ -12,7 +12,7 @@ SatAttack::SatAttack(RTLIL::Module *mod, const std::string &portName, const std:
 	nbOutputs_ = analyzer_.nb_outputs();
 	nbKeyBits_ = getKeyPort()->width;
 	nbInputs_ = analyzer_.nb_inputs() - nbKeyBits_;
-	log("Initialized Sat attack for a module with %d inputs, %d outputs and %d key bits\n", nbInputs(), nbOutputs(), nbKeyBits());
+	log("Starting Sat attack for a module with %d inputs, %d outputs and %d key bits\n", nbInputs(), nbOutputs(), nbKeyBits());
 
 	// Size sanity checks
 	if (GetSize(expectedKey_) < nbKeyBits_) {
@@ -26,7 +26,6 @@ SatAttack::SatAttack(RTLIL::Module *mod, const std::string &portName, const std:
 	expectedKey_.resize(nbKeyBits_, false);
 
 	// Generate initial test vectors
-	log("Generating %d initial test vectors\n", nbInitialVectors);
 	for (int i = 0; i < nbInitialVectors; i++) {
 		genTestVector();
 	}
@@ -47,7 +46,7 @@ void SatAttack::genTestVector()
 void SatAttack::run(double maxCorruption)
 {
 	if (!keyPassesTests(expectedKey_)) {
-		log_error("The expected locking key does not pass the test vectors: there must be a bug\n");
+		log_error("The expected locking key does not pass the test vectors: there must be a bug.\n");
 	}
 	keyFound_ = false;
 	bestKey_.clear();
@@ -58,30 +57,34 @@ void SatAttack::run(double maxCorruption)
 	}
 	log("Found a candidate key for the initial test vectors: %s\n", create_hex_string(bestKey_).c_str());
 
+	int i = 0;
 	while (true) {
 		std::vector<bool> candidateInputs;
 		std::vector<bool> candidateKey;
 		found = findNewDifferentInputsAndKey(candidateInputs, candidateKey);
 		if (!found) {
-			log("Found a key that unlocks the design: %s\n", create_hex_string(bestKey_).c_str());
+			log("Found a key that unlocks the design after %d iterations: %s\n", i, create_hex_string(bestKey_).c_str());
 			keyFound_ = true;
 			break;
 		}
-		log("Found a new candidate key: %s\n", create_hex_string(candidateKey).c_str());
+		++i;
+		log("\tFound a new candidate key: %s\n", create_hex_string(candidateKey).c_str());
 		std::vector<bool> expectedOutputs = callOracle(candidateInputs);
 		testInputs_.push_back(candidateInputs);
 		testOutputs_.push_back(expectedOutputs);
 		found = findNewValidKey(bestKey_);
 		if (!found) {
 			bestKey_.clear();
-			log("No valid key found with the new test vector\n");
+			log("No valid key found with the new test vector.\n");
 			break;
 		}
 	}
 	if (keyFound_) {
 		if (!keyPassesTests(bestKey_)) {
-			log_error("Found key does not pass the test vectors\n");
+			log_error("Found key does not pass the test vectors.\n");
 		}
+	} else {
+		log_warning("Couldn't prove which key unlocks the design.\n");
 	}
 }
 
