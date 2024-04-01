@@ -46,7 +46,7 @@ void SatAttack::genTestVector()
 void SatAttack::run(double maxCorruption)
 {
 	if (!keyPassesTests(expectedKey_)) {
-		log_error("The expected locking key does not pass the test vectors: there must be a bug.\n");
+		log_error("The expected locking key does not pass the random test vectors: there must be a bug.\n");
 	}
 	keyFound_ = false;
 	bestKey_.clear();
@@ -63,6 +63,7 @@ void SatAttack::run(double maxCorruption)
 		std::vector<bool> candidateKey;
 		found = findNewDifferentInputsAndKey(candidateInputs, candidateKey);
 		if (!found) {
+			// All possible keys will have the exact same effect as the current key: we can stop
 			log("Found a key that unlocks the design after %d iterations: %s\n", i, create_hex_string(bestKey_).c_str());
 			keyFound_ = true;
 			break;

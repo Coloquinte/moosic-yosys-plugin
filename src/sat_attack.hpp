@@ -147,8 +147,8 @@ class SatAttack
 
 	/// Solving time limit
 	double timeLimit_;
-    /// Cnf file export
-    std::string cnfFile_;
+	/// Cnf file export
+	std::string cnfFile_;
 };
 
 #endif
