@@ -18,19 +18,32 @@
 class SatAttack
 {
       public:
-	SatAttack(Yosys::RTLIL::Module *mod, const std::string &portName, const std::vector<bool> &expectedKey, int nbInitialVectors);
+	SatAttack(Yosys::RTLIL::Module *mod, const std::string &portName, const std::vector<bool> &expectedKey);
 
 	/**
-	 * @brief Run the attack with a corruption target
-	 *
-	 * Zero maximum corruption means a perfect break; a non-zero corruption will allow
+	 * @brief Run the Sat attack
 	 */
-	void run(double maxCorruption);
+	void runSat(int nbInitialVectors);
+
+	/**
+	 * @brief Run the approximate sat attack with a corruption target
+	 */
+	void runAppSat(double errorThreshold, int nbInitialVectors, int nbDIQueries, int nbRandomVectors, int settleThreshold);
+
+	/**
+	 * @brief Check things, initialize the test vectors and the best key; return false if no initial key is found
+	 */
+	bool runPrologue(int nbInitialVectors);
 
 	/**
 	 * @brief Run the brute-force attack with the initial test vectors. Used as a test for small key sizes
 	 */
 	void runBruteForce();
+
+	/**
+	 * @brief Measure the error of the best key on random vectors and had failing ones as constraints
+	 */
+	double measureErrorAndConstrain(int nbRandomVectors);
 
 	/// @brief Number of non-key module inputs
 	int nbInputs() const { return nbInputs_; }
@@ -53,6 +66,16 @@ class SatAttack
 	const std::vector<bool> &bestKey() const { return bestKey_; }
 
       private:
+	/**
+	 * Generate a new test vector and run it on the oracle
+	 */
+	std::vector<bool> genInputVector();
+
+	/**
+	 * Add a new set of inputs to the test vectors
+	 */
+	void addTestVector(const std::vector<bool> &inputs);
+
 	/**
 	 * Generate a new test vector and run it on the oracle
 	 */
@@ -79,9 +102,18 @@ class SatAttack
 	bool findNewValidKey(std::vector<bool> &key);
 
 	/**
-	 * @brief Find a new set of inputs and a new key that is valid for all test vectors and yields a different output than the best one
+	 * @brief Find a set of differenciating inputs and a key for which the outputs are different from the best key
+	 *
+	 * @return whether such an input set was found
 	 */
-	bool findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vector<bool> &key);
+	bool findDIFromBestKey(std::vector<bool> &inputs, std::vector<bool> &key);
+
+	/**
+	 * @brief Find a set of differenciating inputs and two keys for which the outputs are different
+	 *
+	 * @return whether such an input set was found
+	 */
+	bool findDI(std::vector<bool> &inputs, std::vector<bool> &key1, std::vector<bool> &key2);
 
 	/**
 	 * @brief Concatenate and reorder input and key to obtain Aig inputs

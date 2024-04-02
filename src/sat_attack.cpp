@@ -6,13 +6,12 @@
 
 USING_YOSYS_NAMESPACE
 
-SatAttack::SatAttack(RTLIL::Module *mod, const std::string &portName, const std::vector<bool> &expectedKey, int nbInitialVectors)
+SatAttack::SatAttack(RTLIL::Module *mod, const std::string &portName, const std::vector<bool> &expectedKey)
     : mod_(mod), keyPortName_(portName), expectedKey_(expectedKey), keyFound_(false), analyzer_(mod)
 {
 	nbOutputs_ = analyzer_.nb_outputs();
 	nbKeyBits_ = getKeyPort()->width;
 	nbInputs_ = analyzer_.nb_inputs() - nbKeyBits_;
-	log("Starting Sat attack for a module with %d inputs, %d outputs and %d key bits\n", nbInputs(), nbOutputs(), nbKeyBits());
 
 	// Size sanity checks
 	if (GetSize(expectedKey_) < nbKeyBits_) {
@@ -24,44 +23,38 @@ SatAttack::SatAttack(RTLIL::Module *mod, const std::string &portName, const std:
 
 	// Truncate the key to the useful bits
 	expectedKey_.resize(nbKeyBits_, false);
-
-	// Generate initial test vectors
-	for (int i = 0; i < nbInitialVectors; i++) {
-		genTestVector();
-	}
 }
 
-void SatAttack::genTestVector()
+std::vector<bool> SatAttack::genInputVector()
 {
 	std::bernoulli_distribution dist;
 	std::vector<bool> inputs;
 	for (int i = 0; i < nbInputs(); i++) {
 		inputs.push_back(dist(rgen_));
 	}
+	return inputs;
+}
+
+void SatAttack::addTestVector(const std::vector<bool> &inputs)
+{
 	std::vector<bool> outputs = callOracle(inputs);
 	testInputs_.push_back(inputs);
 	testOutputs_.push_back(outputs);
 }
 
-void SatAttack::run(double maxCorruption)
+void SatAttack::genTestVector() { addTestVector(genInputVector()); }
+
+void SatAttack::runSat(int nbInitialVectors)
 {
-	if (!keyPassesTests(expectedKey_)) {
-		log_error("The expected locking key does not pass the random test vectors: there must be a bug.\n");
-	}
-	keyFound_ = false;
-	bestKey_.clear();
-	bool found = findNewValidKey(bestKey_);
-	if (!found) {
-		log("No valid key found for the initial test vectors\n");
+	log("Starting Sat attack with %d inputs, %d outputs and %d key bits\n", nbInputs(), nbOutputs(), nbKeyBits());
+	if (!runPrologue(nbInitialVectors)) {
 		return;
 	}
-	log("Found a candidate key for the initial test vectors: %s\n", create_hex_string(bestKey_).c_str());
 
 	int i = 0;
 	while (true) {
-		std::vector<bool> candidateInputs;
-		std::vector<bool> candidateKey;
-		found = findNewDifferentInputsAndKey(candidateInputs, candidateKey);
+		std::vector<bool> candidateInputs, candidateKey;
+		bool found = findDIFromBestKey(candidateInputs, candidateKey);
 		if (!found) {
 			// All possible keys will have the exact same effect as the current key: we can stop
 			log("Found a key that unlocks the design after %d iterations: %s\n", i, create_hex_string(bestKey_).c_str());
@@ -69,10 +62,8 @@ void SatAttack::run(double maxCorruption)
 			break;
 		}
 		++i;
-		log("\tFound a new candidate key: %s\n", create_hex_string(candidateKey).c_str());
-		std::vector<bool> expectedOutputs = callOracle(candidateInputs);
-		testInputs_.push_back(candidateInputs);
-		testOutputs_.push_back(expectedOutputs);
+		log("\tFound a differenciating input with key %s.\n", create_hex_string(candidateKey).c_str());
+		addTestVector(candidateInputs);
 		found = findNewValidKey(bestKey_);
 		if (!found) {
 			bestKey_.clear();
@@ -87,6 +78,95 @@ void SatAttack::run(double maxCorruption)
 	} else {
 		log_warning("Couldn't prove which key unlocks the design.\n");
 	}
+}
+
+void SatAttack::runAppSat(double errorThreshold, int nbInitialVectors, int nbDIQueries, int nbRandomVectors, int settleThreshold)
+{
+	log("Starting approximate Sat attack with %d inputs, %d outputs and %d key bits\n", nbInputs(), nbOutputs(), nbKeyBits());
+	if (!runPrologue(nbInitialVectors)) {
+		return;
+	}
+
+	int queryCount = 0;
+	int settleCount = 0;
+	while (true) {
+		// Find two different keys matching the existing test vectors
+		std::vector<bool> inputs, key1, key2;
+		bool found = findDI(inputs, key1, key2);
+		if (!found) {
+			// All possible keys will have the exact same effect as the current key: we can stop
+			log("Found a key that unlocks the design after %d iterations: %s\n", queryCount, create_hex_string(bestKey_).c_str());
+			keyFound_ = true;
+			break;
+		}
+		// Pick one of the keys
+		bestKey_ = key1;
+		log("\tFound differenciating inputs between two keys: %s and %s\n", create_hex_string(key1).c_str(), create_hex_string(key2).c_str());
+		addTestVector(inputs);
+		++queryCount;
+		if (queryCount % nbDIQueries != 0) {
+			continue;
+		}
+
+		// Measure the error on random vectors
+		double epsilon = measureErrorAndConstrain(nbRandomVectors);
+		if (epsilon < errorThreshold) {
+			++settleCount;
+			// Wait settleCount times until we consider the key good enough
+			if (settleCount >= settleThreshold) {
+				log("Found a key that approximately unlocks the design after %d iterations, %.1f%% error on %d test vectors: %s\n",
+				    queryCount, 100.0 * epsilon, nbRandomVectors, create_hex_string(bestKey_).c_str());
+				keyFound_ = true;
+				break;
+			}
+		} else {
+			settleCount = 0;
+		}
+	}
+}
+
+double SatAttack::measureErrorAndConstrain(int nbRandomVectors)
+{
+	assert(GetSize(bestKey_) == nbKeyBits());
+	int nbErrors = 0;
+	for (int i = 0; i < nbRandomVectors; ++i) {
+		std::vector<bool> inputs = genInputVector();
+		std::vector<bool> expected = callOracle(inputs);
+		std::vector<bool> outputs = callDesign(inputs, bestKey_);
+		if (outputs != expected) {
+			++nbErrors;
+			// Add the failing test vector as a constraint
+			testInputs_.push_back(inputs);
+			testOutputs_.push_back(expected);
+		}
+	}
+	double epsilon = nbRandomVectors <= 0 ? 0.0 : (double)nbErrors / nbRandomVectors;
+	log("\tMeasured error %.3f%% error: %d out of %d test vectors.\n", 100.0 * epsilon, nbErrors, nbRandomVectors);
+	return epsilon;
+}
+
+bool SatAttack::runPrologue(int nbInitialVectors)
+{
+	// Generate initial test vectors
+	testInputs_.clear();
+	testOutputs_.clear();
+	for (int i = 0; i < nbInitialVectors; i++) {
+		genTestVector();
+	}
+	// Check the expected key
+	if (!keyPassesTests(expectedKey_)) {
+		log_error("The expected locking key does not pass the random test vectors: there must be a bug.\n");
+	}
+
+	keyFound_ = false;
+	bestKey_.clear();
+	bool found = findNewValidKey(bestKey_);
+	if (!found) {
+		log("No valid key found for the %d initial test vectors\n", nbInitialVectors);
+		return false;
+	}
+	log("Found a candidate key for the %d initial test vectors: %s\n", nbInitialVectors, create_hex_string(bestKey_).c_str());
+	return true;
 }
 
 void SatAttack::runBruteForce()
@@ -161,7 +241,7 @@ bool SatAttack::findNewValidKey(std::vector<bool> &key)
 	return true;
 }
 
-bool SatAttack::findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vector<bool> &key)
+bool SatAttack::findDIFromBestKey(std::vector<bool> &inputs, std::vector<bool> &key)
 {
 	assert(GetSize(bestKey_) == nbKeyBits());
 	inputs.clear();
@@ -205,12 +285,64 @@ bool SatAttack::findNewDifferentInputsAndKey(std::vector<bool> &inputs, std::vec
 		}
 		return false;
 	} else {
-		for (int i = 0; i < nbKeyBits(); ++i) {
-			key.push_back(res.at(i));
+		key.assign(res.begin(), res.begin() + nbKeyBits());
+		inputs.assign(res.begin() + nbKeyBits(), res.end());
+		return true;
+	}
+}
+
+bool SatAttack::findDI(std::vector<bool> &inputs, std::vector<bool> &key1, std::vector<bool> &key2)
+{
+	assert(GetSize(bestKey_) == nbKeyBits());
+	inputs.clear();
+	key1.clear();
+	key2.clear();
+
+	ezMiniSAT sat;
+	if (std::isfinite(timeLimit_)) {
+		sat.solverTimeout = (int)timeLimit_;
+	}
+
+	std::vector<int> keyLits1;
+	for (int i = 0; i < nbKeyBits(); ++i) {
+		keyLits1.push_back(sat.literal());
+	}
+	std::vector<int> keyLits2;
+	for (int i = 0; i < nbKeyBits(); ++i) {
+		keyLits2.push_back(sat.literal());
+	}
+	std::vector<int> inputLits;
+	for (int i = 0; i < nbInputs(); ++i) {
+		inputLits.push_back(sat.literal());
+	}
+
+	forceKeyCorrect(sat, keyLits1);
+	forceKeyCorrect(sat, keyLits2);
+
+	// Force the new key to have a different output than the current key on these inputs
+	std::vector<int> output1 = extractOutputs(sat, aigToSat(sat, inputLits, keyLits1));
+	std::vector<int> output2 = extractOutputs(sat, aigToSat(sat, inputLits, keyLits2));
+	sat.assume(sat.vec_ne(output1, output2));
+
+	// Solve the model
+	std::vector<int> assume;
+	// Values we are interested in: keys and inputs
+	std::vector<int> query;
+	query.insert(query.end(), keyLits1.begin(), keyLits1.end());
+	query.insert(query.end(), keyLits2.begin(), keyLits2.end());
+	query.insert(query.end(), inputLits.begin(), inputLits.end());
+	std::vector<bool> res;
+	bool success = sat.solve(query, res, assume);
+
+	if (!success) {
+		if (sat.solverTimoutStatus) {
+			log_cmd_error("Timeout while solving the model\n");
 		}
-		for (int i = 0; i < nbInputs(); ++i) {
-			inputs.push_back(res.at(i + nbKeyBits()));
-		}
+		return false;
+	} else {
+		key1.assign(res.begin(), res.begin() + nbKeyBits());
+		key2.assign(res.begin() + nbKeyBits(), res.begin() + 2 * nbKeyBits());
+		inputs.assign(res.begin() + 2 * nbKeyBits(), res.end());
 		return true;
 	}
 }
