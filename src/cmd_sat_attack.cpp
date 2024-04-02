@@ -13,8 +13,11 @@ struct LogicLockingSatAttackPass : public Pass {
 	{
 		log_header(design, "Executing LOGIC_LOCKING_SAT_ATTACK pass.\n");
 
-		int nbInitialVectors = 64;
-		double maxCorruption = 0.0;
+		int nbInitialVectors = 16;
+		int nbTestVectors = 1000;
+		int nbDIQueries = 10;
+		int settleThreshold = 2;
+		double errorThreshold = 0.0;
 		double timeLimit = std::numeric_limits<double>::infinity();
 		std::string portName = "moosic_key";
 		std::string cnfFile = "";
@@ -29,16 +32,34 @@ struct LogicLockingSatAttackPass : public Pass {
 				nbInitialVectors = std::atoi(args[++argidx].c_str());
 				continue;
 			}
+			if (arg == "-nb-test-vectors") {
+				if (argidx + 1 >= args.size())
+					break;
+				nbTestVectors = std::atoi(args[++argidx].c_str());
+				continue;
+			}
+			if (arg == "-nb-di-queries") {
+				if (argidx + 1 >= args.size())
+					break;
+				nbDIQueries = std::atoi(args[++argidx].c_str());
+				continue;
+			}
+			if (arg == "-settle-threshold") {
+				if (argidx + 1 >= args.size())
+					break;
+				settleThreshold = std::atoi(args[++argidx].c_str());
+				continue;
+			}
 			if (arg == "-key") {
 				if (argidx + 1 >= args.size())
 					break;
 				key = args[++argidx].c_str();
 				continue;
 			}
-			if (arg == "-max-corruption") {
+			if (arg == "-error-threshold") {
 				if (argidx + 1 >= args.size())
 					break;
-				maxCorruption = atof(args[++argidx].c_str()) / 100.0;
+				errorThreshold = atof(args[++argidx].c_str()) / 100.0;
 				continue;
 			}
 			if (arg == "-time-limit") {
@@ -68,10 +89,18 @@ struct LogicLockingSatAttackPass : public Pass {
 		RTLIL::Module *mod = single_selected_module(design);
 		std::vector<bool> key_values = parse_hex_string_to_bool(key);
 
-		SatAttack attack(mod, portName, key_values, nbInitialVectors);
+		if (nbInitialVectors < 0 || nbDIQueries < 1 || nbTestVectors < 1 || settleThreshold < 1 || errorThreshold < 0.0) {
+			log_cmd_error("Invalid option value.\n");
+		}
+
+		SatAttack attack(mod, portName, key_values);
 		attack.setTimeLimit(timeLimit);
 		attack.setCnfFile(cnfFile);
-		attack.run(maxCorruption);
+		if (errorThreshold <= 0.0) {
+			attack.runSat(nbInitialVectors);
+		} else {
+			attack.runAppSat(errorThreshold, nbInitialVectors, nbDIQueries, nbTestVectors, settleThreshold);
+		}
 	}
 
 	void help() override
@@ -95,10 +124,19 @@ struct LogicLockingSatAttackPass : public Pass {
 		log("The following options control the attack algorithm:\n");
 		log("    -time-limit <seconds>\n");
 		log("        maximum alloted time to break the circuit\n");
-		log("    -max-corruption <value>\n");
-		log("        maximum corruption allowed for probabilistic attacks (default=0.0)\n");
+		log("    -error-threshold <value>\n");
+		log("        error threshold for approximate attacks, in percent (default=0.0)\n");
 		log("    -nb-initial-vectors <value>\n");
-		log("        number of initial random input patterns to match (default=64)\n");
+		log("        number of initial random input patterns to match (default=16)\n");
+		log("\n");
+		log("The following options are used to execute the approximate attack when the error\n");
+		log("threshold is non-zero:\n");
+		log("    -nb-test-vectors <value>\n");
+		log("        number of random test patterns to test approximate Sat attack (default=1000)\n");
+		log("    -nb-di-queries <value>\n");
+		log("        number of queries for differenciating inputs between tests (default=10)\n");
+		log("    -settle-threshold <value>\n");
+		log("        number of tests before the key is considered good enough (default=2)\n");
 		log("\n");
 		log("\n");
 		log("\n");
