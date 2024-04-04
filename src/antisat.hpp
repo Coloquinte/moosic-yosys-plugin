@@ -68,4 +68,33 @@ Yosys::RTLIL::SigBit create_antisat_internals(Yosys::RTLIL::Module *module, Yosy
 Yosys::RTLIL::SigBit create_sarlock_internals(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec input_wire, Yosys::RTLIL::SigSpec key,
 					      Yosys::RTLIL::SigSpec expected);
 
+/**
+ * Create a daisy chain of or and and gates with the specified pattern
+ * @param input_wire n-bit input value
+ * @param is_or (n-1)-bit vector representing whether the gate is an or
+ * @return n-bit output value
+ */
+Yosys::RTLIL::SigSpec create_daisy_chain(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec input_wire, const std::vector<bool> &is_or);
+
+/**
+ * Create a daisy chain of and gates
+ * @param input_wire n-bit input value
+ * @return n-bit output value
+ */
+Yosys::RTLIL::SigSpec create_and_chain(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec input_wire);
+
+/**
+ * Create a daisy chain of or gates
+ * @param input_wire n-bit input value
+ * @return n-bit output value
+ */
+Yosys::RTLIL::SigSpec create_or_chain(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec input_wire);
+
+/**
+ * Create a daisy chain of alternating and and or gates
+ * @param input_wire n-bit input value
+ * @return n-bit output value
+ */
+Yosys::RTLIL::SigSpec create_alternating_chain(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec input_wire);
+
 #endif
