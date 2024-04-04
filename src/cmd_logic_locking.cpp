@@ -238,6 +238,42 @@ int parseOptionalPercentage(RTLIL::Module *module, std::string arg, double defau
 	}
 }
 
+OptimizationTarget parseOptimizationTarget(const std::string &t)
+{
+	if (t == "pairwise") {
+		return OptimizationTarget::PairwiseSecurity;
+	} else if (t == "pairwise-no-dedup") {
+		return OptimizationTarget::PairwiseSecurityNoDedup;
+	} else if (t == "corruption") {
+		return OptimizationTarget::OutputCorruption;
+	} else if (t == "hybrid") {
+		return OptimizationTarget::Hybrid;
+	} else if (t == "fault-analysis-fll" || t == "fll") {
+		return OptimizationTarget::FaultAnalysisFll;
+	} else if (t == "fault-analysis-kip" || t == "kip") {
+		return OptimizationTarget::FaultAnalysisKip;
+	} else if (t == "outputs") {
+		return OptimizationTarget::Outputs;
+	} else {
+		log_cmd_error("Invalid target option %s", t.c_str());
+	}
+}
+
+SatCountermeasure parseSatCountermeasure(const std::string &t)
+{
+	if (t == "none") {
+		return SatCountermeasure::None;
+	} else if (t == "antisat") {
+		return SatCountermeasure::AntiSat;
+	} else if (t == "sarlock") {
+		return SatCountermeasure::SarLock;
+	} else if (t == "skglock") {
+		return SatCountermeasure::SkgLock;
+	} else {
+		log_cmd_error("Invalid antisat option %s", t.c_str());
+	}
+}
+
 struct LogicLockingPass : public Pass {
 	LogicLockingPass() : Pass("logic_locking") {}
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
@@ -283,41 +319,13 @@ struct LogicLockingPass : public Pass {
 			if (arg == "-target") {
 				if (argidx + 1 >= args.size())
 					break;
-				auto t = args[++argidx];
-				if (t == "pairwise") {
-					target = OptimizationTarget::PairwiseSecurity;
-				} else if (t == "pairwise-no-dedup") {
-					target = OptimizationTarget::PairwiseSecurityNoDedup;
-				} else if (t == "corruption") {
-					target = OptimizationTarget::OutputCorruption;
-				} else if (t == "hybrid") {
-					target = OptimizationTarget::Hybrid;
-				} else if (t == "fault-analysis-fll" || t == "fll") {
-					target = OptimizationTarget::FaultAnalysisFll;
-				} else if (t == "fault-analysis-kip" || t == "kip") {
-					target = OptimizationTarget::FaultAnalysisKip;
-				} else if (t == "outputs") {
-					target = OptimizationTarget::Outputs;
-				} else {
-					log_cmd_error("Invalid target option %s", t.c_str());
-				}
+				target = parseOptimizationTarget(args[++argidx]);
 				continue;
 			}
 			if (arg == "-antisat") {
 				if (argidx + 1 >= args.size())
 					break;
-				auto t = args[++argidx];
-				if (t == "none") {
-					antisat = SatCountermeasure::None;
-				} else if (t == "antisat") {
-					antisat = SatCountermeasure::AntiSat;
-				} else if (t == "sarlock") {
-					antisat = SatCountermeasure::SarLock;
-				} else if (t == "skglock") {
-					antisat = SatCountermeasure::SkgLock;
-				} else {
-					log_cmd_error("Invalid antisat option %s", t.c_str());
-				}
+				antisat = parseSatCountermeasure(args[++argidx]);
 				continue;
 			}
 			if (arg == "-key") {
