@@ -23,7 +23,7 @@ USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
 enum class OptimizationTarget { PairwiseSecurity, PairwiseSecurityNoDedup, OutputCorruption, Hybrid, FaultAnalysisFll, FaultAnalysisKip, Outputs };
-enum class SatCountermeasure { None, AntiSat, SarLock, SkgLock };
+enum class SatCountermeasure { None, AntiSat, SarLock, CasLock, SkgLock };
 
 /**
  * @brief Run the optimization algorithm to maximize pairwise security
@@ -269,6 +269,8 @@ SatCountermeasure parseSatCountermeasure(const std::string &t)
 		return SatCountermeasure::SarLock;
 	} else if (t == "skglock") {
 		return SatCountermeasure::SkgLock;
+	} else if (t == "caslock") {
+		return SatCountermeasure::CasLock;
 	} else {
 		log_cmd_error("Invalid antisat option %s", t.c_str());
 	}
@@ -438,6 +440,9 @@ struct LogicLockingPass : public Pass {
 				lock_signal = mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
 			} else if (antisat == SatCountermeasure::SarLock) {
 				SigBit flip = create_sarlock(mod, input_signal, antisat_signal, antisat_key);
+				lock_signal = mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
+			} else if (antisat == SatCountermeasure::CasLock) {
+				SigBit flip = create_caslock(mod, input_signal, antisat_signal, antisat_key);
 				lock_signal = mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
 			} else if (antisat == SatCountermeasure::SkgLock) {
 				std::vector<SigBit> active = create_skglock_switch_controller(mod, input_signal, antisat_signal, antisat_key).bits();

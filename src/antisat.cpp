@@ -11,8 +11,11 @@ SigSpec const_signal(const std::vector<bool> &vals)
 	return SigSpec(bits);
 }
 
-Yosys::RTLIL::SigBit create_antisat(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
-				    const std::vector<bool> &expected)
+/**
+ * @brief Split the key in two and Xor it with input wires according to the expected key, before using it in an Antisat-like module
+ */
+std::pair<SigSpec, SigSpec> setup_antisat_key(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec &inputs, Yosys::RTLIL::SigSpec key,
+					      const std::vector<bool> &expected)
 {
 	log_assert(GetSize(key) == GetSize(expected));
 	// Xor with the expected key
@@ -41,7 +44,21 @@ Yosys::RTLIL::SigBit create_antisat(Yosys::RTLIL::Module *module, Yosys::RTLIL::
 	log_assert(inputs.size() == sz);
 	log_assert(key1.size() == sz);
 	log_assert(key2.size() == sz);
-	return create_antisat_internals(module, inputs, key1, key2);
+	return std::make_pair(key1, key2);
+}
+
+Yosys::RTLIL::SigBit create_antisat(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
+				    const std::vector<bool> &expected)
+{
+	auto keys = setup_antisat_key(module, inputs, key, expected);
+	return create_antisat_internals(module, inputs, keys.first, keys.second);
+}
+
+Yosys::RTLIL::SigBit create_caslock(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
+				    const std::vector<bool> &expected)
+{
+	auto keys = setup_antisat_key(module, inputs, key, expected);
+	return create_caslock_internals(module, inputs, keys.first, keys.second);
 }
 
 Yosys::RTLIL::SigBit create_sarlock(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
@@ -73,6 +90,18 @@ RTLIL::SigBit create_antisat_internals(RTLIL::Module *module, RTLIL::SigSpec inp
 	auto comp2 = module->Xor(NEW_ID, input_wire, key2);
 	auto red1 = create_and_chain(module, comp1).msb();
 	auto red2 = create_and_chain(module, comp2).msb();
+	auto flip = module->And(NEW_ID, red1, module->Not(NEW_ID, red2));
+	return flip.as_bit();
+}
+
+RTLIL::SigBit create_caslock_internals(RTLIL::Module *module, RTLIL::SigSpec input_wire, RTLIL::SigSpec key1, RTLIL::SigSpec key2)
+{
+	log_assert(input_wire.size() == key1.size());
+	log_assert(input_wire.size() == key2.size());
+	auto comp1 = module->Xor(NEW_ID, input_wire, key1);
+	auto comp2 = module->Xor(NEW_ID, input_wire, key2);
+	auto red1 = create_alternating_chain(module, comp1).msb();
+	auto red2 = create_alternating_chain(module, comp2).msb();
 	auto flip = module->And(NEW_ID, red1, module->Not(NEW_ID, red2));
 	return flip.as_bit();
 }

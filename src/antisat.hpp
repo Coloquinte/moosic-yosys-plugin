@@ -30,6 +30,17 @@ Yosys::RTLIL::SigBit create_sarlock(Yosys::RTLIL::Module *module, Yosys::RTLIL::
 				    const std::vector<bool> &expected);
 
 /**
+ * @brief Create the gates for the CasLock method
+ *
+ * @param input_wire n-bit input value
+ * @param key 2n-bit key value
+ * @param expected 2n-bit expected key value
+ * @return 1-bit flip
+ */
+Yosys::RTLIL::SigBit create_caslock(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
+				    const std::vector<bool> &expected);
+
+/**
  * @brief Create the switch controller for the SkgLock+ method
  *
  * @param inputs n-bit input value
@@ -53,6 +64,20 @@ Yosys::RTLIL::SigSpec create_skglock_switch_controller(Yosys::RTLIL::Module *mod
  * This yields a single bit, which is constant zero whenever key1 == key2; otherwise the flip wire may be asserted for some input values
  */
 Yosys::RTLIL::SigBit create_antisat_internals(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec input_wire, Yosys::RTLIL::SigSpec key1,
+					      Yosys::RTLIL::SigSpec key2);
+
+/**
+ * @brief Create the internals for the CasLock method, a generalized version of AntiSAT
+ *
+ * @param input_wire n-bit input value
+ * @param key1 n-bit key value
+ * @param key2 n-bit key value
+ * @param is_or whether the nth gate is an or gate instead of an and
+ * @return 1-bit flip
+ *
+ * This yields a single bit, which is constant zero whenever key1 == key2; otherwise the flip wire may be asserted for some input values
+ */
+Yosys::RTLIL::SigBit create_caslock_internals(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec input_wire, Yosys::RTLIL::SigSpec key1,
 					      Yosys::RTLIL::SigSpec key2);
 
 /**
