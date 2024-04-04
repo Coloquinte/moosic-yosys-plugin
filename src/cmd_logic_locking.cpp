@@ -22,7 +22,7 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-enum OptimizationTarget { PAIRWISE_SECURITY, PAIRWISE_SECURITY_NO_DEDUP, OUTPUT_CORRUPTION, HYBRID, FAULT_ANALYSIS_FLL, FAULT_ANALYSIS_KIP, OUTPUTS };
+enum class OptimizationTarget { PairwiseSecurity, PairwiseSecurityNoDedup, OutputCorruption, Hybrid, FaultAnalysisFll, FaultAnalysisKip, Outputs };
 enum class SatCountermeasure { None, AntiSat, SarLock, SkgLock };
 
 /**
@@ -180,31 +180,31 @@ std::vector<Cell *> optimize_outputs(LogicLockingAnalyzer &pw)
  */
 std::vector<Cell *> run_logic_locking(RTLIL::Module *mod, int nb_test_vectors, int nb_locked, OptimizationTarget target)
 {
-	if (target != OUTPUTS) {
+	if (target != OptimizationTarget::Outputs) {
 		log("Running logic locking with %d test vectors, locking %d cells out of %d.\n", nb_test_vectors, nb_locked, GetSize(mod->cells_));
 	}
 	LogicLockingAnalyzer pw(mod);
 	pw.gen_test_vectors(nb_test_vectors / 64, 1);
 
 	std::vector<Cell *> locked_gates;
-	if (target == PAIRWISE_SECURITY) {
+	if (target == OptimizationTarget::PairwiseSecurity) {
 		locked_gates = optimize_pairwise_security(pw, true, nb_locked);
-	} else if (target == PAIRWISE_SECURITY_NO_DEDUP) {
+	} else if (target == OptimizationTarget::PairwiseSecurityNoDedup) {
 		locked_gates = optimize_pairwise_security(pw, false, nb_locked);
-	} else if (target == OUTPUT_CORRUPTION) {
+	} else if (target == OptimizationTarget::OutputCorruption) {
 		locked_gates = optimize_output_corruption(pw, nb_locked);
-	} else if (target == HYBRID) {
+	} else if (target == OptimizationTarget::Hybrid) {
 		locked_gates = optimize_hybrid(pw, nb_locked);
-	} else if (target == FAULT_ANALYSIS_FLL) {
+	} else if (target == OptimizationTarget::FaultAnalysisFll) {
 		locked_gates = optimize_FLL(pw, nb_locked);
-	} else if (target == FAULT_ANALYSIS_KIP) {
+	} else if (target == OptimizationTarget::FaultAnalysisKip) {
 		locked_gates = optimize_KIP(pw, nb_locked);
-	} else if (target == OUTPUTS) {
+	} else if (target == OptimizationTarget::Outputs) {
 		locked_gates = optimize_outputs(pw);
 	} else {
 		log_cmd_error("Target objective for logic locking not implemented");
 	}
-	if (target == OUTPUTS) {
+	if (target == OptimizationTarget::Outputs) {
 		if (GetSize(locked_gates) < nb_locked) {
 			log("Locking %d output gates.\n", GetSize(locked_gates));
 		}
@@ -243,7 +243,7 @@ struct LogicLockingPass : public Pass {
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
 		log_header(design, "Executing LOGIC_LOCKING pass.\n");
-		OptimizationTarget target = OUTPUT_CORRUPTION;
+		OptimizationTarget target = OptimizationTarget::OutputCorruption;
 		SatCountermeasure antisat = SatCountermeasure::None;
 		std::string nb_locked_str;
 		std::string nb_antisat_str;
@@ -285,19 +285,19 @@ struct LogicLockingPass : public Pass {
 					break;
 				auto t = args[++argidx];
 				if (t == "pairwise") {
-					target = PAIRWISE_SECURITY;
+					target = OptimizationTarget::PairwiseSecurity;
 				} else if (t == "pairwise-no-dedup") {
-					target = PAIRWISE_SECURITY_NO_DEDUP;
+					target = OptimizationTarget::PairwiseSecurityNoDedup;
 				} else if (t == "corruption") {
-					target = OUTPUT_CORRUPTION;
+					target = OptimizationTarget::OutputCorruption;
 				} else if (t == "hybrid") {
-					target = HYBRID;
+					target = OptimizationTarget::Hybrid;
 				} else if (t == "fault-analysis-fll" || t == "fll") {
-					target = FAULT_ANALYSIS_FLL;
+					target = OptimizationTarget::FaultAnalysisFll;
 				} else if (t == "fault-analysis-kip" || t == "kip") {
-					target = FAULT_ANALYSIS_KIP;
+					target = OptimizationTarget::FaultAnalysisKip;
 				} else if (t == "outputs") {
-					target = OUTPUTS;
+					target = OptimizationTarget::Outputs;
 				} else {
 					log_cmd_error("Invalid target option %s", t.c_str());
 				}
