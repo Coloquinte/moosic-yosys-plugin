@@ -108,8 +108,8 @@ void SatAttack::runAppSat(double errorThreshold, int nbInitialVectors, int nbDIQ
 			continue;
 		}
 
-		// Measure the error on random vectors
-		double epsilon = measureErrorAndConstrain(nbRandomVectors);
+		// Measure the error on random vectors, and at most double the number of constraints
+		double epsilon = measureErrorAndConstrain(nbRandomVectors, nbTestVectors());
 		if (epsilon < errorThreshold) {
 			++settleCount;
 			// Wait settleCount times until we consider the key good enough
@@ -125,7 +125,7 @@ void SatAttack::runAppSat(double errorThreshold, int nbInitialVectors, int nbDIQ
 	}
 }
 
-double SatAttack::measureErrorAndConstrain(int nbRandomVectors)
+double SatAttack::measureErrorAndConstrain(int nbRandomVectors, int maxConstraints)
 {
 	assert(GetSize(bestKey_) == nbKeyBits());
 	int nbErrors = 0;
@@ -135,9 +135,11 @@ double SatAttack::measureErrorAndConstrain(int nbRandomVectors)
 		std::vector<bool> outputs = callDesign(inputs, bestKey_);
 		if (outputs != expected) {
 			++nbErrors;
-			// Add the failing test vector as a constraint
-			testInputs_.push_back(inputs);
-			testOutputs_.push_back(expected);
+			if (nbErrors <= maxConstraints) {
+				// Add the failing test vector as a constraint
+				testInputs_.push_back(inputs);
+				testOutputs_.push_back(expected);
+			}
 		}
 	}
 	double epsilon = nbRandomVectors <= 0 ? 0.0 : (double)nbErrors / nbRandomVectors;

@@ -43,7 +43,7 @@ class SatAttack
 	/**
 	 * @brief Measure the error of the best key on random vectors and had failing ones as constraints
 	 */
-	double measureErrorAndConstrain(int nbRandomVectors);
+	double measureErrorAndConstrain(int nbRandomVectors, int maxConstraints);
 
 	/// @brief Number of non-key module inputs
 	int nbInputs() const { return nbInputs_; }
