@@ -22,8 +22,8 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-enum OptimizationTarget { PAIRWISE_SECURITY, PAIRWISE_SECURITY_NO_DEDUP, OUTPUT_CORRUPTION, HYBRID, FAULT_ANALYSIS_FLL, FAULT_ANALYSIS_KIP, OUTPUTS };
-enum class SatCountermeasure { None, AntiSat, SarLock, SkgLock };
+enum class OptimizationTarget { PairwiseSecurity, PairwiseSecurityNoDedup, OutputCorruption, Hybrid, FaultAnalysisFll, FaultAnalysisKip, Outputs };
+enum class SatCountermeasure { None, AntiSat, SarLock, CasLock, SkgLock, SkgLockPlus };
 
 /**
  * @brief Run the optimization algorithm to maximize pairwise security
@@ -180,31 +180,31 @@ std::vector<Cell *> optimize_outputs(LogicLockingAnalyzer &pw)
  */
 std::vector<Cell *> run_logic_locking(RTLIL::Module *mod, int nb_test_vectors, int nb_locked, OptimizationTarget target)
 {
-	if (target != OUTPUTS) {
+	if (target != OptimizationTarget::Outputs) {
 		log("Running logic locking with %d test vectors, locking %d cells out of %d.\n", nb_test_vectors, nb_locked, GetSize(mod->cells_));
 	}
 	LogicLockingAnalyzer pw(mod);
 	pw.gen_test_vectors(nb_test_vectors / 64, 1);
 
 	std::vector<Cell *> locked_gates;
-	if (target == PAIRWISE_SECURITY) {
+	if (target == OptimizationTarget::PairwiseSecurity) {
 		locked_gates = optimize_pairwise_security(pw, true, nb_locked);
-	} else if (target == PAIRWISE_SECURITY_NO_DEDUP) {
+	} else if (target == OptimizationTarget::PairwiseSecurityNoDedup) {
 		locked_gates = optimize_pairwise_security(pw, false, nb_locked);
-	} else if (target == OUTPUT_CORRUPTION) {
+	} else if (target == OptimizationTarget::OutputCorruption) {
 		locked_gates = optimize_output_corruption(pw, nb_locked);
-	} else if (target == HYBRID) {
+	} else if (target == OptimizationTarget::Hybrid) {
 		locked_gates = optimize_hybrid(pw, nb_locked);
-	} else if (target == FAULT_ANALYSIS_FLL) {
+	} else if (target == OptimizationTarget::FaultAnalysisFll) {
 		locked_gates = optimize_FLL(pw, nb_locked);
-	} else if (target == FAULT_ANALYSIS_KIP) {
+	} else if (target == OptimizationTarget::FaultAnalysisKip) {
 		locked_gates = optimize_KIP(pw, nb_locked);
-	} else if (target == OUTPUTS) {
+	} else if (target == OptimizationTarget::Outputs) {
 		locked_gates = optimize_outputs(pw);
 	} else {
 		log_cmd_error("Target objective for logic locking not implemented");
 	}
-	if (target == OUTPUTS) {
+	if (target == OptimizationTarget::Outputs) {
 		if (GetSize(locked_gates) < nb_locked) {
 			log("Locking %d output gates.\n", GetSize(locked_gates));
 		}
@@ -238,12 +238,52 @@ int parseOptionalPercentage(RTLIL::Module *module, std::string arg, double defau
 	}
 }
 
+OptimizationTarget parseOptimizationTarget(const std::string &t)
+{
+	if (t == "pairwise") {
+		return OptimizationTarget::PairwiseSecurity;
+	} else if (t == "pairwise-no-dedup") {
+		return OptimizationTarget::PairwiseSecurityNoDedup;
+	} else if (t == "corruption") {
+		return OptimizationTarget::OutputCorruption;
+	} else if (t == "hybrid") {
+		return OptimizationTarget::Hybrid;
+	} else if (t == "fault-analysis-fll" || t == "fll") {
+		return OptimizationTarget::FaultAnalysisFll;
+	} else if (t == "fault-analysis-kip" || t == "kip") {
+		return OptimizationTarget::FaultAnalysisKip;
+	} else if (t == "outputs") {
+		return OptimizationTarget::Outputs;
+	} else {
+		log_cmd_error("Invalid target option %s", t.c_str());
+	}
+}
+
+SatCountermeasure parseSatCountermeasure(const std::string &t)
+{
+	if (t == "none") {
+		return SatCountermeasure::None;
+	} else if (t == "antisat") {
+		return SatCountermeasure::AntiSat;
+	} else if (t == "sarlock") {
+		return SatCountermeasure::SarLock;
+	} else if (t == "skglock") {
+		return SatCountermeasure::SkgLock;
+	} else if (t == "skglock+") {
+		return SatCountermeasure::SkgLockPlus;
+	} else if (t == "caslock") {
+		return SatCountermeasure::CasLock;
+	} else {
+		log_cmd_error("Invalid antisat option %s", t.c_str());
+	}
+}
+
 struct LogicLockingPass : public Pass {
 	LogicLockingPass() : Pass("logic_locking") {}
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
 		log_header(design, "Executing LOGIC_LOCKING pass.\n");
-		OptimizationTarget target = OUTPUT_CORRUPTION;
+		OptimizationTarget target = OptimizationTarget::OutputCorruption;
 		SatCountermeasure antisat = SatCountermeasure::None;
 		std::string nb_locked_str;
 		std::string nb_antisat_str;
@@ -283,41 +323,13 @@ struct LogicLockingPass : public Pass {
 			if (arg == "-target") {
 				if (argidx + 1 >= args.size())
 					break;
-				auto t = args[++argidx];
-				if (t == "pairwise") {
-					target = PAIRWISE_SECURITY;
-				} else if (t == "pairwise-no-dedup") {
-					target = PAIRWISE_SECURITY_NO_DEDUP;
-				} else if (t == "corruption") {
-					target = OUTPUT_CORRUPTION;
-				} else if (t == "hybrid") {
-					target = HYBRID;
-				} else if (t == "fault-analysis-fll" || t == "fll") {
-					target = FAULT_ANALYSIS_FLL;
-				} else if (t == "fault-analysis-kip" || t == "kip") {
-					target = FAULT_ANALYSIS_KIP;
-				} else if (t == "outputs") {
-					target = OUTPUTS;
-				} else {
-					log_cmd_error("Invalid target option %s", t.c_str());
-				}
+				target = parseOptimizationTarget(args[++argidx]);
 				continue;
 			}
 			if (arg == "-antisat") {
 				if (argidx + 1 >= args.size())
 					break;
-				auto t = args[++argidx];
-				if (t == "none") {
-					antisat = SatCountermeasure::None;
-				} else if (t == "antisat") {
-					antisat = SatCountermeasure::AntiSat;
-				} else if (t == "sarlock") {
-					antisat = SatCountermeasure::SarLock;
-				} else if (t == "skglock") {
-					antisat = SatCountermeasure::SkgLock;
-				} else {
-					log_cmd_error("Invalid antisat option %s", t.c_str());
-				}
+				antisat = parseSatCountermeasure(args[++argidx]);
 				continue;
 			}
 			if (arg == "-key") {
@@ -431,19 +443,13 @@ struct LogicLockingPass : public Pass {
 			} else if (antisat == SatCountermeasure::SarLock) {
 				SigBit flip = create_sarlock(mod, input_signal, antisat_signal, antisat_key);
 				lock_signal = mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
+			} else if (antisat == SatCountermeasure::CasLock) {
+				SigBit flip = create_caslock(mod, input_signal, antisat_signal, antisat_key);
+				lock_signal = mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
 			} else if (antisat == SatCountermeasure::SkgLock) {
-				std::vector<SigBit> active = create_skglock_switch_controller(mod, input_signal, antisat_signal, antisat_key).bits();
-				if (GetSize(active) > GetSize(lock_signal)) {
-					log_warning("SKG switch controller generates %d bits, but only %d will be used by the locking\n",
-						    GetSize(active), GetSize(lock_signal));
-					active.resize(GetSize(lock_signal));
-				}
-				if (GetSize(active) < GetSize(lock_signal)) {
-					log_warning("SKG switch controller generates only %d bits, padding with 1s to %d for locking\n",
-						    GetSize(active), GetSize(lock_signal));
-					active.resize(GetSize(lock_signal), SigBit(RTLIL::State::S1));
-				}
-				lock_signal = mod->And(NEW_ID, lock_signal, SigSpec(active));
+				lock_signal = create_skglock(mod, input_signal, antisat_signal, antisat_key, false, lock_signal);
+			} else if (antisat == SatCountermeasure::SkgLockPlus) {
+				lock_signal = create_skglock(mod, input_signal, antisat_signal, antisat_key, true, lock_signal);
 			} else {
 				log_cmd_error("Invalid antisat option");
 			}
@@ -472,7 +478,7 @@ struct LogicLockingPass : public Pass {
 		log("    -key <value>\n");
 		log("        the locking key (hexadecimal); if not provided, an insecure key will be generated\n");
 		log("\n");
-		log("    -antisat {none|antisat|sarlock|skglock}\n");
+		log("    -antisat {none|antisat|sarlock|skglock+}\n");
 		log("        countermeasure against Sat attacks (default=none)\n");
 		log("\n");
 		log("    -nb-antisat <value>\n");

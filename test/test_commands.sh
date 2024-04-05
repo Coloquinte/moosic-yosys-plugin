@@ -76,3 +76,9 @@ $cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; 
 
 # Skglock
 $cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; synth; logic_locking -antisat skglock -nb-antisat 10"
+
+# Skglock+
+$cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; synth; logic_locking -antisat skglock+ -nb-antisat 10"
+
+# Caslock
+$cmd yosys -m moosic -p "read_blif benchmarks/blif/iscas85-c1355.blif; flatten; synth; logic_locking -antisat caslock -nb-antisat 10"

@@ -11,8 +11,11 @@ SigSpec const_signal(const std::vector<bool> &vals)
 	return SigSpec(bits);
 }
 
-Yosys::RTLIL::SigBit create_antisat(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
-				    const std::vector<bool> &expected)
+/**
+ * @brief Split the key in two and Xor it with input wires according to the expected key, before using it in an Antisat-like module
+ */
+std::pair<SigSpec, SigSpec> setup_antisat_key(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec &inputs, Yosys::RTLIL::SigSpec key,
+					      const std::vector<bool> &expected)
 {
 	log_assert(GetSize(key) == GetSize(expected));
 	// Xor with the expected key
@@ -41,12 +44,29 @@ Yosys::RTLIL::SigBit create_antisat(Yosys::RTLIL::Module *module, Yosys::RTLIL::
 	log_assert(inputs.size() == sz);
 	log_assert(key1.size() == sz);
 	log_assert(key2.size() == sz);
-	return create_antisat_internals(module, inputs, key1, key2);
+	return std::make_pair(key1, key2);
+}
+
+Yosys::RTLIL::SigBit create_antisat(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
+				    const std::vector<bool> &expected)
+{
+	log("Applying Antisat Sat countermeasure.\n");
+	auto keys = setup_antisat_key(module, inputs, key, expected);
+	return create_antisat_internals(module, inputs, keys.first, keys.second);
+}
+
+Yosys::RTLIL::SigBit create_caslock(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
+				    const std::vector<bool> &expected)
+{
+	log("Applying CasLock Sat countermeasure.\n");
+	auto keys = setup_antisat_key(module, inputs, key, expected);
+	return create_caslock_internals(module, inputs, keys.first, keys.second);
 }
 
 Yosys::RTLIL::SigBit create_sarlock(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
 				    const std::vector<bool> &expected)
 {
+	log("Applying SarLock Sat countermeasure.\n");
 	log_assert(GetSize(key) == GetSize(expected));
 	SigSpec expected_sig = const_signal(expected);
 	if (key.size() > inputs.size()) {
@@ -71,9 +91,21 @@ RTLIL::SigBit create_antisat_internals(RTLIL::Module *module, RTLIL::SigSpec inp
 	log_assert(input_wire.size() == key2.size());
 	auto comp1 = module->Xor(NEW_ID, input_wire, key1);
 	auto comp2 = module->Xor(NEW_ID, input_wire, key2);
-	auto red1 = module->ReduceAnd(NEW_ID, comp1);
-	auto red2 = module->Not(NEW_ID, module->ReduceAnd(NEW_ID, comp2));
-	auto flip = module->And(NEW_ID, red1, red2);
+	auto red1 = create_and_chain(module, comp1).msb();
+	auto red2 = create_and_chain(module, comp2).msb();
+	auto flip = module->And(NEW_ID, red1, module->Not(NEW_ID, red2));
+	return flip.as_bit();
+}
+
+RTLIL::SigBit create_caslock_internals(RTLIL::Module *module, RTLIL::SigSpec input_wire, RTLIL::SigSpec key1, RTLIL::SigSpec key2)
+{
+	log_assert(input_wire.size() == key1.size());
+	log_assert(input_wire.size() == key2.size());
+	auto comp1 = module->Xor(NEW_ID, input_wire, key1);
+	auto comp2 = module->Xor(NEW_ID, input_wire, key2);
+	auto red1 = create_alternating_chain(module, comp1).msb();
+	auto red2 = create_alternating_chain(module, comp2).msb();
+	auto flip = module->And(NEW_ID, red1, module->Not(NEW_ID, red2));
 	return flip.as_bit();
 }
 
@@ -87,8 +119,31 @@ RTLIL::SigBit create_sarlock_internals(RTLIL::Module *module, RTLIL::SigSpec inp
 	return flip.as_bit();
 }
 
+Yosys::RTLIL::SigSpec create_skglock(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
+				     const std::vector<bool> &xoring, bool skglockplus, Yosys::RTLIL::SigSpec lock_signal)
+{
+	if (skglockplus) {
+		log("Applying SkgLock+ Sat countermeasure.\n");
+	} else {
+		log("Applying SkgLock Sat countermeasure.\n");
+	}
+
+	std::vector<SigBit> active = create_skglock_switch_controller(module, inputs, key, xoring, skglockplus).bits();
+	if (GetSize(active) > GetSize(lock_signal)) {
+		log_warning("Skglock switch controller generates %d bits, but only %d will be used by the locking\n", GetSize(active),
+			    GetSize(lock_signal));
+		active.resize(GetSize(lock_signal));
+	}
+	if (GetSize(active) < GetSize(lock_signal)) {
+		log_warning("Skglock switch controller generates only %d bits, padding with 1s to %d for locking\n", GetSize(active),
+			    GetSize(lock_signal));
+		active.resize(GetSize(lock_signal), SigBit(RTLIL::State::S1));
+	}
+	return module->And(NEW_ID, lock_signal, SigSpec(active));
+}
+
 Yosys::RTLIL::SigSpec create_skglock_switch_controller(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
-						       const std::vector<bool> &xoring)
+						       const std::vector<bool> &xoring, bool skglockplus)
 {
 	log_assert(GetSize(key) == GetSize(xoring));
 	// Xor with the constant scrambling key
@@ -107,16 +162,63 @@ Yosys::RTLIL::SigSpec create_skglock_switch_controller(Yosys::RTLIL::Module *mod
 	}
 	auto xor_res = module->Xor(NEW_ID, inputs, key);
 
-	// n-bit prefix and
 	std::vector<SigBit> out_bits;
-	SigBit b(RTLIL::State::S1);
-	for (int i = 0; i < xor_res.size(); i++) {
-		b = module->And(NEW_ID, module->Not(NEW_ID, xor_res[i]), b);
+	if (skglockplus) {
+		// Output ones for Skglock+ each cover different cases: an output bit can be set only if all previous output bits are false
+		SigBit running_or(RTLIL::State::S0);
+		for (int i = 0; i < xor_res.size(); i++) {
+			SigBit this_out = module->And(NEW_ID, xor_res[i], module->Not(NEW_ID, running_or));
+			out_bits.push_back(this_out);
+			running_or = module->Or(NEW_ID, this_out, running_or);
+		}
+		SigSpec ret(module->addWire(NEW_ID, xor_res.size()));
+		module->connect(ret, SigSpec(out_bits));
+		return ret;
+	} else {
+		// Legacy Skglock just uses a simple and chain
+		return create_and_chain(module, xor_res);
+	}
+}
+
+Yosys::RTLIL::SigSpec create_daisy_chain(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec input_wire, const std::vector<bool> &is_or)
+{
+	log_assert(GetSize(is_or) + 1 >= GetSize(input_wire));
+	if (input_wire.empty()) {
+		return SigSpec();
+	}
+	std::vector<SigBit> out_bits;
+	SigBit b = input_wire.lsb();
+	out_bits.push_back(b);
+	for (int i = 1; i < input_wire.size(); i++) {
+		if (is_or[i - 1]) {
+			b = module->Or(NEW_ID, input_wire[i], b);
+		} else {
+			b = module->And(NEW_ID, input_wire[i], b);
+		}
 		out_bits.push_back(b);
 	}
 
 	// Create a nice wire to hold the output
-	SigSpec ret(module->addWire(NEW_ID, xor_res.size()));
+	SigSpec ret(module->addWire(NEW_ID, input_wire.size()));
 	module->connect(ret, SigSpec(out_bits));
 	return ret;
+}
+
+Yosys::RTLIL::SigSpec create_and_chain(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec input_wire)
+{
+	return create_daisy_chain(module, input_wire, std::vector<bool>(input_wire.size(), false));
+}
+
+Yosys::RTLIL::SigSpec create_or_chain(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec input_wire)
+{
+	return create_daisy_chain(module, input_wire, std::vector<bool>(input_wire.size(), true));
+}
+
+Yosys::RTLIL::SigSpec create_alternating_chain(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec input_wire)
+{
+	std::vector<bool> is_or;
+	for (int i = 0; i + 1 < GetSize(input_wire); i++) {
+		is_or.push_back(i % 2 == 0);
+	}
+	return create_daisy_chain(module, input_wire, is_or);
 }
