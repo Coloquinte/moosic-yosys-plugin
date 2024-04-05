@@ -41,17 +41,31 @@ Yosys::RTLIL::SigBit create_caslock(Yosys::RTLIL::Module *module, Yosys::RTLIL::
 				    const std::vector<bool> &expected);
 
 /**
- * @brief Create the switch controller for the SkgLock+ method
+ * @brief Create the gates for the SkgLock method
  *
  * @param inputs n-bit input value
  * @param key n-bit key value
  * @param xoring n-bit value xored with the key
+ * @param skglockplus whether to use the skglock+ version
+ * @param lock_signal k-bit locking signal
+ * @return k-bit switched locking signal
+ */
+Yosys::RTLIL::SigSpec create_skglock(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
+				     const std::vector<bool> &xoring, bool skglockplus, Yosys::RTLIL::SigSpec lock_signal);
+
+/**
+ * @brief Create the switch controller for the SkgLock method
+ *
+ * @param inputs n-bit input value
+ * @param key n-bit key value
+ * @param xoring n-bit value xored with the key
+ * @param skglockplus whether to use the skglock+ version
  * @return n-bit locking activation value
  *
  * This scrambles the key and the inputs together
  */
 Yosys::RTLIL::SigSpec create_skglock_switch_controller(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
-						       const std::vector<bool> &xoring);
+						       const std::vector<bool> &xoring, bool skglockplus = true);
 
 /**
  * @brief Create the internals for the AntiSAT method
