@@ -21,7 +21,7 @@ file_exists(file) = system("[ -f '".file."' ] && echo '1' || echo '0'") + 0
 do for [name in list] {
 	datafile='benchmarks/estimate/'.name.'.csv'
 	if (file_exists(datafile)) {
-		set output 'figures/estimate_'.name.'.png'
+		set output 'figures/estimate/estimate_'.name.'.png'
 		plot datafile using 3:4 with points
 	}
 }
@@ -33,7 +33,7 @@ set ylabel 'Corruptibility (%)'
 do for [name in list] {
 	datafile='benchmarks/area/'.name.'.csv'
 	if (file_exists(datafile)) {
-		set output 'figures/area_'.name.'.png'
+		set output 'figures/area/area_'.name.'.png'
 		plot datafile using 2:3 with linespoints
 	}
 }
@@ -45,7 +45,7 @@ set ylabel 'Corruptibility (%)'
 do for [name in list] {
 	datafile='benchmarks/delay/'.name.'.csv'
 	if (file_exists(datafile)) {
-		set output 'figures/delay_'.name.'.png'
+		set output 'figures/delay/delay_'.name.'.png'
 		plot datafile using 2:3 with linespoints
 	}
 }
@@ -59,7 +59,7 @@ set yrange [0:*]
 do for [name in list] {
 	datafile='benchmarks/area_pairwise/'.name.'.csv'
 	if (file_exists(datafile)) {
-		set output 'figures/area_pairwise_'.name.'.png'
+		set output 'figures/area_pairwise/area_pairwise_'.name.'.png'
 		plot datafile using 2:3 with linespoints
 	}
 }
@@ -73,7 +73,7 @@ set yrange [0:*]
 do for [name in list] {
 	datafile='benchmarks/delay_pairwise/'.name.'.csv'
 	if (file_exists(datafile)) {
-		set output 'figures/delay_pairwise_'.name.'.png'
+		set output 'figures/delay_pairwise/delay_pairwise_'.name.'.png'
 		plot datafile using 2:3 with linespoints
 	}
 }
