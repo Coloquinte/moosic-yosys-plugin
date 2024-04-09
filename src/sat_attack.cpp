@@ -12,6 +12,7 @@ SatAttack::SatAttack(RTLIL::Module *mod, const std::string &portName, const std:
 	nbOutputs_ = analyzer_.nb_outputs();
 	nbKeyBits_ = getKeyPort()->width;
 	nbInputs_ = analyzer_.nb_inputs() - nbKeyBits_;
+	timeLimit_ = std::numeric_limits<double>::infinity();
 
 	// Size sanity checks
 	if (GetSize(expectedKey_) < nbKeyBits_) {
@@ -44,6 +45,12 @@ void SatAttack::addTestVector(const std::vector<bool> &inputs)
 
 void SatAttack::genTestVector() { addTestVector(genInputVector()); }
 
+double SatAttack::elapsedTime() const
+{
+	std::chrono::duration<double> duration = std::chrono::steady_clock::now() - startTime_;
+	return duration.count();
+}
+
 void SatAttack::runSat(int nbInitialVectors)
 {
 	log("Starting Sat attack with %d inputs, %d outputs and %d key bits\n", nbInputs(), nbOutputs(), nbKeyBits());
@@ -61,10 +68,17 @@ void SatAttack::runSat(int nbInitialVectors)
 			keyFound_ = true;
 			break;
 		}
+		if (elapsedTime() > timeLimit_) {
+			log_cmd_error("Time limit reached.\n");
+		}
 		++i;
 		log("\tFound a differenciating input with key %s.\n", create_hex_string(candidateKey).c_str());
 		addTestVector(candidateInputs);
 		found = findNewValidKey(bestKey_);
+		if (elapsedTime() > timeLimit_) {
+			log_cmd_error("Time limit reached.\n");
+			break;
+		}
 		if (!found) {
 			bestKey_.clear();
 			log("No valid key found with the new test vector.\n");
@@ -76,7 +90,7 @@ void SatAttack::runSat(int nbInitialVectors)
 			log_error("Found key does not pass the test vectors.\n");
 		}
 	} else {
-		log_warning("Couldn't prove which key unlocks the design.\n");
+		log_cmd_error("Couldn't prove which key unlocks the design.\n");
 	}
 }
 
@@ -106,6 +120,10 @@ void SatAttack::runAppSat(double errorThreshold, int nbInitialVectors, int nbDIQ
 		++queryCount;
 		if (queryCount % nbDIQueries != 0) {
 			continue;
+		}
+		if (elapsedTime() > timeLimit_) {
+			log_cmd_error("Time limit reached.\n");
+			break;
 		}
 
 		// Measure the error on random vectors, and at most double the number of constraints
@@ -149,6 +167,7 @@ double SatAttack::measureErrorAndConstrain(int nbRandomVectors, int maxConstrain
 
 bool SatAttack::runPrologue(int nbInitialVectors)
 {
+	startTime_ = std::chrono::steady_clock::now();
 	// Generate initial test vectors
 	testInputs_.clear();
 	testOutputs_.clear();
@@ -211,10 +230,6 @@ std::vector<int> boolVectorToSat(const std::vector<bool> &v)
 bool SatAttack::findNewValidKey(std::vector<bool> &key)
 {
 	ezMiniSAT sat;
-	if (std::isfinite(timeLimit_)) {
-		sat.solverTimeout = (int)timeLimit_;
-	}
-
 	std::vector<int> keyLits;
 	for (int i = 0; i < nbKeyBits(); ++i) {
 		keyLits.push_back(sat.literal());
@@ -229,11 +244,14 @@ bool SatAttack::findNewValidKey(std::vector<bool> &key)
 	}
 	// Solve the model
 	std::vector<int> assume;
+	if (std::isfinite(timeLimit_)) {
+		sat.solverTimeout = (int)std::max(std::ceil(timeLimit_ - elapsedTime()), 0.0);
+	}
 	bool success = sat.solve(keyLits, key, assume);
 
 	if (!success) {
 		if (sat.solverTimoutStatus) {
-			log_cmd_error("Timeout while solving the model\n");
+			log_cmd_error("Time limit reached while solving the model\n");
 		}
 		key.clear();
 		return false;
@@ -250,10 +268,6 @@ bool SatAttack::findDIFromBestKey(std::vector<bool> &inputs, std::vector<bool> &
 	key.clear();
 
 	ezMiniSAT sat;
-	if (std::isfinite(timeLimit_)) {
-		sat.solverTimeout = (int)timeLimit_;
-	}
-
 	std::vector<int> keyLits;
 	for (int i = 0; i < nbKeyBits(); ++i) {
 		keyLits.push_back(sat.literal());
@@ -279,11 +293,14 @@ bool SatAttack::findDIFromBestKey(std::vector<bool> &inputs, std::vector<bool> &
 		query.push_back(i);
 	}
 	std::vector<bool> res;
+	if (std::isfinite(timeLimit_)) {
+		sat.solverTimeout = (int)std::max(std::ceil(timeLimit_ - elapsedTime()), 0.0);
+	}
 	bool success = sat.solve(query, res, assume);
 
 	if (!success) {
 		if (sat.solverTimoutStatus) {
-			log_cmd_error("Timeout while solving the model\n");
+			log_cmd_error("Time limit reached while solving the model\n");
 		}
 		return false;
 	} else {
@@ -301,10 +318,6 @@ bool SatAttack::findDI(std::vector<bool> &inputs, std::vector<bool> &key1, std::
 	key2.clear();
 
 	ezMiniSAT sat;
-	if (std::isfinite(timeLimit_)) {
-		sat.solverTimeout = (int)timeLimit_;
-	}
-
 	std::vector<int> keyLits1;
 	for (int i = 0; i < nbKeyBits(); ++i) {
 		keyLits1.push_back(sat.literal());
@@ -334,11 +347,14 @@ bool SatAttack::findDI(std::vector<bool> &inputs, std::vector<bool> &key1, std::
 	query.insert(query.end(), keyLits2.begin(), keyLits2.end());
 	query.insert(query.end(), inputLits.begin(), inputLits.end());
 	std::vector<bool> res;
+	if (std::isfinite(timeLimit_)) {
+		sat.solverTimeout = (int)std::max(std::ceil(timeLimit_ - elapsedTime()), 0.0);
+	}
 	bool success = sat.solve(query, res, assume);
 
 	if (!success) {
 		if (sat.solverTimoutStatus) {
-			log_cmd_error("Timeout while solving the model\n");
+			log_cmd_error("Time limit reached while solving the model\n");
 		}
 		return false;
 	} else {
