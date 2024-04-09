@@ -5,7 +5,7 @@ mkdir -p sat_attack
 
 key="777777777777777777777777777777777777777777777777777777777777777777777777777"
 time_limit=120
-batch=1
+batch=2
 
 function run_benchmark () {
 	benchmark=$1
@@ -27,7 +27,7 @@ do
 				((i=i%batch)); ((i++==0)) && wait
         			name=$(basename "${benchmark}" .blif)
 				echo "Running benchmark ${name} with sat countermeasure ${antisat} (${nb_antisat}), threshold ${error_threshold}"
-				run_benchmark "${benchmark}" "${error_threshold}" "${nb_antisat}" "${antisat}" > sat_attack/${name}_${antisat}_${nb_antisat}.log &
+				run_benchmark "${benchmark}" "${error_threshold}" "${nb_antisat}" "${antisat}" > "sat_attack/${name}_${antisat}_${nb_antisat}.log" &
 			done
 		done
 	done

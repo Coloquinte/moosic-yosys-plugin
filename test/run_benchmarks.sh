@@ -38,30 +38,30 @@ function run_benchmark () {
 
 if [ "$1" = "-all" ]
 then
+	echo "Executing full benchmark set"
 	time_limit=600
 	iter_limit=1000000
-	echo "Executing full benchmark set"
 	batch=16
-	i=0
-	for benchmark in blif/*.blif
-	do
-		((i=i%batch)); ((i++==0)) && wait
-		run_benchmark "${benchmark}" &
-	done
-	wait
+	benchmarks="blif/iscas85*.blif blif/iscas89*.blif blif/iscas99*.blif blif/lgsynth91*.blif blif/epfl*.blif blif/mcnc*.blif"
 elif [ "$1" != "" ]
 then
 	echo "Invalid argument; only -all is accepted"
 	exit 1
 else
+	echo "Executing small benchmark set"
 	time_limit=20
 	iter_limit=10000
-	echo "Executing small benchmark set"
-	for benchmark in blif/iscas85*.blif
-	do
-		run_benchmark "${benchmark}"
-	done
+	batch=2
+	benchmarks="blif/iscas85*.blif"
 fi
+
+i=0
+for benchmark in $benchmarks
+do
+	((i=i%batch)); ((i++==0)) && wait
+	run_benchmark "${benchmark}" &
+done
+wait
 
 cd ..
 tar -c benchmarks/estimate benchmarks/area benchmarks/delay benchmarks/area_approx benchmarks/delay_approx benchmarks/area_corr benchmarks/delay_corr benchmarks/area_pairwise benchmarks/delay_pairwise| xz -9 - > benchmark_results.tar.xz
