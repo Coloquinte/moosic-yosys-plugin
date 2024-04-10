@@ -20,7 +20,7 @@ for benchmark in blif/iscas85*.blif blif/iscas89*.blif blif/iscas99*.blif blif/l
 do
 	for error_threshold in 0
 	do
-		for antisat in antisat caslock sarlock skglock
+		for antisat in antisat caslock sarlock skglock+
 		do
 			for nb_antisat in 16 24 32
 			do
