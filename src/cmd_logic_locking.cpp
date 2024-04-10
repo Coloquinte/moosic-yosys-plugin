@@ -417,24 +417,26 @@ struct LogicLockingPass : public Pass {
 			return;
 		}
 
-		SigSpec input_signal(get_comb_inputs(mod));
-
-		/**
-		 * WARNING: modifications start here!!!!
-		 *
-		 * Queries on the module (inputs/outputs/cells/...) will start returning modified results and are forbidden from now on
-		 */
-		SigSpec key_signal(add_key_input(mod, key_size, port_name));
-		SigSpec lock_signal = key_signal.extract(0, nb_locked);
+		// Instanciate locking
+		// WARNING: Modifies the module
+		SigSpec lock_signal(mod->addWire(NEW_ID, nb_locked));
 		std::vector<bool> lock_key(key_values.begin(), key_values.begin() + nb_locked);
-		SigSpec antisat_signal = key_signal.extract(nb_locked, nb_antisat);
-		std::vector<bool> antisat_key(key_values.begin() + nb_locked, key_values.end());
+		lock_gates(mod, locked_gates, lock_signal, lock_key);
 
 		// Instanciate antisat countermeasure
-		lock_signal = create_countermeasure(mod, input_signal, lock_signal, antisat_signal, antisat_key, antisat);
+		// WARNING: Modifies the module; this uses the input wires and must be done after locking, which messes with the inputs
+		SigSpec antisat_signal(mod->addWire(NEW_ID, nb_antisat));
+		std::vector<bool> antisat_key(key_values.begin() + nb_locked, key_values.end());
+		SigSpec initial_lock_signal(mod->addWire(NEW_ID, nb_locked));
+		SigSpec mangled_lock_signal = create_countermeasure(mod, initial_lock_signal, antisat_signal, antisat_key, antisat);
 
-		// Instanciate locking
-		lock_gates(mod, locked_gates, lock_signal, lock_key);
+		// Add the key port
+		SigSpec key_signal(add_key_input(mod, key_size, port_name));
+
+		// Make the final connections
+		mod->connect(initial_lock_signal, key_signal.extract(0, nb_locked));
+		mod->connect(antisat_signal, key_signal.extract(nb_locked, nb_antisat));
+		mod->connect(lock_signal, mangled_lock_signal);
 	}
 
 	void help() override

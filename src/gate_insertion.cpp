@@ -166,7 +166,7 @@ void mix_gates(Module *module, const std::vector<std::pair<IdString, IdString>> 
 	mix_gates(module, cells, key, key_values);
 }
 
-SigSpec create_countermeasure(Module *mod, SigSpec input_signal, SigSpec lock_signal, SigSpec antisat_signal, const std::vector<bool> &antisat_key,
+SigSpec create_countermeasure(Module *mod, SigSpec lock_signal, SigSpec antisat_signal, const std::vector<bool> &antisat_key,
 			      SatCountermeasure antisat_type)
 {
 	if (antisat_signal.empty()) {
@@ -175,6 +175,7 @@ SigSpec create_countermeasure(Module *mod, SigSpec input_signal, SigSpec lock_si
 	log_assert(antisat_type != SatCountermeasure::None);
 	log_assert(GetSize(antisat_key) == GetSize(antisat_signal));
 
+	SigSpec input_signal(get_comb_inputs(mod));
 	if (antisat_type == SatCountermeasure::AntiSat) {
 		SigBit flip = create_antisat(mod, input_signal, antisat_signal, antisat_key);
 		return mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
