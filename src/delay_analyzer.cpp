@@ -111,5 +111,8 @@ int DelayAnalyzer::delay(const Solution &sol) const
 		delay += additionalDelay[n];
 		delays[n] = delay;
 	}
+	if (delays.empty()) {
+		return 0;
+	}
 	return *std::max_element(delays.begin(), delays.end());
 }

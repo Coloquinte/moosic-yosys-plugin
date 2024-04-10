@@ -1,49 +1,35 @@
 #!/bin/bash
 
-dirs="sat_attack"
-
 cd benchmarks
+mkdir -p sat_attack
 
-for dir in $dirs
-do
-	mkdir -p "${dir}"
-done
+key=$(printf "7%.0s" {1..500})
+time_limit=120
+batch=2
 
 function run_benchmark () {
 	benchmark=$1
-        name=$(basename "${benchmark}" .blif)
-	echo "Running benchmark ${name}"
-	log_file="sat_attack/${name}.log"
-	script_file="scripts/${name}.ys"
-	echo "read_blif -sop ${benchmark}" > "${script_file}"
-	echo "flatten; synth" >> "${script_file}"
-	# Apply the locking
-	echo "logic_locking -nb-locked 64 -key 555555555555555555555555555555555555555" >> "${script_file}"
-	# Sat attack
-	echo "ll_sat_attack -time-limit 10 -key 555555555555555555555555555555555555555" >> "${script_file}"
-	cmd="timeout 600 yosys -m moosic -s ${script_file} > ${log_file}"
-	eval "$cmd" && { echo "Finished ${name}"; } || { echo "Failure on ${name}: ${cmd}"; }
+	error_threshold=$2
+	nb_antisat=$3
+	antisat=$4
+	yosys -m moosic -p "read_blif -sop ${benchmark}; flatten; synth; logic_locking -target outputs -nb-antisat ${nb_antisat} -antisat ${antisat} -key ${key}; synth; ll_sat_attack -key ${key} -time-limit ${time_limit} -error-threshold ${error_threshold}"
 }
 
-if [ "$1" = "-all" ]
-then
-	echo "Executing full benchmark set"
-	for benchmark in blif/iscas85*.blif blif/iscas89*.blif blif/iscas99*.blif blif/lgsynth*.blif blif/mcnc*.blif blif/epfl*.blif
+i=0
+for benchmark in blif/iscas85*.blif blif/iscas89*.blif blif/iscas99*.blif blif/lgsynth91*.blif blif/epfl*.blif blif/mcnc*.blif
+do
+	for error_threshold in 0
 	do
-		run_benchmark "${benchmark}"
+		for antisat in antisat caslock sarlock skglock+
+		do
+			for nb_antisat in 16 24 32
+			do
+				((i=i%batch)); ((i++==0)) && wait
+        			name=$(basename "${benchmark}" .blif)
+				echo "Running benchmark ${name} with sat countermeasure ${antisat} (${nb_antisat}), threshold ${error_threshold}"
+				run_benchmark "${benchmark}" "${error_threshold}" "${nb_antisat}" "${antisat}" > "sat_attack/${name}_${antisat}_${nb_antisat}.log" &
+			done
+		done
 	done
-	wait
-elif [ "$1" != "" ]
-then
-	echo "Invalid argument; only -all is accepted"
-	exit 1
-else
-	echo "Executing small benchmark set"
-	for benchmark in blif/iscas85*.blif
-	do
-		run_benchmark "${benchmark}"
-	done
-fi
-
-cd ..
-tar -c benchmarks/sat_attack | xz -9 - > sat_attack.tar.xz
+done
+wait

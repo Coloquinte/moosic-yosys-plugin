@@ -3,6 +3,7 @@
  */
 
 #include "gate_insertion.hpp"
+#include "antisat.hpp"
 #include "command_utils.hpp"
 
 USING_YOSYS_NAMESPACE
@@ -163,4 +164,32 @@ void mix_gates(Module *module, const std::vector<std::pair<IdString, IdString>> 
 		}
 	}
 	mix_gates(module, cells, key, key_values);
+}
+
+SigSpec create_countermeasure(Module *mod, SigSpec lock_signal, SigSpec antisat_signal, const std::vector<bool> &antisat_key,
+			      SatCountermeasure antisat_type)
+{
+	if (antisat_signal.empty()) {
+		return lock_signal;
+	}
+	log_assert(antisat_type != SatCountermeasure::None);
+	log_assert(GetSize(antisat_key) == GetSize(antisat_signal));
+
+	SigSpec input_signal(get_comb_inputs(mod));
+	if (antisat_type == SatCountermeasure::AntiSat) {
+		SigBit flip = create_antisat(mod, input_signal, antisat_signal, antisat_key);
+		return mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
+	} else if (antisat_type == SatCountermeasure::SarLock) {
+		SigBit flip = create_sarlock(mod, input_signal, antisat_signal, antisat_key);
+		return mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
+	} else if (antisat_type == SatCountermeasure::CasLock) {
+		SigBit flip = create_caslock(mod, input_signal, antisat_signal, antisat_key);
+		return mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
+	} else if (antisat_type == SatCountermeasure::SkgLock) {
+		return create_skglock(mod, input_signal, antisat_signal, antisat_key, false, lock_signal);
+	} else if (antisat_type == SatCountermeasure::SkgLockPlus) {
+		return create_skglock(mod, input_signal, antisat_signal, antisat_key, true, lock_signal);
+	} else {
+		log_cmd_error("Invalid antisat option");
+	}
 }

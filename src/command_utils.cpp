@@ -36,6 +36,10 @@ std::vector<Yosys::RTLIL::SigBit> get_lockable_signals(Yosys::RTLIL::Module *mod
 
 std::vector<Yosys::RTLIL::Cell *> get_lockable_cells(Yosys::RTLIL::Module *mod) { return LogicLockingAnalyzer::get_lockable_cells(mod); }
 
+Yosys::pool<Yosys::RTLIL::SigBit> get_comb_inputs(Yosys::RTLIL::Module *mod) { return LogicLockingAnalyzer::get_comb_inputs(mod); }
+
+Yosys::pool<Yosys::RTLIL::SigBit> get_comb_outputs(Yosys::RTLIL::Module *mod) { return LogicLockingAnalyzer::get_comb_outputs(mod); }
+
 static bool check_sol(const std::vector<int> &solution, int nbCells)
 {
 	for (int s : solution) {

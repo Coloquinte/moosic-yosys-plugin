@@ -11,6 +11,7 @@
 #include "command_utils.hpp"
 #include "logic_locking_analyzer.hpp"
 
+#include <chrono>
 #include <limits>
 #include <random>
 #include <string>
@@ -145,6 +146,11 @@ class SatAttack
 	 */
 	bool keyPassesTests(const std::vector<bool> &key);
 
+	/**
+	 * @brief Remaining time allocated for the attack
+	 */
+	double elapsedTime() const;
+
       private:
 	/// @brief Locked module
 	Yosys::RTLIL::Module *mod_;
@@ -181,6 +187,9 @@ class SatAttack
 	double timeLimit_;
 	/// Cnf file export
 	std::string cnfFile_;
+
+	/// Start time
+	std::chrono::steady_clock::time_point startTime_;
 };
 
 #endif

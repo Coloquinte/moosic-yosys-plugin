@@ -22,9 +22,6 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-enum class OptimizationTarget { PairwiseSecurity, PairwiseSecurityNoDedup, OutputCorruption, Hybrid, FaultAnalysisFll, FaultAnalysisKip, Outputs };
-enum class SatCountermeasure { None, AntiSat, SarLock, CasLock, SkgLock, SkgLockPlus };
-
 /**
  * @brief Run the optimization algorithm to maximize pairwise security
  */
@@ -420,43 +417,26 @@ struct LogicLockingPass : public Pass {
 			return;
 		}
 
-		SigSpec input_signal(LogicLockingAnalyzer::get_comb_inputs(mod));
-
-		/**
-		 * WARNING: modifications start here!!!!
-		 *
-		 * Queries on the module (inputs/outputs/cells/...) will start returning modified results and are forbidden from now on
-		 */
-		SigSpec key_signal(add_key_input(mod, key_size, port_name));
-		SigSpec lock_signal = key_signal.extract(0, nb_locked);
+		// Instanciate locking
+		// WARNING: Modifies the module
+		SigSpec lock_signal(mod->addWire(NEW_ID, nb_locked));
 		std::vector<bool> lock_key(key_values.begin(), key_values.begin() + nb_locked);
+		lock_gates(mod, locked_gates, lock_signal, lock_key);
 
 		// Instanciate antisat countermeasure
-		if (nb_antisat > 0) {
-			log_assert(antisat != SatCountermeasure::None);
-			SigSpec antisat_signal = key_signal.extract(nb_locked, nb_antisat);
-			std::vector<bool> antisat_key(key_values.begin() + nb_locked, key_values.end());
+		// WARNING: Modifies the module; this uses the input wires and must be done after locking, which messes with the inputs
+		SigSpec antisat_signal(mod->addWire(NEW_ID, nb_antisat));
+		std::vector<bool> antisat_key(key_values.begin() + nb_locked, key_values.end());
+		SigSpec initial_lock_signal(mod->addWire(NEW_ID, nb_locked));
+		SigSpec mangled_lock_signal = create_countermeasure(mod, initial_lock_signal, antisat_signal, antisat_key, antisat);
 
-			if (antisat == SatCountermeasure::AntiSat) {
-				SigBit flip = create_antisat(mod, input_signal, antisat_signal, antisat_key);
-				lock_signal = mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
-			} else if (antisat == SatCountermeasure::SarLock) {
-				SigBit flip = create_sarlock(mod, input_signal, antisat_signal, antisat_key);
-				lock_signal = mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
-			} else if (antisat == SatCountermeasure::CasLock) {
-				SigBit flip = create_caslock(mod, input_signal, antisat_signal, antisat_key);
-				lock_signal = mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
-			} else if (antisat == SatCountermeasure::SkgLock) {
-				lock_signal = create_skglock(mod, input_signal, antisat_signal, antisat_key, false, lock_signal);
-			} else if (antisat == SatCountermeasure::SkgLockPlus) {
-				lock_signal = create_skglock(mod, input_signal, antisat_signal, antisat_key, true, lock_signal);
-			} else {
-				log_cmd_error("Invalid antisat option");
-			}
-		}
+		// Add the key port
+		SigSpec key_signal(add_key_input(mod, key_size, port_name));
 
-		// Instanciate locking
-		lock_gates(mod, locked_gates, lock_signal, lock_key);
+		// Make the final connections
+		mod->connect(initial_lock_signal, key_signal.extract(0, nb_locked));
+		mod->connect(antisat_signal, key_signal.extract(nb_locked, nb_antisat));
+		mod->connect(lock_signal, mangled_lock_signal);
 	}
 
 	void help() override
