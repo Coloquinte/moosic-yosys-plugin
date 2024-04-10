@@ -12,13 +12,13 @@ function run_benchmark () {
 	error_threshold=$2
 	nb_antisat=$3
 	antisat=$4
-	stdbuf -oL yosys -m moosic -p "read_blif -sop ${benchmark}; flatten; synth; logic_locking -target outputs -nb-antisat ${nb_antisat} -antisat ${antisat} -key ${key}; synth; ll_sat_attack -key ${key} -time-limit ${time_limit} -error-threshold ${error_threshold}" > "sat_attack/${name}_${antisat}_${nb_antisat}.log"
+	stdbuf -oL yosys -m moosic -p "read_blif -sop ${benchmark}; flatten; synth; logic_locking -target outputs -nb-antisat ${nb_antisat} -antisat ${antisat} -key ${key}; synth; ll_sat_attack -key ${key} -time-limit ${time_limit} -error-threshold ${error_threshold}" > "sat_attack/${name}_${antisat}_${nb_antisat}_${error_threshold}.log"
 }
 
 i=0
 for benchmark in blif/iscas85*.blif blif/iscas89*.blif blif/iscas99*.blif blif/lgsynth91*.blif blif/epfl*.blif blif/mcnc*.blif
 do
-	for error_threshold in 0
+	for error_threshold in 0 0.1
 	do
 		for antisat in antisat caslock sarlock skglock+
 		do
