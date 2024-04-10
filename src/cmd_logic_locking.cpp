@@ -420,7 +420,7 @@ struct LogicLockingPass : public Pass {
 			return;
 		}
 
-		SigSpec input_signal(LogicLockingAnalyzer::get_comb_inputs(mod));
+		SigSpec input_signal(get_comb_inputs(mod));
 
 		/**
 		 * WARNING: modifications start here!!!!

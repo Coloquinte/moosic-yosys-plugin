@@ -25,6 +25,16 @@ std::vector<Yosys::RTLIL::SigBit> get_lockable_signals(Yosys::RTLIL::Module *mod
 std::vector<Yosys::RTLIL::Cell *> get_lockable_cells(Yosys::RTLIL::Module *mod);
 
 /**
+ * @brief List the combinatorial inputs of a module (inputs + flip-flop outputs)
+ */
+Yosys::pool<Yosys::RTLIL::SigBit> get_comb_inputs(Yosys::RTLIL::Module *mod);
+
+/**
+ * @brief List the combinatorial outputs of a module (outputs + flip-flop inputs)
+ */
+Yosys::pool<Yosys::RTLIL::SigBit> get_comb_outputs(Yosys::RTLIL::Module *mod);
+
+/**
  * @brief Obtain the locked cells from a solution
  */
 std::vector<Yosys::RTLIL::Cell *> get_locked_cells(Yosys::RTLIL::Module *mod, const std::vector<int> &solution);
