@@ -162,9 +162,9 @@ Yosys::RTLIL::SigSpec create_skglock_switch_controller(Yosys::RTLIL::Module *mod
 	}
 	auto xor_res = module->Xor(NEW_ID, inputs, key);
 
-	std::vector<SigBit> out_bits;
 	if (skglockplus) {
 		// Output ones for Skglock+ each cover different cases: an output bit can be set only if all previous output bits are false
+		std::vector<SigBit> out_bits;
 		SigBit running_or(RTLIL::State::S0);
 		for (int i = 0; i < xor_res.size(); i++) {
 			SigBit this_out = module->And(NEW_ID, xor_res[i], module->Not(NEW_ID, running_or));
