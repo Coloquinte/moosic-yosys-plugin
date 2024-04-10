@@ -22,9 +22,6 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-enum class OptimizationTarget { PairwiseSecurity, PairwiseSecurityNoDedup, OutputCorruption, Hybrid, FaultAnalysisFll, FaultAnalysisKip, Outputs };
-enum class SatCountermeasure { None, AntiSat, SarLock, CasLock, SkgLock, SkgLockPlus };
-
 /**
  * @brief Run the optimization algorithm to maximize pairwise security
  */
@@ -430,30 +427,11 @@ struct LogicLockingPass : public Pass {
 		SigSpec key_signal(add_key_input(mod, key_size, port_name));
 		SigSpec lock_signal = key_signal.extract(0, nb_locked);
 		std::vector<bool> lock_key(key_values.begin(), key_values.begin() + nb_locked);
+		SigSpec antisat_signal = key_signal.extract(nb_locked, nb_antisat);
+		std::vector<bool> antisat_key(key_values.begin() + nb_locked, key_values.end());
 
 		// Instanciate antisat countermeasure
-		if (nb_antisat > 0) {
-			log_assert(antisat != SatCountermeasure::None);
-			SigSpec antisat_signal = key_signal.extract(nb_locked, nb_antisat);
-			std::vector<bool> antisat_key(key_values.begin() + nb_locked, key_values.end());
-
-			if (antisat == SatCountermeasure::AntiSat) {
-				SigBit flip = create_antisat(mod, input_signal, antisat_signal, antisat_key);
-				lock_signal = mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
-			} else if (antisat == SatCountermeasure::SarLock) {
-				SigBit flip = create_sarlock(mod, input_signal, antisat_signal, antisat_key);
-				lock_signal = mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
-			} else if (antisat == SatCountermeasure::CasLock) {
-				SigBit flip = create_caslock(mod, input_signal, antisat_signal, antisat_key);
-				lock_signal = mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
-			} else if (antisat == SatCountermeasure::SkgLock) {
-				lock_signal = create_skglock(mod, input_signal, antisat_signal, antisat_key, false, lock_signal);
-			} else if (antisat == SatCountermeasure::SkgLockPlus) {
-				lock_signal = create_skglock(mod, input_signal, antisat_signal, antisat_key, true, lock_signal);
-			} else {
-				log_cmd_error("Invalid antisat option");
-			}
-		}
+		lock_signal = create_countermeasure(mod, input_signal, lock_signal, antisat_signal, antisat_key, antisat);
 
 		// Instanciate locking
 		lock_gates(mod, locked_gates, lock_signal, lock_key);
