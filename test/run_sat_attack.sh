@@ -12,7 +12,7 @@ function run_benchmark () {
 	error_threshold=$2
 	nb_antisat=$3
 	antisat=$4
-	yosys -m moosic -p "read_blif -sop ${benchmark}; flatten; synth; logic_locking -target outputs -nb-antisat ${nb_antisat} -antisat ${antisat} -key ${key}; synth; ll_sat_attack -key ${key} -time-limit ${time_limit} -error-threshold ${error_threshold}"
+	stdbuf -oL yosys -m moosic -p "read_blif -sop ${benchmark}; flatten; synth; logic_locking -target outputs -nb-antisat ${nb_antisat} -antisat ${antisat} -key ${key}; synth; ll_sat_attack -key ${key} -time-limit ${time_limit} -error-threshold ${error_threshold}" > "sat_attack/${name}_${antisat}_${nb_antisat}.log"
 }
 
 i=0
@@ -27,7 +27,7 @@ do
 				((i=i%batch)); ((i++==0)) && wait
         			name=$(basename "${benchmark}" .blif)
 				echo "Running benchmark ${name} with sat countermeasure ${antisat} (${nb_antisat}), threshold ${error_threshold}"
-				run_benchmark "${benchmark}" "${error_threshold}" "${nb_antisat}" "${antisat}" > "sat_attack/${name}_${antisat}_${nb_antisat}.log" &
+				run_benchmark "${benchmark}" "${error_threshold}" "${nb_antisat}" "${antisat}" &
 			done
 		done
 	done
