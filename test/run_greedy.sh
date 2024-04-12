@@ -45,5 +45,5 @@ for benchmark in $benchmarks; do
 done
 
 for target in corruption fll kip; do
-	sort -nk3 "corruptibility_${target}.csv" -o "corruptibility_${target}.csv"
+	LC_ALL=C sort -gk3 "corruptibility_${target}.csv" -o "corruptibility_${target}.csv"
 done
