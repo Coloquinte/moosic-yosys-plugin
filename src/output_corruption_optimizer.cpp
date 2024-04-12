@@ -103,31 +103,66 @@ OutputCorruptionOptimizer::Solution OutputCorruptionOptimizer::solveGreedy(int m
 {
 	check(preLocked);
 	std::vector<int> remaining = getUniqueNodes(preLocked);
-
 	std::vector<int> sol = preLocked;
 	CorruptionData corr(nbData());
+
+	// List of (corruption, gate) sorted by descending additional corruption
+	// TODO: this could be a priority queue
+	// TODO: there are probably tricks to make additionalCorruption more incremental
+	// TODO: include the rate in the sorting to skip more cases
+	std::vector<std::pair<int, int>> remainingGains;
+	for (int k : remaining) {
+		remainingGains.emplace_back(additionalCorruption(corr, outputCorruption_[k]), k);
+	}
+	std::sort(remainingGains.rbegin(), remainingGains.rend());
+
 	for (int i = preLocked.size(); i < std::min(nbNodes(), maxNumber); ++i) {
-		if (remaining.empty())
+		if (remainingGains.empty())
 			break;
 		// Compute the coverage added by each remaining gate
+		bool found = false;
 		int bestCover = 0;
 		int bestRate = 0;
-		int bestK = remaining.front();
-		for (int k : remaining) {
-			int cover = additionalCorruption(corr, outputCorruption_[k]);
+		int bestK = 0;
+		size_t toRemove = 0;
+		for (size_t j = 0; j < remainingGains.size(); ++j) {
+			int k = remainingGains[j].second;
+			int upperBoundCover = remainingGains[j].first;
 			int rate = corruptionRate_[k];
-			if (cover > bestCover || (cover == bestCover && rate > bestRate)) {
+
+			// Break early if there is no improvement left
+			if (upperBoundCover < bestCover)
+				break;
+
+			// Only compute the additional corruption if it can actually be useful (non-zero)
+			int cover = upperBoundCover == 0 ? 0 : additionalCorruption(corr, outputCorruption_[k]);
+			assert(cover <= upperBoundCover);
+
+			// Update the estimate
+			remainingGains[j].first = cover;
+
+			// Update the best element found
+			if (!found || cover > bestCover || (cover == bestCover && rate > bestRate)) {
+				found = true;
 				bestCover = cover;
 				bestRate = rate;
 				bestK = k;
+				toRemove = j;
 			}
 		}
+		assert(found);
+
 		// Pick the best gate and remove it
 		sol.push_back(bestK);
-		remaining.erase(std::remove(remaining.begin(), remaining.end(), bestK), remaining.end());
+		remainingGains.erase(remainingGains.begin() + toRemove);
+
+		// Update the corruption
 		for (size_t i = 0; i < corr.size(); ++i) {
 			corr[i] |= outputCorruption_[bestK][i];
 		}
+
+		// Update the sorting
+		std::sort(remainingGains.rbegin(), remainingGains.rend());
 	}
 	return sol;
 }
