@@ -166,7 +166,7 @@ void mix_gates(Module *module, const std::vector<std::pair<IdString, IdString>> 
 	mix_gates(module, cells, key, key_values);
 }
 
-SigSpec create_countermeasure(Module *mod, SigSpec lock_signal, SigSpec antisat_signal, const std::vector<bool> &antisat_key,
+SigSpec create_countermeasure(Module *mod, SigSpec lock_signal, const std::vector<bool> &lock_key, SigSpec antisat_signal, const std::vector<bool> &antisat_key,
 			      SatCountermeasure antisat_type)
 {
 	if (antisat_signal.empty()) {
@@ -186,9 +186,9 @@ SigSpec create_countermeasure(Module *mod, SigSpec lock_signal, SigSpec antisat_
 		SigBit flip = create_caslock(mod, input_signal, antisat_signal, antisat_key);
 		return mod->Xor(NEW_ID, lock_signal, SigSpec(flip, lock_signal.size()));
 	} else if (antisat_type == SatCountermeasure::SkgLock) {
-		return create_skglock(mod, input_signal, antisat_signal, antisat_key, false, lock_signal);
+		return create_skglock(mod, input_signal, antisat_signal, antisat_key, false, lock_signal, lock_key);
 	} else if (antisat_type == SatCountermeasure::SkgLockPlus) {
-		return create_skglock(mod, input_signal, antisat_signal, antisat_key, true, lock_signal);
+		return create_skglock(mod, input_signal, antisat_signal, antisat_key, true, lock_signal, lock_key);
 	} else {
 		log_cmd_error("Invalid antisat option");
 	}

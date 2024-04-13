@@ -428,7 +428,7 @@ struct LogicLockingPass : public Pass {
 		SigSpec antisat_signal(mod->addWire(NEW_ID, nb_antisat));
 		std::vector<bool> antisat_key(key_values.begin() + nb_locked, key_values.end());
 		SigSpec initial_lock_signal(mod->addWire(NEW_ID, nb_locked));
-		SigSpec mangled_lock_signal = create_countermeasure(mod, initial_lock_signal, antisat_signal, antisat_key, antisat);
+		SigSpec mangled_lock_signal = create_countermeasure(mod, initial_lock_signal, lock_key, antisat_signal, antisat_key, antisat);
 
 		// Add the key port
 		SigSpec key_signal(add_key_input(mod, key_size, port_name));

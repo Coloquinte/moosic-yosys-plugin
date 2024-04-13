@@ -48,6 +48,6 @@ void mix_gates(Module *module, const std::vector<std::pair<Cell *, Cell *>> &nam
 /**
  * @brief Create the countermeasure against Sat attacks
  */
-SigSpec create_countermeasure(Module *mod, SigSpec lock_signal, SigSpec antisat_signal, const std::vector<bool> &antisat_key,
-			      SatCountermeasure antisat_type);
+SigSpec create_countermeasure(Module *mod, SigSpec lock_signal, const std::vector<bool> &lock_key, SigSpec antisat_signal,
+			      const std::vector<bool> &antisat_key, SatCountermeasure antisat_type);
 #endif

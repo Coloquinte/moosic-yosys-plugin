@@ -48,10 +48,11 @@ Yosys::RTLIL::SigBit create_caslock(Yosys::RTLIL::Module *module, Yosys::RTLIL::
  * @param xoring n-bit value xored with the key
  * @param skglockplus whether to use the skglock+ version
  * @param lock_signal k-bit locking signal
+ * @param lock_key k-bit locking key
  * @return k-bit switched locking signal
  */
 Yosys::RTLIL::SigSpec create_skglock(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
-				     const std::vector<bool> &xoring, bool skglockplus, Yosys::RTLIL::SigSpec lock_signal);
+				     const std::vector<bool> &xoring, bool skglockplus, Yosys::RTLIL::SigSpec lock_signal, const std::vector<bool> &lock_key);
 
 /**
  * @brief Create the switch controller for the SkgLock method
