@@ -1,15 +1,8 @@
 #include "antisat.hpp"
 
-USING_YOSYS_NAMESPACE
+#include "command_utils.hpp"
 
-SigSpec const_signal(const std::vector<bool> &vals)
-{
-	std::vector<SigBit> bits;
-	for (bool val : vals) {
-		bits.push_back(SigBit(val ? RTLIL::State::S1 : RTLIL::State::S0));
-	}
-	return SigSpec(bits);
-}
+USING_YOSYS_NAMESPACE
 
 /**
  * @brief Split the key in two and Xor it with input wires according to the expected key, before using it in an Antisat-like module
@@ -120,7 +113,8 @@ RTLIL::SigBit create_sarlock_internals(RTLIL::Module *module, RTLIL::SigSpec inp
 }
 
 Yosys::RTLIL::SigSpec create_skglock(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,
-				     const std::vector<bool> &xoring, bool skglockplus, Yosys::RTLIL::SigSpec lock_signal)
+				     const std::vector<bool> &xoring, bool skglockplus, Yosys::RTLIL::SigSpec lock_signal,
+				     const std::vector<bool> &lock_key)
 {
 	if (skglockplus) {
 		log("Applying SkgLock+ Sat countermeasure.\n");
@@ -139,7 +133,12 @@ Yosys::RTLIL::SigSpec create_skglock(Yosys::RTLIL::Module *module, Yosys::RTLIL:
 			    GetSize(lock_signal));
 		active.resize(GetSize(lock_signal), SigBit(RTLIL::State::S1));
 	}
-	return module->And(NEW_ID, lock_signal, SigSpec(active));
+
+	// Let wrong key bits pass when active is true
+	SigSpec const_key = const_signal(lock_key);
+	SigSpec l1 = module->Xor(NEW_ID, lock_signal, const_key);
+	SigSpec l2 = module->And(NEW_ID, l1, SigSpec(active));
+	return module->Xor(NEW_ID, l2, const_key);
 }
 
 Yosys::RTLIL::SigSpec create_skglock_switch_controller(Yosys::RTLIL::Module *module, Yosys::RTLIL::SigSpec inputs, Yosys::RTLIL::SigSpec key,

@@ -46,8 +46,13 @@ void mix_gates(Module *module, const std::vector<std::pair<IdString, IdString>> 
 void mix_gates(Module *module, const std::vector<std::pair<Cell *, Cell *>> &names, SigSpec key, const std::vector<bool> &key_values);
 
 /**
+ * @brief Replace an input port by a constant
+ */
+void replace_port_by_constant(Module *module, const std::string &port_name, std::vector<bool> key);
+
+/**
  * @brief Create the countermeasure against Sat attacks
  */
-SigSpec create_countermeasure(Module *mod, SigSpec lock_signal, SigSpec antisat_signal, const std::vector<bool> &antisat_key,
-			      SatCountermeasure antisat_type);
+SigSpec create_countermeasure(Module *mod, SigSpec lock_signal, const std::vector<bool> &lock_key, SigSpec antisat_signal,
+			      const std::vector<bool> &antisat_key, SatCountermeasure antisat_type);
 #endif

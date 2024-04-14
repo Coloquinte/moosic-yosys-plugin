@@ -3,8 +3,7 @@
 set -e
 
 cmd=""
-if [ "$ENABLE_VALGRIND" == "1" ]
-then
+if [ "$ENABLE_VALGRIND" == "1" ]; then
 	cmd="valgrind --error-exitcode=11 "
 fi
 
