@@ -84,4 +84,6 @@ Yosys::RTLIL::SigBit get_output_signal(Yosys::RTLIL::Cell *cell);
  */
 Yosys::RTLIL::IdString get_output_portname(Yosys::RTLIL::Cell *cell);
 
+Yosys::RTLIL::SigSpec const_signal(const std::vector<bool> &vals);
+
 #endif

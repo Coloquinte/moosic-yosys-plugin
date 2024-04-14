@@ -511,6 +511,8 @@ struct LogicLockingPass : public Pass {
 		log("    ll_analyze to compute the security and performance metrics of a solution\n");
 		log("    ll_apply to apply a locking solution to the circuit\n");
 		log("    ll_direct_locking to lock gates directly by names\n");
+		log("    ll_sat_attack to perform Sat attacks against the locked design\n");
+		log("    ll_unlock to remove the locking port from a design\n");
 		log("\n");
 		log("\n");
 	}

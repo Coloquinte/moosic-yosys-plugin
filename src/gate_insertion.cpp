@@ -166,8 +166,26 @@ void mix_gates(Module *module, const std::vector<std::pair<IdString, IdString>> 
 	mix_gates(module, cells, key, key_values);
 }
 
-SigSpec create_countermeasure(Module *mod, SigSpec lock_signal, const std::vector<bool> &lock_key, SigSpec antisat_signal, const std::vector<bool> &antisat_key,
-			      SatCountermeasure antisat_type)
+void replace_port_by_constant(Module *module, const std::string &port_name, std::vector<bool> key)
+{
+	Wire *wire = module->wire(escape_id(port_name));
+	if (GetSize(key) < wire->width) {
+		log_cmd_error("Key size %d is smaller than the port size %d\n", GetSize(key), wire->width);
+	}
+	key.resize(wire->width, false);
+
+	// Reconnect the wire to a constant instead of an input
+	SigSpec cst = const_signal(key);
+	wire->port_input = false;
+	module->fixup_ports();
+	module->connect(wire, cst);
+
+	// Rename the wire so it can be removed by synthesis
+	module->rename(wire, NEW_ID);
+}
+
+SigSpec create_countermeasure(Module *mod, SigSpec lock_signal, const std::vector<bool> &lock_key, SigSpec antisat_signal,
+			      const std::vector<bool> &antisat_key, SatCountermeasure antisat_type)
 {
 	if (antisat_signal.empty()) {
 		return lock_signal;

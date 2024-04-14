@@ -1,15 +1,8 @@
 #include "antisat.hpp"
 
-USING_YOSYS_NAMESPACE
+#include "command_utils.hpp"
 
-SigSpec const_signal(const std::vector<bool> &vals)
-{
-	std::vector<SigBit> bits;
-	for (bool val : vals) {
-		bits.push_back(SigBit(val ? RTLIL::State::S1 : RTLIL::State::S0));
-	}
-	return SigSpec(bits);
-}
+USING_YOSYS_NAMESPACE
 
 /**
  * @brief Split the key in two and Xor it with input wires according to the expected key, before using it in an Antisat-like module
