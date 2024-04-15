@@ -46,6 +46,7 @@ yosys -m moosic
 ```
 
 And in Yosys:
+
 ```sh
 # First synthetize and flatten our design; hierarchical designs are not supported
 synth; flatten
@@ -71,6 +72,7 @@ The module will work as designed only when the correct key is provided as an inp
 To install this plugin
 -   Install [Yosys](https://github.com/YosysHQ/yosys) from source or from [oss-cad-suite](https://github.com/YosysHQ/oss-cad-suite-build) (a recent version is required).
 -   Build and install:
+
 ```sh
 make
 sudo make install
