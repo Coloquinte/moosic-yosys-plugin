@@ -4,7 +4,7 @@ cd benchmarks
 mkdir -p sat_attack
 
 benchmarks="blif/iscas85*.blif blif/iscas89*.blif blif/iscas99*.blif blif/lgsynth91*.blif blif/epfl*.blif blif/mcnc*.blif"
-key=$(printf "7%.0s" {1..500})
+key=$(printf "123456789abcdef%.0s" {1..100})
 time_limit=120
 batch=2
 thresholds="0 0.1"

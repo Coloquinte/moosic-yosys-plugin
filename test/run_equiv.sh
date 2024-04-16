@@ -3,7 +3,7 @@
 cd benchmarks
 mkdir -p run_all scripts
 
-key=$(printf "7%.0s" {1..1000})
+key=$(printf "123456789abcdef%.0s" {1..100})
 
 function run_benchmark() {
 	benchmark=$1
