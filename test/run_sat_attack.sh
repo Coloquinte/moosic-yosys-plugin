@@ -22,16 +22,20 @@ function run_benchmark() {
 
 i=0
 for benchmark in $benchmarks; do
+	name=$(basename "${benchmark}" .blif)
 	for error_threshold in $thresholds; do
 		for antisat in $countermeasures; do
 			for nb_antisat in $nb_antisats; do
 				((i = i % batch))
 				((i++ == 0)) && wait
-				name=$(basename "${benchmark}" .blif)
 				echo "Running benchmark ${name} with sat countermeasure ${antisat} (${nb_antisat}), threshold ${error_threshold}"
 				run_benchmark "${benchmark}" "${error_threshold}" "${nb_antisat}" "${antisat}" &
 			done
 		done
+		((i = i % batch))
+		((i++ == 0)) && wait
+		echo "Running benchmark ${name} with no countermeasure, threshold ${error_threshold}"
+		run_benchmark "${benchmark}" "${error_threshold}" 0 none &
 	done
 done
 wait
