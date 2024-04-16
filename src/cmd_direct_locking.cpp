@@ -29,9 +29,9 @@ struct LogicLockingDirectLockingPass : public Pass {
 			if (arg == "-lock-gate") {
 				if (argidx + 1 >= args.size())
 					break;
-				log("Locking <%s>\n", args[++argidx].c_str());
-				IdString name = RTLIL::escape_id(args[++argidx]);
-				gates_to_lock.push_back(name);
+				std::string name = args[++argidx];
+				log("<%s> will be xored\n", name.c_str());
+				gates_to_lock.emplace_back(name);
 				continue;
 			}
 			if (arg == "-mix-gate") {
@@ -39,6 +39,7 @@ struct LogicLockingDirectLockingPass : public Pass {
 					break;
 				IdString n1 = args[++argidx];
 				IdString n2 = args[++argidx];
+				log("<%s> and <%s> will be mixed\n", n1.c_str(), n2.c_str());
 				gates_to_mix.emplace_back(n1, n2);
 				continue;
 			}
@@ -64,7 +65,9 @@ struct LogicLockingDirectLockingPass : public Pass {
 		if (mod == NULL)
 			return;
 
-		int nb_locked = gates_to_lock.size() + gates_to_mix.size();
+		int nb_xor_gates = gates_to_lock.size();
+		int nb_mux_gates = gates_to_mix.size();
+		int nb_locked = nb_xor_gates + nb_mux_gates;
 		if (nb_locked == 0) {
 			log_warning("Locking solution is empty.");
 			return;
@@ -78,14 +81,13 @@ struct LogicLockingDirectLockingPass : public Pass {
 		log_assert(GetSize(key_values) >= nb_locked);
 		key_values.resize(nb_locked);
 
-		log("Explicit logic locking solution: %zu xor locks and %zu mux locks, key %s\n", gates_to_lock.size(), gates_to_mix.size(),
+		log("Explicit logic locking solution: %d xor locks and %d mux locks, key %s\n", nb_xor_gates, nb_mux_gates,
 		    create_hex_string(key_values).c_str());
 		RTLIL::Wire *w = add_key_input(mod, nb_locked, port_name);
-		int nb_xor_gates = gates_to_lock.size();
 		std::vector<bool> lock_key(key_values.begin(), key_values.begin() + nb_xor_gates);
 		lock_gates(mod, gates_to_lock, SigSpec(w, 0, nb_xor_gates), lock_key);
-		std::vector<bool> mix_key(key_values.begin() + gates_to_lock.size(), key_values.begin() + nb_locked);
-		mix_gates(mod, gates_to_mix, SigSpec(w, nb_xor_gates, nb_locked), mix_key);
+		std::vector<bool> mix_key(key_values.begin() + nb_xor_gates, key_values.begin() + nb_locked);
+		mix_gates(mod, gates_to_mix, SigSpec(w, nb_xor_gates, nb_mux_gates), mix_key);
 	}
 
 	void help() override
