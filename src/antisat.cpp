@@ -124,13 +124,14 @@ Yosys::RTLIL::SigSpec create_skglock(Yosys::RTLIL::Module *module, Yosys::RTLIL:
 
 	std::vector<SigBit> active = create_skglock_switch_controller(module, inputs, key, xoring, skglockplus).bits();
 	if (GetSize(active) > GetSize(lock_signal)) {
-		log_warning("Skglock switch controller generates %d bits, but only %d will be used by the locking\n", GetSize(active),
+		log_warning("Skglock switch controller generates %d bits, but there are only %d signals to lock.\n", GetSize(active),
 			    GetSize(lock_signal));
-		active.resize(GetSize(lock_signal));
+		log_warning("Only the last signals will be used for locking, resulting in less corruption");
+		int nb_removed = GetSize(active) - GetSize(lock_signal);
+		active.erase(active.begin(), active.begin() + nb_removed);
 	}
 	if (GetSize(active) < GetSize(lock_signal)) {
-		log_warning("Skglock switch controller generates only %d bits, padding with 1s to %d for locking\n", GetSize(active),
-			    GetSize(lock_signal));
+		log("Skglock switch controller generates only %d bits, padding with 1s to %d for locking\n", GetSize(active), GetSize(lock_signal));
 		active.resize(GetSize(lock_signal), SigBit(RTLIL::State::S1));
 	}
 
