@@ -91,27 +91,22 @@ struct LogicLockingDirectLockingPass : public Pass {
 	void help() override
 	{
 		log("\n");
-		log("    ll_apply [options]\n");
+		log("    ll_direct_locking [options]\n");
 		log("\n");
-		log("This command applies the logic locking on a design. It is called with the a logic locking\n");
-		log("solution, for example obtained with the ll_explore command, and a key:\n");
+		log("This command applies an explicit logic locking to the design. It allows locking gates by name,\n");
+		log("and support locking using Mux gates:\n");
 		log("\n");
-		log("    -locking <solution>\n");
-		log("        locking solution (hexadecimal string)\n");
+		log("    -lock-gate <gate>\n");
+		log("        gate to lock with a Xor/Xnor gate\n");
+		log("\n");
+		log("    -mix-gate <gate1> <gate2>\n");
+		log("        gates to lock with two Mux/NMux gates\n");
 		log("\n");
 		log("    -key <key>\n");
 		log("        key value (hexadecimal string)\n");
 		log("\n");
 		log("    -port-name <value>\n");
 		log("        name for the key input (default=moosic_key)\n");
-		log("\n");
-		log("These options control analysis of the logic locking solution's security:\n");
-		log("\n");
-		log("    -nb-analysis-keys <value>\n");
-		log("        number of random keys used (default=128)\n");
-		log("\n");
-		log("    -nb-analysis-vectors <value>\n");
-		log("        number of test vectors used (default=1024)\n");
 		log("\n");
 		log("\n");
 		log("\n");
