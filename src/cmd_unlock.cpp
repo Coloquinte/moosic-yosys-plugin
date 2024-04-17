@@ -45,6 +45,8 @@ struct LogicLockingUnlockkPass : public Pass {
 		log("Replacing key port %s by a constant %s\n", port_name.c_str(), create_hex_string(key).c_str());
 
 		RTLIL::Module *mod = single_selected_module(design);
+		if (mod == NULL)
+			return;
 
 		replace_port_by_constant(mod, port_name, key);
 	}

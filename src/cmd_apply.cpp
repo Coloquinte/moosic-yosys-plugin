@@ -63,6 +63,9 @@ struct LogicLockingApplyPass : public Pass {
 		    create_hex_string(key).c_str(), port_name.c_str());
 
 		RTLIL::Module *mod = single_selected_module(design);
+		if (mod == NULL)
+			return;
+
 		std::vector<Cell *> locked_gates = get_locked_cells(mod, solution);
 		RTLIL::Wire *w = add_key_input(mod, locked_gates.size(), port_name);
 		key.erase(key.begin() + locked_gates.size(), key.end());

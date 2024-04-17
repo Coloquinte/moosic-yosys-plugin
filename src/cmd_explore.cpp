@@ -271,6 +271,8 @@ struct LogicLockingExplorePass : public Pass {
 		}
 
 		RTLIL::Module *mod = single_selected_module(design);
+		if (mod == NULL)
+			return;
 
 		// Now execute the optimization itself
 		Optimizer opt(mod, get_lockable_cells(mod), objectives, nbAnalysisVectors / 64, nbAnalysisKeys);

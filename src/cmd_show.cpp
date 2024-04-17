@@ -38,6 +38,9 @@ struct LogicLockingShowPass : public Pass {
 		extra_args(args, argidx, design);
 
 		RTLIL::Module *mod = single_selected_module(design);
+		if (mod == NULL)
+			return;
+
 		std::vector<Cell *> locked_gates = showSol ? get_locked_cells(mod, solution) : get_lockable_cells(mod);
 		std::vector<SigBit> locked_signals = showSol ? get_locked_signals(mod, solution) : get_lockable_signals(mod);
 		log_assert(locked_gates.size() == locked_signals.size());

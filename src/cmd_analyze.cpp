@@ -56,6 +56,9 @@ struct LogicLockingAnalyzePass : public Pass {
 		extra_args(args, argidx, design);
 
 		RTLIL::Module *mod = single_selected_module(design);
+		if (mod == NULL)
+			return;
+
 		std::vector<Cell *> cells = get_locked_cells(mod, solution);
 		report_locking(mod, cells, nbAnalysisKeys, nbAnalysisVectors);
 	}

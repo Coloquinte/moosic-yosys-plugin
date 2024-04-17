@@ -86,8 +86,10 @@ struct LogicLockingSatAttackPass : public Pass {
 		// handle extra options (e.g. selection)
 		extra_args(args, argidx, design);
 
-		RTLIL::Module *mod = single_selected_module(design);
 		std::vector<bool> key_values = parse_hex_string_to_bool(key);
+		RTLIL::Module *mod = single_selected_module(design);
+		if (mod == NULL)
+			return;
 
 		if (nbInitialVectors < 0 || nbDIQueries < 1 || nbTestVectors < 1 || settleThreshold < 1 || errorThreshold < 0.0) {
 			log_cmd_error("Invalid option value.\n");
