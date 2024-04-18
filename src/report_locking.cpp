@@ -44,27 +44,47 @@ void report_timing(RTLIL::Module *module, const std::vector<Cell *> &cells)
 }
 
 /**
- * @brief Report on the actual output corruption on random keys
+ * @brief Helper routine for reporting
  */
-void report_security(RTLIL::Module *module, const std::vector<Cell *> &cells, int nb_analysis_vectors, int nb_analysis_keys)
+void report_security(LogicLockingAnalyzer &pw, LogicLockingKeyStatistics &runner)
 {
-	if (nb_analysis_vectors < 64 || nb_analysis_keys == 0) {
+	if (pw.nb_test_vectors() < 1) {
+		log_warning("Skipping security reporting as the number of test vectors is too low.\n");
 		return;
 	}
-	LogicLockingAnalyzer pw(module);
-	pw.gen_test_vectors(nb_analysis_vectors / 64, 1);
-
-	LogicLockingKeyStatistics runner(cells, nb_analysis_keys);
+	if (runner.nbKeys() == 0) {
+		log_warning("Skipping security reporting as the number of keys is zero.\n");
+		return;
+	}
 	auto stats = runner.runStats(pw);
 	stats.check();
 
-	log("Reporting corruption results over %d outputs, %d random keys and %d test vectors:\n", pw.nb_outputs(), nb_analysis_keys,
-	    nb_analysis_vectors);
+	log("Reporting corruption results over %d outputs, %d random keys and %d test vectors:\n", pw.nb_outputs(), runner.nbKeys(),
+	    pw.nb_test_vectors() * 64);
 	log("\t%.1f%% corruption (per-key dev. ±%.1f%%, %.1f%% to %.1f%%); ideal results are close to 50.0%%\n", stats.corruption(),
 	    stats.corruptionStd(), stats.corruptionMin(), stats.corruptionMax());
 	// TODO: report output corruptibility per key, as ideally a wrong key should impact all outputs
 	log("\t%.1f%% output corruptibility, %.1f%% test corruptibility, %.1f%% corruptibility; ideal result is 100.0%%\n",
 	    stats.outputCorruptibility(), stats.testCorruptibility(), stats.corruptibility());
+}
+
+/**
+ * @brief Report on the actual output corruption on random keys
+ */
+void report_security(RTLIL::Module *module, const std::vector<Cell *> &cells, int nb_analysis_vectors, int nb_analysis_keys)
+{
+	LogicLockingAnalyzer pw(module);
+	pw.gen_test_vectors(nb_analysis_vectors / 64, 1);
+
+	LogicLockingKeyStatistics runner(cells, nb_analysis_keys);
+	report_security(pw, runner);
+}
+
+void report_security(RTLIL::Module *module, const std::string &port_name, const std::vector<bool> &key, int nb_analysis_keys, int nb_analysis_vectors)
+{
+	LogicLockingAnalyzer pw(module);
+	pw.gen_test_vectors(nb_analysis_vectors / 64, 1);
+	// TODO
 }
 
 void report_locking(Yosys::RTLIL::Module *mod, const std::vector<Yosys::RTLIL::Cell *> &cells, int nb_analysis_keys, int nb_analysis_vectors)
