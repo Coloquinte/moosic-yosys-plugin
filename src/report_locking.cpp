@@ -84,7 +84,16 @@ void report_security(RTLIL::Module *module, const std::string &port_name, const 
 {
 	LogicLockingAnalyzer pw(module);
 	pw.gen_test_vectors(nb_analysis_vectors / 64, 1);
+
+	// Set the test vectors for the port to the key value
 	// TODO
+
+	// Create a runner targeting these inputs
+	Wire *w = module->wire(Yosys::RTLIL::escape_id(port_name));
+	std::vector<SigBit> sigs = SigSpec(w).to_sigbit_vector();
+	LogicLockingKeyStatistics runner(sigs, nb_analysis_keys);
+
+	report_security(pw, runner);
 }
 
 void report_locking(Yosys::RTLIL::Module *mod, const std::vector<Yosys::RTLIL::Cell *> &cells, int nb_analysis_keys, int nb_analysis_vectors)
