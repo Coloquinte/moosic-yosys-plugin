@@ -50,6 +50,11 @@ std::vector<Yosys::RTLIL::SigBit> get_locked_signals(Yosys::RTLIL::Module *mod, 
 void report_locking(Yosys::RTLIL::Module *mod, const std::vector<Yosys::RTLIL::Cell *> &cells, int nb_analysis_keys, int nb_analysis_vectors);
 
 /**
+ * @brief Report security of an already locked module
+ */
+void report_security(Yosys::RTLIL::Module *mod, const std::string &port_name, std::vector<bool> key, int nb_analysis_keys, int nb_analysis_vectors);
+
+/**
  * @brief Export a boolean vector as an hexadecimal string
  */
 std::string create_hex_string(const std::vector<bool> &vec);

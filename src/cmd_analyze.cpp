@@ -20,6 +20,8 @@ struct LogicLockingAnalyzePass : public Pass {
 		int nbAnalysisVectors = 1024;
 
 		std::vector<int> solution;
+		std::vector<bool> key;
+		std::string port_name = "moosic_key";
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
@@ -49,6 +51,18 @@ struct LogicLockingAnalyzePass : public Pass {
 				solution = parse_hex_string_to_sol(val);
 				continue;
 			}
+			if (arg == "-key") {
+				if (argidx + 1 >= args.size())
+					break;
+				key = parse_hex_string_to_bool(args[++argidx]);
+				continue;
+			}
+			if (arg == "-port-name") {
+				if (argidx + 1 >= args.size())
+					break;
+				port_name = args[++argidx];
+				continue;
+			}
 			break;
 		}
 
@@ -59,8 +73,15 @@ struct LogicLockingAnalyzePass : public Pass {
 		if (mod == NULL)
 			return;
 
-		std::vector<Cell *> cells = get_locked_cells(mod, solution);
-		report_locking(mod, cells, nbAnalysisKeys, nbAnalysisVectors);
+		if (key.empty()) {
+			std::vector<Cell *> cells = get_locked_cells(mod, solution);
+			report_locking(mod, cells, nbAnalysisKeys, nbAnalysisVectors);
+		} else if (solution.empty()) {
+			report_security(mod, port_name, key, nbAnalysisKeys, nbAnalysisVectors);
+		} else {
+			log_cmd_error("The command requires a locking solution (for a module that is not locked yet) or a key and a port (for a "
+				      "locked module).\n");
+		}
 	}
 
 	void help() override
@@ -68,12 +89,21 @@ struct LogicLockingAnalyzePass : public Pass {
 		log("\n");
 		log("    ll_analyze  [options]\n");
 		log("\n");
-		log("This command analyzes the logic locking of a design. It is called with a logic locking\n");
-		log("solution, for example obtained with the ll_explore command:\n");
+		log("This command analyzes the logic locking of a design. It is called with a locked design, or\n");
+		log("a logic locking solution obtained with the ll_explore command:\n");
+		log("\n");
+		log("    -key <value>\n");
+		log("        locking key (hexadecimal) for an already locked design\n");
+		log("\n");
 		log("    -locking <solution>\n");
-		log("        locking solution (hexadecimal string)\n");
+		log("        locking solution (hexadecimal) for a design with no locking instanciated\n");
+		log("\n");
+		log("    -port-name <value>\n");
+		log("        name of the key input for an already locked design (default=moosic_key)\n");
+		log("\n");
 		log("    -nb-analysis-keys <value>\n");
 		log("        number of random keys used (default=128)\n");
+		log("\n");
 		log("    -nb-analysis-vectors <value>\n");
 		log("        number of test vectors used (default=1024)\n");
 		log("\n");
