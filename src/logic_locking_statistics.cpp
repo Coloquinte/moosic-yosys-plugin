@@ -179,11 +179,22 @@ double LogicLockingStatistics::corruptionStd() const
 
 LogicLockingKeyStatistics::LogicLockingKeyStatistics(const std::vector<Cell *> &lockable_cells, int nbKeys)
 {
-	std::mt19937 rgen(1);
-	std::bernoulli_distribution dist;
 	for (Cell *c : lockable_cells) {
 		signals_.push_back(get_output_signal(c));
 	}
+	init(nbKeys);
+}
+
+LogicLockingKeyStatistics::LogicLockingKeyStatistics(const std::vector<SigBit> &lockable_signals, int nbKeys)
+{
+	signals_ = lockable_signals;
+	init(nbKeys);
+}
+
+void LogicLockingKeyStatistics::init(int nbKeys)
+{
+	std::mt19937 rgen(1);
+	std::bernoulli_distribution dist;
 	for (int i = 0; i < nbKeys; ++i) {
 		std::vector<bool> key;
 		for (int j = 0; j < nbNodes(); ++j) {

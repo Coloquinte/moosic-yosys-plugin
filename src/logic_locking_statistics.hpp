@@ -125,12 +125,16 @@ class LogicLockingKeyStatistics
 {
       public:
 	LogicLockingKeyStatistics(const std::vector<Cell *> &lockable_cells, int nbKeys);
+	LogicLockingKeyStatistics(const std::vector<SigBit> &lockable_signals, int nbKeys);
 
 	int nbNodes() const { return signals_.size(); }
 	int nbKeys() const { return keys_.size(); }
 
 	LogicLockingStatistics runStats(LogicLockingAnalyzer &pw);
 	LogicLockingStatistics runStats(LogicLockingAnalyzer &pw, const std::vector<int> &solution);
+
+      private:
+	void init(int nbKeys);
 
       private:
 	/// All the keys, so it's all reproducible
