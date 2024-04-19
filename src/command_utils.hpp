@@ -52,7 +52,7 @@ void report_locking(Yosys::RTLIL::Module *mod, const std::vector<Yosys::RTLIL::C
 /**
  * @brief Report security of an already locked module
  */
-void report_security(Yosys::RTLIL::Module *mod, const std::string &port_name, const std::vector<bool> &key, int nb_analysis_keys, int nb_analysis_vectors);
+void report_security(Yosys::RTLIL::Module *mod, const std::string &port_name, std::vector<bool> key, int nb_analysis_keys, int nb_analysis_vectors);
 
 /**
  * @brief Export a boolean vector as an hexadecimal string

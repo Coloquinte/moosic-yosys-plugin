@@ -123,10 +123,29 @@ void LogicLockingAnalyzer::gen_test_vectors(int nb, size_t seed)
 	test_vectors_.clear();
 	for (int i = 0; i < nb; ++i) {
 		std::vector<std::uint64_t> tv;
-		for (size_t j = 0; j < comb_inputs_.size(); ++j) {
+		for (int j = 0; j < nb_inputs(); ++j) {
 			tv.push_back(dist(rgen));
 		}
 		test_vectors_.push_back(tv);
+	}
+}
+
+void LogicLockingAnalyzer::set_input_values(const std::vector<SigBit> &inputs, const std::vector<bool> &values)
+{
+	log_assert(GetSize(inputs) == GetSize(values));
+	dict<SigBit, bool> set_values;
+	for (int i = 0; i < GetSize(inputs); ++i) {
+		set_values[inputs[i]] = values[i];
+	}
+
+	int i = 0;
+	for (SigBit bit : comb_inputs_) {
+		if (set_values.count(bit)) {
+			for (int t = 0; t < nb_test_vectors(); ++t) {
+				test_vectors_[t][i] = set_values.at(bit) ? -1 : 0;
+			}
+		}
+		++i;
 	}
 }
 

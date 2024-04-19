@@ -232,6 +232,13 @@ class LogicLockingAnalyzer
 	std::vector<double> compute_KIP(const std::vector<Cell *> &cells);
 
 	/**
+	 * @brief Set the specified inputs to be the given constants on all test vectors
+	 *
+	 * Used to set the key in a locked module
+	 */
+	void set_input_values(const std::vector<SigBit> &inputs, const std::vector<bool> &values);
+
+	/**
 	 * @brief Direct access to the internal Aig
 	 */
 	const MiniAIG &aig() const { return aig_; }

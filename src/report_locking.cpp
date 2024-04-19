@@ -80,17 +80,26 @@ void report_security(RTLIL::Module *module, const std::vector<Cell *> &cells, in
 	report_security(pw, runner);
 }
 
-void report_security(RTLIL::Module *module, const std::string &port_name, const std::vector<bool> &key, int nb_analysis_keys, int nb_analysis_vectors)
+void report_security(RTLIL::Module *module, const std::string &port_name, std::vector<bool> key, int nb_analysis_keys, int nb_analysis_vectors)
 {
+	Wire *w = module->wire(Yosys::RTLIL::escape_id(port_name));
+	if (w == nullptr) {
+		log_cmd_error("Port %s not found in module\n", port_name.c_str());
+	}
+
+	std::vector<SigBit> sigs = SigSpec(w).to_sigbit_vector();
+	if (GetSize(sigs) > GetSize(sigs)) {
+		log_cmd_error("Key size is too small compared to the port: %d vs %d\n", GetSize(key), GetSize(sigs));
+	}
+	key.resize(sigs.size(), false);
+
 	LogicLockingAnalyzer pw(module);
 	pw.gen_test_vectors(nb_analysis_vectors / 64, 1);
 
 	// Set the test vectors for the port to the key value
-	// TODO
+	pw.set_input_values(sigs, key);
 
 	// Create a runner targeting these inputs
-	Wire *w = module->wire(Yosys::RTLIL::escape_id(port_name));
-	std::vector<SigBit> sigs = SigSpec(w).to_sigbit_vector();
 	LogicLockingKeyStatistics runner(sigs, nb_analysis_keys);
 
 	report_security(pw, runner);

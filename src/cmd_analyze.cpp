@@ -77,7 +77,7 @@ struct LogicLockingAnalyzePass : public Pass {
 			std::vector<Cell *> cells = get_locked_cells(mod, solution);
 			report_locking(mod, cells, nbAnalysisKeys, nbAnalysisVectors);
 		} else if (solution.empty()) {
-
+			report_security(mod, port_name, key, nbAnalysisKeys, nbAnalysisVectors);
 		} else {
 			log_cmd_error("The command requires a locking solution (for a module that is not locked yet) or a key and a port (for a "
 				      "locked module).\n");
