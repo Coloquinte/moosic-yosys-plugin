@@ -23,7 +23,9 @@ jobs:
         submodules: recursive
 
     - name: Install dependencies
-      run: sudo apt-get install tcl-dev libreadline-dev libffi-dev pkg-config python3 libboost-system-dev libboost-python-dev libboost-filesystem-dev zlib1g-dev xz-utils valgrind
+      uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: tcl-dev libreadline-dev libffi-dev pkg-config python3 libboost-system-dev libboost-python-dev libboost-filesystem-dev zlib1g-dev xz-utils valgrind
 
     - name: Setup ccache
       uses: hendrikmuhs/ccache-action@v1.2
