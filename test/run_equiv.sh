@@ -1,4 +1,5 @@
 #!/bin/bash
+# Check that adding logic locking then setting the key keeps the design equivalent
 
 cd benchmarks
 mkdir -p run_all scripts

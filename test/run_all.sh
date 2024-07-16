@@ -1,4 +1,5 @@
 #!/bin/bash
+# Run all benchmarks and check that there is no crash
 
 set -e
 

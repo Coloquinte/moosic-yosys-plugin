@@ -1,4 +1,5 @@
 #!/bin/bash
+# Run the benchmarks to obtain quality results
 
 dirs="logs scripts estimate full area delay area_approx delay_approx area_corr delay_corr area_pairwise delay_pairwise"
 
@@ -17,7 +18,7 @@ function run_benchmark() {
 	echo "read_blif -sop ${benchmark}" >"${script_file}"
 	echo "flatten; synth" >>"${script_file}"
 	# Full Pareto front
-	echo "ll_explore -area -delay -corruptibility -test-corruptibility -output-corruptibility -iter-limit ${iter_limit} -time-limit ${time_limit} -output full/${name}.csv" >>"${script_file}"
+	# echo "ll_explore -area -delay -corruptibility -test-corruptibility -output-corruptibility -iter-limit ${iter_limit} -time-limit ${time_limit} -output full/${name}.csv" >>"${script_file}"
 	# Comparison between estimates
 	echo "ll_explore -area -corruptibility -compare-estimate -iter-limit ${iter_limit} -time-limit ${time_limit} -output estimate/${name}.csv" >>"${script_file}"
 	# Area/corruptibility
