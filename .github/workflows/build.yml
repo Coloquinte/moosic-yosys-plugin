@@ -32,7 +32,7 @@ jobs:
 
     - name: Install yosys
       run: |
-        git clone https://github.com/YosysHQ/yosys; \
+        git clone https://github.com/YosysHQ/yosys --recurse-submodules; \
         cd yosys; make config-${{ matrix.compiler }}; \
         make -j2 ENABLE_CCACHE=1 ${{ matrix.mode == 'Release' && 'ENABLE_NDEBUG=1' || '' }}; \
         sudo make install; cd ..
