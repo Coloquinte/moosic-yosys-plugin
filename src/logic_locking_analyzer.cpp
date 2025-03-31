@@ -514,11 +514,11 @@ RTLIL::Const LogicLockingAnalyzer::get_state(SigSpec sig)
 
 	for (auto bit : sig)
 		if (bit.wire == nullptr)
-			value.bits.push_back(bit.data);
+			value.bits().push_back(bit.data);
 		else if (state_.count(bit))
-			value.bits.push_back(state_.at(bit));
+			value.bits().push_back(state_.at(bit));
 		else
-			value.bits.push_back(State::Sz);
+			value.bits().push_back(State::Sz);
 
 	return value;
 }
