@@ -30,7 +30,7 @@ LD_FLAGS ?=
 # Default command substitution for yosys
 DESTDIR ?= $(shell yosys-config --datdir)
 CXX := $(shell yosys-config --cxx)
-YOSYS_LD_FLAGS := $(shell yosys-config --ldflags --ldlibs) -lboost_system -lboost_filesystem
+YOSYS_LD_FLAGS := $(shell yosys-config --ldflags --ldlibs)
 YOSYS_CXX_FLAGS := $(shell yosys-config --cxxflags)
 
 # Features

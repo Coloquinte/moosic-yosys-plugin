@@ -7,8 +7,6 @@
 #include "kernel/sigtools.h"
 #include "kernel/yosys.h"
 
-#include <boost/filesystem.hpp>
-
 #include "antisat.hpp"
 #include "command_utils.hpp"
 #include "gate_insertion.hpp"
